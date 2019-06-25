@@ -10,6 +10,15 @@ import sys
 import re
 import os
 
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
 def server(args):
     httpd = HTTPServer(('localhost', args.port), RequestHandler)
     httpd.serve_forever()
@@ -59,14 +68,15 @@ def cli(args):
             print ("Server returned: "+fetch_data(args))
         elif c == "delete":
             try:
-                os.unlink(args.path)
+                os.unlink(os.path.join(args.path,'status'))
                 print ("File deleted")
             except:
                 print ("Error deleting file")
         elif re.match('save ',c):
             contents = c[5:]
             try:
-                with open(args.path,'w') as f:
+                mkdir_p(args.path)
+                with open(os.path.join(args.path,'status'),'w') as f:
                     f.write(contents+'\n')
                 print ("File saved")
             except:
@@ -81,7 +91,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         l = ''
         try:
-            with open(args.path) as f:
+            with open(os.path.join(args.path,'status')) as f:
                 d = f.read().strip()
         except:
             d = "Error reading file"
@@ -90,7 +100,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 parser = argparse.ArgumentParser()
 parser.add_argument('--verbose', '-v', action='count')
 parser.add_argument('--port', '-p', type=int, help='port to use', default='8765')
-parser.add_argument('--path', '-P', help='path to file', default='/tmp/kbx-hello.txt')
+parser.add_argument('--path', '-P', help='path to shared dir', default='/var/tmp/kbx-hello')
 
 subparsers = parser.add_subparsers(help='action to perform', dest='action')
 subparsers.required = True
