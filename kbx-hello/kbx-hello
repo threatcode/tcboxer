@@ -5,6 +5,10 @@ import argparse
 import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.request
+from prompt_toolkit import prompt
+import sys
+import re
+import os
 
 def server(args):
     httpd = HTTPServer(('localhost', args.port), RequestHandler)
@@ -43,19 +47,44 @@ def gui(args):
     response = h.run()
 
 def cli(args):
-    print (fetch_data(args))
-
-def clisave(args):
-    print ("clisave")
-
-def cliload(args):
-    print ("cliload")
+    c = ""
+    while c != "exit":
+        try:
+            c = prompt("fetch | save <value> | delete ? ")
+            if c == "exit":
+                sys.exit()
+        except EOFError:
+            sys.exit()
+        if c == "fetch":
+            print ("Server returned: "+fetch_data(args))
+        elif c == "delete":
+            try:
+                os.unlink(args.path)
+                print ("File deleted")
+            except:
+                print ("Error deleting file")
+        elif re.match('save ',c):
+            contents = c[5:]
+            try:
+                with open(args.path,'w') as f:
+                    f.write(contents+'\n')
+                print ("File saved")
+            except:
+                print ("Error saving file")
+        else:
+            print ("What?")
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        global args
         self.send_response(200)
         self.end_headers()
-        d = datetime.datetime.now()
+        l = ''
+        try:
+            with open(args.path) as f:
+                d = f.read().strip()
+        except:
+            d = "Error reading file"
         self.wfile.write(bytes(str(d),'utf-8'))
 
 parser = argparse.ArgumentParser()
