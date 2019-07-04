@@ -5,7 +5,6 @@ import argparse
 import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.request
-from prompt_toolkit import prompt
 import sys
 import re
 import os
@@ -20,12 +19,27 @@ def mkdir_p(path):
         else:
             raise
 
+
 def server(args):
-    httpd = HTTPServer(('localhost', args.port), RequestHandler)
-    httpd.serve_forever()
+    from flask import Flask
+    import socket
+
+    app = Flask(__name__)
+
+    @app.route("/")
+    def handle_request():
+        l = ''
+        try:
+            with open(os.path.join(args.path,'status')) as f:
+                d = f.read().strip()
+        except:
+            d = "Error reading file"
+        return d
+
+    app.run(host='0.0.0.0', port=args.port)
 
 def fetch_data(args):
-    req = urllib.request.urlopen('http://localhost:'+str(args.port))
+    req = urllib.request.urlopen('http://'+str(args.host)+':'+str(args.port))
     data = req.read().decode('utf-8')
     return data
 
@@ -77,6 +91,7 @@ def gui(args):
     response = h.run()
 
 def cli(args):
+    from prompt_toolkit import prompt
     c = ""
     while c != "exit":
         try:
@@ -108,6 +123,7 @@ def cli(args):
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global args
+        print ("Received request")
         self.send_response(200)
         self.end_headers()
         l = ''
@@ -121,15 +137,17 @@ class RequestHandler(BaseHTTPRequestHandler):
 parser = argparse.ArgumentParser()
 parser.add_argument('--verbose', '-v', action='count')
 parser.add_argument('--port', '-p', type=int, help='port to use', default='8765')
-parser.add_argument('--path', '-P', help='path to shared dir', default='/var/tmp/kbx-hello')
+parser.add_argument('--path', '-P', help='path to shared dir', default='/var/lib/kbx-hello')
 
 subparsers = parser.add_subparsers(help='action to perform', dest='action')
 subparsers.required = True
 parser_server = subparsers.add_parser('server', help='run as server')
 parser_server.set_defaults(func=server)
 parser_gui = subparsers.add_parser('gui', help='GUI client')
+parser_gui.add_argument('--host', help='server hostname', default='kbx-hello-server')
 parser_gui.set_defaults(func=gui)
 parser_cli = subparsers.add_parser('cli', help='CLI client')
+parser_cli.add_argument('--host', help='server hostname', default='kbx-hello-server')
 parser_cli.set_defaults(func=cli)
 
 args = parser.parse_args()

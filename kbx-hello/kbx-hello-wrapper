@@ -1,0 +1,22 @@
+#! /bin/sh
+
+netname=kbx-net
+port=8765
+
+if ! docker network ls | grep -q $netname ; then
+    docker network --driver bridge $netname
+fi
+
+component=$1
+
+case $component in
+    server)
+	docker run --publish $port:$port --network $netname --name kbx-hello-server --mount source=kbx-hello,target=/var/lib/kbx-hello kbx-hello-server
+	;;
+    cli)
+	docker run --network $netname --tty --interactive --name kbx-hello-cli --mount source=kbx-hello,target=/var/lib/kbx-hello kbx-hello-cli
+	;;
+    gui)
+	;;
+    *)
+esac
