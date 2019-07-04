@@ -9,12 +9,14 @@ fi
 
 component=$1
 
+common_opts="--network $netname --rm --mount source=kbx-hello,target=/var/lib/kbx-hello"
+
 case $component in
     server)
-	docker run --publish $port:$port --network $netname --name kbx-hello-server --mount source=kbx-hello,target=/var/lib/kbx-hello kbx-hello-server
+	docker run $common_opts --publish $port:$port --name kbx-hello-server kbx-hello-server
 	;;
     cli)
-	docker run --network $netname --tty --interactive --name kbx-hello-cli --mount source=kbx-hello,target=/var/lib/kbx-hello kbx-hello-cli
+	docker run $common_opts --tty --interactive --name kbx-hello-cli kbx-hello-cli
 	;;
     gui)
 	;;
