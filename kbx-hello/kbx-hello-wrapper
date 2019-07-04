@@ -13,12 +13,19 @@ common_opts="--network $netname --rm --mount source=kbx-hello,target=/var/lib/kb
 
 case $component in
     server)
-	docker run $common_opts --publish $port:$port --name kbx-hello-server kbx-hello-server
+	# Make service available outside container?
+	# opts="$opts --publish $port:$port"
+	docker run $common_opts $opts --name kbx-hello-server kbx-hello-server
 	;;
     cli)
-	docker run $common_opts --tty --interactive --name kbx-hello-cli kbx-hello-cli
+	docker run $common_opts --tty --interactive kbx-hello-cli --host kbx-hello-server
 	;;
     gui)
+	dispnum=$(echo $DISPLAY | cut -d: -f2 | cut -d. -f1)
+	docker run $common_opts --env=DISPLAY --volume="$HOME/.Xauthority:/root/.Xauthority:rw" --volume="/tmp/.X11-unix/X$dispnum:/tmp/.X11-unix/X$dispnum:rw" kbx-hello-gui --host kbx-hello-server
 	;;
     *)
+	echo "Unknown component"
+	exit 1
+	;;
 esac

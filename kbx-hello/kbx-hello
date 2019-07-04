@@ -144,10 +144,10 @@ subparsers.required = True
 parser_server = subparsers.add_parser('server', help='run as server')
 parser_server.set_defaults(func=server)
 parser_gui = subparsers.add_parser('gui', help='GUI client')
-parser_gui.add_argument('--host', help='server hostname', default='kbx-hello-server')
+parser_gui.add_argument('--host', help='server hostname', default='localhost')
 parser_gui.set_defaults(func=gui)
 parser_cli = subparsers.add_parser('cli', help='CLI client')
-parser_cli.add_argument('--host', help='server hostname', default='kbx-hello-server')
+parser_cli.add_argument('--host', help='server hostname', default='localhost')
 parser_cli.set_defaults(func=cli)
 
 args = parser.parse_args()
