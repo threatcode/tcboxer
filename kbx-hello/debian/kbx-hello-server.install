@@ -1,3 +1,2 @@
-kbx-hello /usr/src/kbx-hello-server
-kbx-hello-wrapper /usr/src/kbx-hello-server
-Dockerfile.kbx-hello-server /usr/src/kbx-hello-server
+kbx-hello /usr/src/kaboxer/kbx-hello-server
+kbx-hello-wrapper /usr/src/kaboxer/kbx-hello-server

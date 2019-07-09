@@ -1,6 +1,6 @@
 case "$1" in
     configure)
-	cd /usr/src/kbx-hello-server
-	docker build -f "Dockerfile.#PACKAGE#" --tag "#PACKAGE#" .
+	cd "/usr/src/kaboxer/#PACKAGE#"
+	docker build --tag "#PACKAGE#" .
     ;;
 esac
