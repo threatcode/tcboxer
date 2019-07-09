@@ -1,0 +1,3 @@
+kbx-hello /usr/src/kbx-hello-cli
+kbx-hello-wrapper /usr/src/kbx-hello-cli
+Dockerfile.kbx-hello-cli /usr/src/kbx-hello-cli

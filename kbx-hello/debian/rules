@@ -15,7 +15,7 @@
 
 
 %:
-	dh $@
+	dh $@ --with=kaboxer
 
 
 # dh_make generated override targets

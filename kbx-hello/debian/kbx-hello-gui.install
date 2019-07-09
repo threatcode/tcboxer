@@ -1,0 +1,3 @@
+kbx-hello /usr/src/kbx-hello-gui
+kbx-hello-wrapper /usr/src/kbx-hello-gui
+Dockerfile.kbx-hello-gui /usr/src/kbx-hello-gui
