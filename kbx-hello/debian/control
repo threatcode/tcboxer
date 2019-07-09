@@ -1,27 +1,40 @@
 Source: kbx-hello
-Section: unknown
+Section: devel
 Priority: optional
 Maintainer: Roland Mas <lolando@debian.org>
 Build-Depends: debhelper (>= 9)
 Standards-Version: 3.9.8
-Homepage: <insert the upstream URL, if relevant>
-#Vcs-Git: https://anonscm.debian.org/collab-maint/kbx-hello.git
-#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/kbx-hello.git
 
 Package: kbx-hello-server
 Architecture: all
 Depends: ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Demonstrator for kaboxer (server part)
+ kaboxer is a framework for deploying applications that are hard to
+ package properly.
+ .
+ kbx-hello is a sample app that uses the kaboxer framework.
+ .
+ This package contains the server part.
 
 Package: kbx-hello-cli
 Architecture: all
 Depends: ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Demonstrator for kaboxer (CLI part)
+ kaboxer is a framework for deploying applications that are hard to
+ package properly.
+ .
+ kbx-hello is a sample app that uses the kaboxer framework.
+ .
+ This package contains the command-line client.
 
 Package: kbx-hello-gui
 Architecture: all
 Depends: ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Demonstrator for kaboxer (GUI part)
+ kaboxer is a framework for deploying applications that are hard to
+ package properly.
+ .
+ kbx-hello is a sample app that uses the kaboxer framework.
+ .
+ This package contains the graphical client.
+
