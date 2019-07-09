@@ -13,6 +13,7 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   my $tmp = tmpdir($package);
   install_dir("$tmp/usr/src/kaboxer/$package");
   install_file("debian/$package.Dockerfile", "$tmp/usr/src/kaboxer/$package/Dockerfile");
+  addsubstvar($package, 'misc:Depends', 'docker.io');
 }
 
 __END__

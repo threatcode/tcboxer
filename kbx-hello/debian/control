@@ -10,18 +10,18 @@ Homepage: <insert the upstream URL, if relevant>
 
 Package: kbx-hello-server
 Architecture: all
-Depends: ${misc:Depends}, docker.io
+Depends: ${misc:Depends}
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
 
 Package: kbx-hello-cli
 Architecture: all
-Depends: ${misc:Depends}, docker.io
+Depends: ${misc:Depends}
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
 
 Package: kbx-hello-gui
 Architecture: all
-Depends: ${misc:Depends}, docker.io
+Depends: ${misc:Depends}
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
