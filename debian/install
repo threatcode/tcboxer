@@ -1,0 +1,4 @@
+dh-kaboxer/dh_kaboxer /usr/bin
+dh-kaboxer/kaboxer.pm /usr/share/perl5/Debian/Debhelper/Sequence
+dh-kaboxer/postinst-kaboxer /usr/share/debhelper/autoscripts
+dh-kaboxer/postrm-kaboxer /usr/share/debhelper/autoscripts
