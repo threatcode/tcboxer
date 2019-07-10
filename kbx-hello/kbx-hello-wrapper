@@ -45,6 +45,8 @@ case $component in
     gui)
 	dispnum=$(echo $DISPLAY | cut -d: -f2 | cut -d. -f1)
 	xhost +si:localuser:root
+	# the --volume="$userhome/.Xauthority:/root/.Xauthority:rw" part seems unneeded with the xhost hack
+	# TODO: find out how to avoid that hack
 	docker run $common_opts --env=DISPLAY --volume="$userhome/.Xauthority:/root/.Xauthority:rw" --volume="/tmp/.X11-unix/X$dispnum:/tmp/.X11-unix/X$dispnum:rw" kbx-hello-gui --host kbx-hello-server
 	;;
     *)
