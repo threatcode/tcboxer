@@ -44,7 +44,7 @@ case $component in
 	;;
     gui)
 	dispnum=$(echo $DISPLAY | cut -d: -f2 | cut -d. -f1)
-	xhost +local:
+	xhost +si:localuser:root
 	docker run $common_opts --env=DISPLAY --volume="$userhome/.Xauthority:/root/.Xauthority:rw" --volume="/tmp/.X11-unix/X$dispnum:/tmp/.X11-unix/X$dispnum:rw" kbx-hello-gui --host kbx-hello-server
 	;;
     *)
