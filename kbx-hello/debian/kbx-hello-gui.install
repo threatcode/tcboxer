@@ -3,3 +3,4 @@
 kbx-hello /usr/src/kaboxer/kbx-hello-gui
 kbx-hello-wrapper => /usr/bin/kbx-hello-gui
 kbx-hello-gui.desktop /usr/share/applications
+debian/kbx-hello-gui.sudoers => /etc/sudoers.d/kbx-hello-gui

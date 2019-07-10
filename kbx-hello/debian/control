@@ -18,7 +18,7 @@ Description: Demonstrator for kaboxer (server part)
 
 Package: kbx-hello-cli
 Architecture: all
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, sudo
 Description: Demonstrator for kaboxer (CLI part)
  kaboxer is a framework for deploying applications that are hard to
  package properly.
@@ -29,7 +29,7 @@ Description: Demonstrator for kaboxer (CLI part)
 
 Package: kbx-hello-gui
 Architecture: all
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, sudo
 Description: Demonstrator for kaboxer (GUI part)
  kaboxer is a framework for deploying applications that are hard to
  package properly.
