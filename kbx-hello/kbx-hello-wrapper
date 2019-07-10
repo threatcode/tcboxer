@@ -1,5 +1,14 @@
 #! /bin/sh
 
+arg0=$(basename "$0")
+case "$arg0" in
+    kbx-hello-*)
+	component=${arg0#kbx-hello-}
+	;;
+    *)
+	component=$1
+esac
+
 netname=kbx-net
 port=8765
 
@@ -7,15 +16,13 @@ if ! docker network ls | grep -q $netname ; then
     docker network --driver bridge $netname
 fi
 
-component=$1
-
 common_opts="--network $netname --rm --mount source=kbx-hello,target=/var/lib/kbx-hello"
 
 case $component in
     server)
 	# Make service available outside container?
 	# opts="$opts --publish $port:$port"
-	docker run $common_opts $opts --name kbx-hello-server kbx-hello-server
+	docker run $common_opts $opts --name kbx-hello-server --tty kbx-hello-server
 	;;
     cli)
 	docker run $common_opts --tty --interactive kbx-hello-cli --host kbx-hello-server

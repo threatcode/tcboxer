@@ -1,2 +1,5 @@
+#! /usr/bin/dh-exec
+
 kbx-hello /usr/src/kaboxer/kbx-hello-gui
-kbx-hello-wrapper /usr/src/kaboxer/kbx-hello-gui
+kbx-hello-wrapper => /usr/bin/kbx-hello-gui
+kbx-hello-gui.desktop /usr/share/applications

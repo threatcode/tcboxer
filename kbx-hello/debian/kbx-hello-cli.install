@@ -1,2 +1,5 @@
+#! /usr/bin/dh-exec
+
 kbx-hello /usr/src/kaboxer/kbx-hello-cli
-kbx-hello-wrapper /usr/src/kaboxer/kbx-hello-cli
+kbx-hello-wrapper => /usr/bin/kbx-hello-cli
+kbx-hello-cli.desktop /usr/share/applications

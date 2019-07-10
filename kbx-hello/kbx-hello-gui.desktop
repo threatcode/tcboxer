@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=kbx-hello-gui
+GenericName=Hello World app for kaboxer (graphical client)
+Exec=kbx-hello-gui
+Terminal=false
+Type=Application
+Categories=Development
