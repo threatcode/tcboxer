@@ -2,17 +2,9 @@
 
 set -x
 
-u=$(id -un)
-
-if [ "$u" != 'root' ] ; then
-    exec sudo "$0" --from $u "$@"
-fi
-
-if [ "$1" = --from ] ; then
-    shift
-    user=$1
-    shift
-    userhome=$(getent passwd $user | cut -d: -f6)
+if ! docker container list > /dev/null 2> /dev/null ; then
+    echo "No access to Docker, are you a member of group docker?"
+    exit 1
 fi
 
 arg0=$(basename "$0")
@@ -44,7 +36,7 @@ case $component in
 	;;
     gui)
 	XSOCK=/tmp/.X11-unix
-	XAUTH=$userhome/.docker.xauth
+	XAUTH=$HOME/.docker.xauth
 	xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
 	docker run $common_opts --env=DISPLAY --env XAUTHORITY=$XAUTH --volume="$XAUTH:$XAUTH" --volume="$XSOCK:$XSOCK" kbx-hello-gui --host kbx-hello-server
 	;;
