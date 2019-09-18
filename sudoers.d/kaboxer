@@ -1,1 +1,1 @@
-%kaboxer ALL=(:docker)NOPASSWD: /usr/bin/kaboxer
+%kaboxer ALL=(:docker)NOPASSWD: /usr/bin/kaboxer-docker
