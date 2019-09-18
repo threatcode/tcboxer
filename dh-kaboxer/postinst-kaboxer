@@ -1,6 +1,5 @@
 case "$1" in
     configure)
-	cd "/usr/src/kaboxer/#PACKAGE#"
-	docker build --tag "#PACKAGE#" .
+	kaboxer build #PACKAGE#
     ;;
 esac
