@@ -10,6 +10,6 @@ Homepage: https://gitlab.com/kalilinux/tools/kaboxer
 
 Package: kaboxer
 Architecture: all
-Depends: ${misc:Depends}, confget, libfile-copy-recursive-perl
+Depends: ${misc:Depends}, confget, libfile-copy-recursive-perl, sudo
 Description: Kali Application Boxer
  A framework for deploying applications to run in containers

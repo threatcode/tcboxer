@@ -3,17 +3,13 @@
 set -x
 set -e
 
-u=$(id -un)
-
-if [ "$u" != 'root' ] ; then
-    exec sudo "$0" --from $u "$@"
-fi
-
-if [ "$1" = --from ] ; then
-    shift
-    user=$1
-    shift
-    userhome=$(getent passwd $user | cut -d: -f6)
+if ! docker container list > /dev/null 2> /dev/null ; then
+    if id -Gnz|xargs -0 -n1|grep -q '^kaboxer$' ; then
+	exec sudo -g docker "$0" "$@"
+    else
+	echo "No access to Docker, are you a member of group docker or kaboxer?"
+	exit 1
+    fi
 fi
 
 cmd="$1"
