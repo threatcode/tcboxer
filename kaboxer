@@ -3,93 +3,17 @@
 set -x
 set -e
 
-if ! docker container list > /dev/null 2> /dev/null ; then
-    if id -Gnz|xargs -0 -n1|grep -q '^kaboxer$' ; then
-	exec sudo -g docker "$0" "$@"
-    else
-	echo "No access to Docker, are you a member of group docker or kaboxer?"
-	exit 1
-    fi
-fi
-
 cmd="$1"
 app="$2"
-executable="$3"
 ini="/etc/kaboxer/$app.Kaboxerfile"
 container_type=$(confget -f "$ini" container_type)
 container_type=${container_type:-docker}
 
 case $container_type in
     docker)
+	exec kaboxer-$container_type "$@"
 	;;
     *)
 	echo "Unsupported container type $container_type"
 	exit 1
-esac
-
-case "$cmd" in
-    run)
-	opts="--rm"
-	netname=$(confget -f "$ini" netname)
-	if [ "$netname" != "" ] ; then
-	    if ! docker network ls | grep -q $netname ; then
-		docker network create --driver bridge $netname
-	    fi
-	    opts="$opts --network $netname"
-	fi
-	publish_port=$(confget -f "$ini" publish_port)
-	if [ "$publish_port" != "" ] ; then
-	    opts="$opts --publish $publish_port:$publish_port"
-	fi
-	mount_source=$(confget -f "$ini" mount_source)
-	mount_target=$(confget -f "$ini" mount_target)
-	if [ "$mount_source" != "" ] && [ "$mount_target" != "" ] ; then
-	    opts="$opts --mount source=$mount_source,target=$mount_target"
-	fi
-	run_mode=$(confget -f "$ini" run_mode)
-	image=$(confget -f "$ini" image)
-	image=${image:-$app}
-	extra_opts=$(confget -f "$ini" extra_opts)
-	case "$run_mode" in
-	    server)
-		docker run $opts --name "$app" --tty "$image"
-		;;
-	    cli)
-		docker run $opts --tty --interactive "$image" $extra_opts
-		;;
-	    gui)
-		XSOCK=/tmp/.X11-unix
-		XAUTH=$HOME/.docker.xauth
-		xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
-		docker run $opts --env=DISPLAY --env XAUTHORITY=$XAUTH --volume="$XAUTH:$XAUTH" --volume="$XSOCK:$XSOCK" kbx-hello-gui $extra_opts
-		;;
-	    *)
-		echo "Unknown run mode"
-		exit 1
-	esac
-	;;
-    stop)
-	run_mode=$(confget -f "$ini" run_mode)
-	image=$(confget -f "$ini" image)
-	image=${image:-$app}
-	case "$run_mode" in
-	    server)
-		docker stop "$app"
-		;;
-	    *)
-		echo "Can't stop a non-server component"
-		exit 1
-	esac
-	;;
-    build|pull)
-	cd "/usr/src/kaboxer/$app"
-	docker build --tag "$app" .
-	;;
-    purge)
-	docker image rm "$app"
-	;;
-    *)
-	echo "Unknown command"
-	exit 1
-
 esac
