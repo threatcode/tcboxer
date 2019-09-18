@@ -1,3 +1,5 @@
 netname=kbx-hello
 run_mode=gui
+mount_source=kbx-hello
+mount_target=/var/lib/kbx-hello
 extra_opts=--host kbx-hello-server
