@@ -11,8 +11,12 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   autoscript($package, 'postinst', 'postinst-kaboxer', "s/#PACKAGE#/$package/g");
   autoscript($package, 'postrm', 'postrm-kaboxer', "s/#PACKAGE#/$package/g");
   my $tmp = tmpdir($package);
-  install_dir("$tmp/usr/src/kaboxer/$package");
-  install_file("debian/$package.Dockerfile", "$tmp/usr/src/kaboxer/$package/Dockerfile");
+  install_dir("$tmp/usr/src/kaboxer");
+  require File::Copy::Recursive;
+  File::Copy::Recursive::dircopy("kaboxer-source", "$tmp/usr/src/kaboxer/$package")
+      if -e "kaboxer-source";
+  install_file("debian/$package.Dockerfile", "$tmp/usr/src/kaboxer/$package/Dockerfile")
+      if -e "debian/$package.Dockerfile";
   install_dir("$tmp/etc/kaboxer");
   install_file("debian/$package.Kaboxerfile", "$tmp/etc/kaboxer/$package.Kaboxerfile")
       if -e "debian/$package.Kaboxerfile";
