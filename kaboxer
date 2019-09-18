@@ -1,0 +1,123 @@
+#! /bin/sh
+
+set -x
+set -e
+
+u=$(id -un)
+
+if [ "$u" != 'root' ] ; then
+    exec sudo "$0" --from $u "$@"
+fi
+
+if [ "$1" = --from ] ; then
+    shift
+    user=$1
+    shift
+    userhome=$(getent passwd $user | cut -d: -f6)
+fi
+
+cmd="$1"
+app="$2"
+executable="$3"
+ini="/etc/kaboxer/$app.Kaboxerfile"
+
+case "$cmd" in
+    run)
+	opts="--rm"
+	netname=$(confget -f "$ini" netname)
+	if [ "$netname" != "" ] ; then
+	    if ! docker network ls | grep -q $netname ; then
+		docker network create --driver bridge $netname
+	    fi
+	    opts="$opts --network $netname"
+	fi
+	publish_port=$(confget -f "$ini" publish_port)
+	if [ "$publish_port" != "" ] ; then
+	    opts="$opts --publish $publish_port:$publish_port"
+	fi
+	mount_source=$(confget -f "$ini" mount_source)
+	mount_target=$(confget -f "$ini" mount_target)
+	if [ "$mount_source" != "" ] && [ "$mount_target" != "" ] ; then
+	    opts="$opts --mount source=$mount_source,target=$mount_target"
+	fi
+	run_mode=$(confget -f "$ini" run_mode)
+	image=$(confget -f "$ini" image)
+	image=${image:-$app}
+	extra_opts=$(confget -f "$ini" extra_opts)
+	case "$run_mode" in
+	    server)
+		docker run $opts --name "$app" --tty "$image"
+		;;
+	    cli)
+		docker run $opts --tty --interactive "$image" $extra_opts
+		;;
+	    gui)
+		XSOCK=/tmp/.X11-unix
+		XAUTH=$HOME/.docker.xauth
+		xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
+		docker run $opts --env=DISPLAY --env XAUTHORITY=$XAUTH --volume="$XAUTH:$XAUTH" --volume="$XSOCK:$XSOCK" kbx-hello-gui $extra_opts
+		;;
+	    *)
+		echo "Unknown run mode"
+		exit 1
+	esac
+	;;
+    stop)
+	run_mode=$(confget -f "$ini" run_mode)
+	image=$(confget -f "$ini" image)
+	image=${image:-$app}
+	case "$run_mode" in
+	    server)
+		docker stop "$app"
+		;;
+	    *)
+		echo "Can't stop a non-server component"
+		exit 1
+	esac
+	;;
+    *)
+	echo "Unknown command"
+	exit 1
+
+esac
+
+exit
+
+arg0=$(basename "$0")
+case "$arg0" in
+    kbx-hello-*)
+	component=${arg0#kbx-hello-}
+	;;
+    *)
+	component=$1
+esac
+
+netname=kbx-net
+port=8765
+
+if ! docker network ls | grep -q $netname ; then
+    docker network --driver bridge $netname
+fi
+
+common_opts="--network $netname --rm --mount source=kbx-hello,target=/var/lib/kbx-hello"
+
+case $component in
+    server)
+	# Make service available outside container?
+	# opts="$opts --publish $port:$port"
+	docker run $common_opts $opts --name kbx-hello-server --tty kbx-hello-server
+	;;
+    cli)
+	docker run $common_opts --tty --interactive kbx-hello-cli --host kbx-hello-server
+	;;
+    gui)
+	XSOCK=/tmp/.X11-unix
+	XAUTH=$userhome/.docker.xauth
+	xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
+	docker run $common_opts --env=DISPLAY --env XAUTHORITY=$XAUTH --volume="$XAUTH:$XAUTH" --volume="$XSOCK:$XSOCK" kbx-hello-gui --host kbx-hello-server
+	;;
+    *)
+	echo "Unknown component"
+	exit 1
+	;;
+esac

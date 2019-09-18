@@ -1,4 +1,1 @@
-#! /usr/bin/dh-exec
-
 kbx-hello /usr/src/kaboxer/kbx-hello-server
-kbx-hello-wrapper => /usr/bin/kbx-hello-server

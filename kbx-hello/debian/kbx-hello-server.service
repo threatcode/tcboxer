@@ -4,8 +4,8 @@ After=network.target docker.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/kbx-hello-server
-ExecStop=/usr/bin/docker kill kbx-hello-server
+ExecStart=/usr/bin/kaboxer run kbx-hello-server
+ExecStop=/usr/bin/kaboxer stop kbx-hello-server
 
 [Install]
 WantedBy=multi-user.target
