@@ -1,0 +1,19 @@
+#! /bin/sh
+
+set -x
+set -e
+
+cmd="$1"
+app="$2"
+ini="/etc/kaboxer/$app.Kaboxerfile"
+container_type=$(confget -f "$ini" container_type)
+container_type=${container_type:-docker}
+
+case $container_type in
+    docker)
+	exec kaboxer-$container_type "$@"
+	;;
+    *)
+	echo "Unsupported container type $container_type"
+	exit 1
+esac

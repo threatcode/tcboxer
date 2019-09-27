@@ -1,0 +1,4 @@
+netname=kbx-hello
+run_mode=server
+mount_source=kbx-hello
+mount_target=/var/lib/kbx-hello

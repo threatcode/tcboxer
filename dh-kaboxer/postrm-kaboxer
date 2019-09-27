@@ -1,5 +1,5 @@
 case "$1" in
     purge)
-	docker image rm "#PACKAGE#"
+	kaboxer purge #PACKAGE#
     ;;
 esac
