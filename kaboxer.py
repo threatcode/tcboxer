@@ -1,8 +1,30 @@
 #! /usr/bin/python3
 
 import argparse
+import yaml
+import os
+import sys
+
+def read_config(args):
+    paths = [
+        '.',
+        '/etc/kaboxer',
+        '/usr/share/kaboxer',
+    ]
+    for p in paths:
+        config_file = os.path.join(p,args.app+'.yaml')
+        if os.path.isfile(config_file):
+            try:
+                args.config = yaml.load(open(config_file))
+                return
+            except:
+                print("Error loading config file "+config_file)
+                sys.exit(1)
+    print("Missing config file")
+    sys.exit(1)
 
 def run(args):
+    read_config(args)
     pass
 
 def stop(args):
