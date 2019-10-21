@@ -5,6 +5,7 @@ import yaml
 import os
 import sys
 import re
+import grp
 
 import docker
 
@@ -35,7 +36,21 @@ class Kaboxer:
         parser_purge.add_argument('app')
         parser_purge.set_defaults(func=self.purge)
 
-        self.docker_conn = docker.from_env()
+        try:
+            # print ("Getting conn")
+            self.docker_conn = docker.from_env()
+            # print ("Getting list")
+            self.docker_conn.containers.list()
+            # print ("List OK")
+        except:
+            for g in os.getgroups():
+                if grp.getgrgid(g)[0] == 'docker':
+                    nc = ['sudo', '-g', 'docker'] + sys.argv
+                    print ("Sudoing with "+str(nc))
+                    sys.stdout.flush()
+                    sys.stderr.flush()
+                    os.execv('/usr/bin/sudo', nc)
+                print ("No access to Docker, are you a member of group docker or kaboxer?")
 
     def go(self):
         self.args = self.parser.parse_args()
@@ -134,7 +149,7 @@ class Kaboxer:
             config_file = os.path.join(p,self.args.app+'.yaml')
             if os.path.isfile(config_file):
                 try:
-                    self.config = yaml.load(open(config_file))
+                    self.config = yaml.safe_load(open(config_file))
                     return
                 except:
                     print("Error loading config file "+config_file)
