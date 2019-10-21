@@ -100,10 +100,20 @@ class Kaboxer:
         for e in extranets:
             create_network(e).connect(container)
         container.start()
-        return
 
     def stop(self):
-        pass
+        run_mode = self.config['run_mode']
+        try:
+            image = self.config['image']
+        except KeyError:
+            image = self.args.app
+        if run_mode == 'server':
+            containers = self.docker_conn.containers.list(filter={'name': self.args.app})
+            container = containers[0]
+            container.stop()
+        else:
+            print ("Can't stop a non-server component")
+            sys.exit(1)
 
     def build(self):
         pass
