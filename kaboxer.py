@@ -116,13 +116,13 @@ class Kaboxer:
             sys.exit(1)
 
     def build(self):
-        pass
+        self.docker_conn.images.build(path=os.path.join('/usr/src/kaboxer', self.args.app))
 
     def pull(self):
-        pass
+        self.build()
 
     def purge(self):
-        pass
+        self.docker_conn.images.remove(self.args.app)
 
     def read_config(self):
         paths = [
