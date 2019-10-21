@@ -1,0 +1,6 @@
+run_mode: server
+networks:
+  - kbx-hello
+mounts:
+  - source: kbx-hello-data
+    target: /var/lib/kbx-hello

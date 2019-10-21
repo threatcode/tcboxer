@@ -1,0 +1,8 @@
+run_mode: gui
+networks:
+  - kbx-hello
+mounts:
+  - source: kbx-hello-data
+    target: /var/lib/kbx-hello
+extra_opts:
+  - "--host kbx-hello-server"
