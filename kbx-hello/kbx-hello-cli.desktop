@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=kbx-hello-cli
 GenericName=Hello World app for kaboxer (text-mode client)
-Exec=kaboxer run kbx-hello-cli
+Exec=kaboxer.py run kbx-hello-cli
 Terminal=true
 Type=Application
 Categories=Development

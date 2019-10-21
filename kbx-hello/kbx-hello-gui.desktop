@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=kbx-hello-gui
 GenericName=Hello World app for kaboxer (graphical client)
-Exec=kaboxer run kbx-hello-gui
+Exec=kaboxer.py run kbx-hello-gui
 Terminal=false
 Type=Application
 Categories=Development

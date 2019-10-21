@@ -1,5 +1,5 @@
 case "$1" in
     configure)
-	kaboxer build #PACKAGE#
+	kaboxer.py build #PACKAGE#
     ;;
 esac
