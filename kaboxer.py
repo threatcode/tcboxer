@@ -44,7 +44,7 @@ class Kaboxer:
             # print ("List OK")
         except:
             for g in os.getgroups():
-                if grp.getgrgid(g)[0] == 'docker':
+                if grp.getgrgid(g)[0] == 'kaboxer':
                     nc = ['sudo', '-g', 'docker'] + sys.argv
                     print ("Sudoing with "+str(nc))
                     sys.stdout.flush()
