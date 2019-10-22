@@ -6,8 +6,10 @@ import os
 import sys
 import re
 import grp
+import subprocess
 
 import docker
+import dockerpty
 
 class Kaboxer:
     def __init__(self):
@@ -54,7 +56,6 @@ class Kaboxer:
 
     def go(self):
         self.args = self.parser.parse_args()
-        print(self.args)
         self.args.func()
 
     def run(self):
@@ -93,16 +94,18 @@ class Kaboxer:
             opts['stdin_open'] = True
         elif run_mode == 'gui':
             xsock = '/tmp/.X11-unix'
-            xauth = os.path.join(os.getenv('HOME'), '.docker.auth')
+            xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
+            xauth_in = '/root/.docker.xauth'
             f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
-            g = subprocess.Popen(['xauth', '-f', xauth, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
+            g = subprocess.Popen(['xauth', '-f', xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
             for l in f:
-                ll = re.sub('^....', 'ffff', l)
-                g.write(ll)
+                ll = re.sub('^....', 'ffff', str(l))
+                print(ll+"\n")
+                g.write(bytes(ll+"\n", 'utf-8'))
             g.close()
             opts['environment']['DISPLAY'] = os.getenv('DISPLAY')
-            opts['environment']['XAUTHORITY'] = xauth
-            opts['mounts'].extend(docker.types.Mount(xauth,xauth))
+            opts['environment']['XAUTHORITY'] = xauth_in
+            opts['mounts'].extend(docker.types.Mount(xauth_in,xauth_out))
             opts['mounts'].extend(docker.types.Mount(xsock,xsock))
         elif run_mode == 'server':
             opts['tty'] = True
@@ -114,7 +117,10 @@ class Kaboxer:
         container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
         for e in extranets:
             create_network(e).connect(container)
-        container.start()
+        if run_mode == 'cli':
+            dockerpty.start(self.docker_conn,container)
+        else:
+            container.start()
 
     def stop(self):
         run_mode = self.config['run_mode']
