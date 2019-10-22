@@ -45,14 +45,20 @@ class Kaboxer:
             self.docker_conn.containers.list()
             # print ("List OK")
         except:
-            for g in os.getgroups():
-                if grp.getgrgid(g)[0] == 'kaboxer':
+            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
+            if 'docker' in groups:
+                print ("No access to Docker even though you're a member of the docker group, is docker.service running?")
+                sys.exit(1)
+            else:
+                if 'kaboxer' in groups:
                     nc = ['sudo', '-g', 'docker'] + sys.argv
-                    print ("Sudoing with "+str(nc))
+                    # print ("Sudoing with "+str(nc))
                     sys.stdout.flush()
                     sys.stderr.flush()
                     os.execv('/usr/bin/sudo', nc)
-                print ("No access to Docker, are you a member of group docker or kaboxer?")
+                else:
+                    print ("No access to Docker, are you a member of group docker or kaboxer?")
+                    sys.exit(1)
 
     def go(self):
         self.args = self.parser.parse_args()
@@ -60,7 +66,7 @@ class Kaboxer:
 
     def run(self):
         self.read_config()
-        print(self.config)
+        # print(self.config)
         opts = {}
         opts['environment'] = {}
         opts['auto_remove'] = True
@@ -79,7 +85,7 @@ class Kaboxer:
         except KeyError:
             pass
         try:
-            mounts = list(map (lambda x: docker.types.Mount(x['target'],x['source']), self.config['mounts']))
+            mounts = list(map (lambda x: docker.types.Mount(x['target'],x['source'],type='bind'), self.config['mounts']))
             opts['mounts'] = mounts
         except KeyError:
             pass
@@ -88,6 +94,11 @@ class Kaboxer:
             image = self.config['image']
         except KeyError:
             image = self.args.app
+
+        try:
+            opts['command'] = self.config['extra_opts']
+        except KeyError:
+            pass
 
         if run_mode == 'cli':
             opts['tty'] = True
@@ -99,21 +110,23 @@ class Kaboxer:
             f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
             g = subprocess.Popen(['xauth', '-f', xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
             for l in f:
-                ll = re.sub('^....', 'ffff', str(l))
-                print(ll+"\n")
-                g.write(bytes(ll+"\n", 'utf-8'))
+                l = str(l,'utf-8')
+                l.strip()
+                ll = re.sub('^[^ ]*', 'ffff', l) + "\n"
+                g.write(bytes(ll, 'utf-8'))
             g.close()
+            f.close()
             opts['environment']['DISPLAY'] = os.getenv('DISPLAY')
             opts['environment']['XAUTHORITY'] = xauth_in
-            opts['mounts'].extend(docker.types.Mount(xauth_in,xauth_out))
-            opts['mounts'].extend(docker.types.Mount(xsock,xsock))
+            opts['mounts'].append(docker.types.Mount(xauth_in,xauth_out,type='bind'))
+            opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
         elif run_mode == 'server':
             opts['tty'] = True
             opts['name'] = self.args.app
         else:
             print ("Unknown run mode")
             sys.exit(1)
-        print(opts)
+        # print(opts)
         container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
         for e in extranets:
             create_network(e).connect(container)
