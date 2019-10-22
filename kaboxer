@@ -148,7 +148,7 @@ class Kaboxer:
             sys.exit(1)
 
     def build(self):
-        self.docker_conn.images.build(path=os.path.join('/usr/src/kaboxer', self.args.app))
+        self.docker_conn.images.build(path=os.path.join('/usr/src/kaboxer', self.args.app), tag=self.args.app)
 
     def pull(self):
         self.build()
