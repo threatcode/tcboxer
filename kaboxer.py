@@ -117,10 +117,7 @@ class Kaboxer:
         container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
         for e in extranets:
             create_network(e).connect(container)
-        if run_mode == 'cli':
-            dockerpty.start(self.docker_conn,container)
-        else:
-            container.start()
+        dockerpty.start(self.docker_conn.api,container.id)
 
     def stop(self):
         run_mode = self.config['run_mode']
