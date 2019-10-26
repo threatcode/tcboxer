@@ -1,19 +1,184 @@
-#! /bin/sh
+#! /usr/bin/python3
 
-set -x
-set -e
+import argparse
+import yaml
+import os
+import sys
+import re
+import grp
+import subprocess
 
-cmd="$1"
-app="$2"
-ini="/etc/kaboxer/$app.Kaboxerfile"
-container_type=$(confget -f "$ini" container_type)
-container_type=${container_type:-docker}
+import docker
+import dockerpty
 
-case $container_type in
-    docker)
-	exec kaboxer-$container_type "$@"
-	;;
-    *)
-	echo "Unsupported container type $container_type"
-	exit 1
-esac
+class Kaboxer:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser()
+
+        subparsers = self.parser.add_subparsers(title='subcommands', help='action to perform', dest='action', required=True)
+
+        parser_run = subparsers.add_parser('run', help='run containerized app')
+        parser_run.add_argument('app')
+        parser_run.add_argument('executable', nargs='*')
+        parser_run.set_defaults(func=self.run)
+
+        parser_stop = subparsers.add_parser('stop', help='stop running containerized app')
+        parser_stop.add_argument('app')
+        parser_stop.set_defaults(func=self.stop)
+
+        parser_build = subparsers.add_parser('build', help='build image')
+        parser_build.add_argument('app')
+        parser_build.set_defaults(func=self.build)
+
+        parser_pull = subparsers.add_parser('pull', help='fetch image')
+        parser_pull.add_argument('app')
+        parser_pull.set_defaults(func=self.pull)
+
+        parser_purge = subparsers.add_parser('purge', help='purge image')
+        parser_purge.add_argument('app')
+        parser_purge.set_defaults(func=self.purge)
+
+        try:
+            # print ("Getting conn")
+            self.docker_conn = docker.from_env()
+            # print ("Getting list")
+            self.docker_conn.containers.list()
+            # print ("List OK")
+        except:
+            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
+            if 'docker' in groups:
+                print ("No access to Docker even though you're a member of the docker group, is docker.service running?")
+                sys.exit(1)
+            else:
+                if 'kaboxer' in groups:
+                    nc = ['sudo', '-g', 'docker'] + sys.argv
+                    # print ("Sudoing with "+str(nc))
+                    sys.stdout.flush()
+                    sys.stderr.flush()
+                    os.execv('/usr/bin/sudo', nc)
+                else:
+                    print ("No access to Docker, are you a member of group docker or kaboxer?")
+                    sys.exit(1)
+
+    def go(self):
+        self.args = self.parser.parse_args()
+        self.args.func()
+
+    def run(self):
+        self.read_config()
+        # print(self.config)
+        opts = {}
+        opts['environment'] = {}
+        opts['auto_remove'] = True
+        try:
+            netname = self.config['networks'][0]
+            self.create_network(netname)
+            opts['network'] = netname
+            extranets = self.config['networks'][1:]
+        except KeyError:
+            pass
+        try:
+            ports = {}
+            for publish_port in self.config['publish_ports']:
+                ports[publish_port] = publish_port
+            opts['ports'] = ports
+        except KeyError:
+            pass
+        try:
+            mounts = list(map (lambda x: docker.types.Mount(x['target'],x['source'],type='bind'), self.config['mounts']))
+            opts['mounts'] = mounts
+        except KeyError:
+            pass
+        run_mode = self.config['run_mode']
+        try:
+            image = self.config['image']
+        except KeyError:
+            image = self.args.app
+
+        try:
+            opts['command'] = self.config['extra_opts']
+        except KeyError:
+            pass
+
+        if run_mode == 'cli':
+            opts['tty'] = True
+            opts['stdin_open'] = True
+        elif run_mode == 'gui':
+            xsock = '/tmp/.X11-unix'
+            xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
+            xauth_in = '/root/.docker.xauth'
+            f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
+            g = subprocess.Popen(['xauth', '-f', xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
+            for l in f:
+                l = str(l,'utf-8')
+                l.strip()
+                ll = re.sub('^[^ ]*', 'ffff', l) + "\n"
+                g.write(bytes(ll, 'utf-8'))
+            g.close()
+            f.close()
+            opts['environment']['DISPLAY'] = os.getenv('DISPLAY')
+            opts['environment']['XAUTHORITY'] = xauth_in
+            opts['mounts'].append(docker.types.Mount(xauth_in,xauth_out,type='bind'))
+            opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
+        elif run_mode == 'server':
+            opts['tty'] = True
+            opts['name'] = self.args.app
+        else:
+            print ("Unknown run mode")
+            sys.exit(1)
+        # print(opts)
+        container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
+        for e in extranets:
+            create_network(e).connect(container)
+        dockerpty.start(self.docker_conn.api,container.id)
+
+    def stop(self):
+        self.read_config()
+        run_mode = self.config['run_mode']
+        try:
+            image = self.config['image']
+        except KeyError:
+            image = self.args.app
+        if run_mode == 'server':
+            containers = self.docker_conn.containers.list(filters={'name': self.args.app})
+            container = containers[0]
+            container.stop()
+        else:
+            print ("Can't stop a non-server component")
+            sys.exit(1)
+
+    def build(self):
+        self.docker_conn.images.build(path=os.path.join('/usr/src/kaboxer', self.args.app), tag=self.args.app)
+
+    def pull(self):
+        self.build()
+
+    def purge(self):
+        self.docker_conn.images.remove(self.args.app)
+
+    def read_config(self):
+        paths = [
+            '.',
+            '/etc/kaboxer',
+            '/usr/share/kaboxer',
+        ]
+        for p in paths:
+            config_file = os.path.join(p,self.args.app+'.yaml')
+            if os.path.isfile(config_file):
+                try:
+                    self.config = yaml.safe_load(open(config_file))
+                    return
+                except:
+                    print("Error loading config file "+config_file)
+                    sys.exit(1)
+        print("Missing config file")
+        sys.exit(1)
+
+    def create_network(self, netname):
+        for n in self.docker_conn.networks.list():
+            if n.name == netname:
+                return n
+        return self.docker_conn.networks.create(name=netname, driver='bridge')
+
+kaboxer = Kaboxer()
+kaboxer.go()
