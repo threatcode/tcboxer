@@ -1,5 +1,5 @@
 case "$1" in
     configure)
-	kaboxer build #PACKAGE#
+	kaboxer load #PACKAGE# /usr/share/kaboxer/#PACKAGE#.tar
     ;;
 esac

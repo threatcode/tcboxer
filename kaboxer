@@ -28,11 +28,22 @@ class Kaboxer:
 
         parser_build = subparsers.add_parser('build', help='build image')
         parser_build.add_argument('app')
+        parser_build.add_argument('path', nargs='?')
         parser_build.set_defaults(func=self.build)
 
         parser_pull = subparsers.add_parser('pull', help='fetch image')
         parser_pull.add_argument('app')
         parser_pull.set_defaults(func=self.pull)
+
+        parser_pull = subparsers.add_parser('save', help='save image')
+        parser_pull.add_argument('app')
+        parser_pull.add_argument('file')
+        parser_pull.set_defaults(func=self.save)
+
+        parser_pull = subparsers.add_parser('load', help='load image')
+        parser_pull.add_argument('app')
+        parser_pull.add_argument('file')
+        parser_pull.set_defaults(func=self.load)
 
         parser_purge = subparsers.add_parser('purge', help='purge image')
         parser_purge.add_argument('app')
@@ -148,7 +159,29 @@ class Kaboxer:
             sys.exit(1)
 
     def build(self):
-        self.docker_conn.images.build(path=os.path.join('/usr/src/kaboxer', self.args.app), tag=self.args.app)
+        if self.args.path is None:
+            path = os.path.join('/usr/src/kaboxer', self.args.app)
+        else:
+            path = self.args.path
+        self.docker_conn.images.build(path=path, tag=self.args.app, rm=True, forcerm=True)
+
+    def save(self):
+        images = self.docker_conn.images.list()
+        for image in images:
+            for tag in image.tags:
+                if tag == self.args.app + ':latest':
+                    f = open(self.args.file, 'wb')
+                    for chunk in image.save():
+                        f.write(chunk)
+                    f.close()
+                    return
+        print("No image found")
+        sys.exit(1)
+
+    def load(self):
+        f = open(self.args.file, 'rb')
+        for image in self.docker_conn.images.load(f):
+            image.tag(self.args.app)
 
     def pull(self):
         self.build()
