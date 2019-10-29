@@ -171,7 +171,7 @@ class Kaboxer:
             for tag in image.tags:
                 if tag == self.args.app + ':latest':
                     f = open(self.args.file, 'wb')
-                    for chunk in image.save():
+                    for chunk in image.save(named=True):
                         f.write(chunk)
                     f.close()
                     return
