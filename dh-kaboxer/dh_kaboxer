@@ -4,6 +4,9 @@ use strict;
 use warnings;
 
 use Debian::Debhelper::Dh_Lib;
+use File::Copy qw/cp/;
+use File::Copy::Recursive qw/dircopy/;
+use File::Temp qw/tempdir/;
 
 init();
 
@@ -13,8 +16,15 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   my $tmp = tmpdir($package);
   install_dir("$tmp/usr/src/kaboxer");
   install_dir("$tmp/usr/share/kaboxer");
-  require File::Copy::Recursive;
-  File::Copy::Recursive::dircopy("kaboxer-source", "$tmp/usr/src/kaboxer/$package")
+  my $tempdir = tempdir();
+  dircopy("kaboxer-source", "$tempdir")
+      if -e "kaboxer-source";
+  cp("debian/$package.Dockerfile", "$tempdir/Dockerfile")
+      if -e "debian/$package.Dockerfile";
+  doit("kaboxer", "build", "$package", "$tempdir");
+  doit("kaboxer", "save", "$package", "$tmp/usr/share/kaboxer/$package.tar");
+  doit("rm", "-r", "$tempdir");
+  dircopy("kaboxer-source", "$tmp/usr/src/kaboxer/$package")
       if -e "kaboxer-source";
   install_file("debian/$package.Dockerfile", "$tmp/usr/src/kaboxer/$package/Dockerfile")
       if -e "debian/$package.Dockerfile";
