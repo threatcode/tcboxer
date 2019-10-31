@@ -187,7 +187,7 @@ class Kaboxer:
         self.build()
 
     def purge(self):
-        self.docker_conn.images.remove(self.args.app)
+        self.docker_conn.images.remove('kaboxer/'+self.args.app)
 
     def read_config(self):
         paths = [
