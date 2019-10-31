@@ -1,3 +1,9 @@
+kbx-hello (0.1.0-1) unstable; urgency=medium
+
+  * Demo for current kaboxer (0.1.0).
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Thu, 31 Oct 2019 18:06:41 +0100
+
 kbx-hello (0.0.1-1) unstable; urgency=medium
 
   * Initial release.
