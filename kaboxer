@@ -81,6 +81,8 @@ class Kaboxer:
         opts = {}
         opts['environment'] = {}
         opts['auto_remove'] = True
+        opts['mounts'] = []
+        extranets = []
         try:
             netname = self.config['networks'][0]
             self.create_network(netname)
