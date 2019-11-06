@@ -113,6 +113,13 @@ class Kaboxer:
         except KeyError:
             pass
 
+        try:
+            if self.config['keep_root'] == False:
+                opts['user'] = os.getuid()
+                opts['environment']['HOME'] = '/tmp'
+        except KeyError:
+            pass
+
         if run_mode == 'cli':
             opts['tty'] = True
             opts['stdin_open'] = True
