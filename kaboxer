@@ -80,7 +80,6 @@ class Kaboxer:
         # print(self.config)
         opts = {}
         opts['environment'] = {}
-        opts['auto_remove'] = True
         opts['mounts'] = []
         extranets = []
         try:
@@ -113,12 +112,42 @@ class Kaboxer:
         except KeyError:
             pass
 
-        try:
-            if self.config['keep_root'] == False:
-                opts['user'] = os.getuid()
-                opts['environment']['HOME'] = '/tmp'
-        except KeyError:
-            pass
+        if 'run_as_root' not in self.config:
+            self.config['run_as_root'] = False
+
+        if self.config['run_as_root']:
+            home_in = '/root'
+        else:
+            import pwd
+            uid = os.getuid()
+            uname = pwd.getpwuid(os.getuid()).pw_name
+            gecos = pwd.getpwuid(os.getuid()).pw_gecos
+            gid = pwd.getpwuid(os.getuid()).pw_gid
+            gname = grp.getgrgid(gid).gr_name
+            home_in = os.path.join('/home',uname)
+            opts2 = opts.copy()
+            opts2['detach'] = False
+            opts2['tty'] = True
+            precmds = [
+                [ 'addgroup', '--debug', '--gid', str(gid), gname ],
+                [ 'adduser', '--debug', '--uid', str(uid), '--gid', str(gid), '--home', home_in, '--gecos', gecos, '--disabled-password', uname ],
+            ]
+            container = self.docker_conn.containers.create(image, **opts2)
+            opts['entrypoint'] = container.attrs['Config']['Entrypoint']
+            container.remove()
+            try:
+                del (opts2['command'])
+            except KeyError:
+                pass
+            for precmd in precmds:
+                opts2['entrypoint'] = precmd
+                container = self.docker_conn.containers.create(image, **opts2)
+                container.start()
+                container.wait()
+                image = container.commit()
+                container.remove()
+            opts['user'] = uid
+            opts['environment']['HOME'] = home_in
 
         if run_mode == 'cli':
             opts['tty'] = True
@@ -126,7 +155,7 @@ class Kaboxer:
         elif run_mode == 'gui':
             xsock = '/tmp/.X11-unix'
             xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
-            xauth_in = '/root/.docker.xauth'
+            xauth_in = os.path.join(home_in,'.docker.xauth')
             f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
             g = subprocess.Popen(['xauth', '-f', xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
             for l in f:
@@ -146,12 +175,14 @@ class Kaboxer:
         else:
             print ("Unknown run mode")
             sys.exit(1)
+        opts['auto_remove'] = True
         # print(opts)
         container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
         for e in extranets:
             create_network(e).connect(container)
         dockerpty.start(self.docker_conn.api,container.id)
-
+        if not self.config['run_as_root']:
+            self.docker_conn.images.remove(image.id)
     def stop(self):
         self.read_config()
         run_mode = self.config['run_mode']

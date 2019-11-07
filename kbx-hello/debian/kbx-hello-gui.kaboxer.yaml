@@ -1,4 +1,5 @@
 run_mode: gui
+run_as_root: true
 networks:
   - kbx-hello
 mounts:
