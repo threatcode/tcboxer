@@ -1,4 +1,4 @@
-run_mode: server
+run_mode: headless
 run_as_root: true
 networks:
   - kbx-hello

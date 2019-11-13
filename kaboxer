@@ -19,6 +19,7 @@ class Kaboxer:
 
         parser_run = subparsers.add_parser('run', help='run containerized app')
         parser_run.add_argument('app')
+        parser_run.add_argument("--detach", action="store_true")
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.run)
 
@@ -78,7 +79,14 @@ class Kaboxer:
     def run(self):
         self.read_config()
         # print(self.config)
+        run_mode = self.config['run_mode']
         opts = {}
+        if self.args.detach:
+            if self.config['run_mode'] == 'headless':
+                opts['detach'] = True
+            else:
+                print ("Can't detach a non-headless component")
+                sys.exit(1)
         opts['environment'] = {}
         opts['mounts'] = []
         extranets = []
@@ -101,7 +109,6 @@ class Kaboxer:
             opts['mounts'] = mounts
         except KeyError:
             pass
-        run_mode = self.config['run_mode']
         try:
             image = self.config['image']
         except KeyError:
@@ -169,20 +176,16 @@ class Kaboxer:
             opts['environment']['XAUTHORITY'] = xauth_in
             opts['mounts'].append(docker.types.Mount(xauth_in,xauth_out,type='bind'))
             opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
-        elif run_mode == 'server':
-            opts['tty'] = True
+        elif run_mode == 'headless':
             opts['name'] = self.args.app
         else:
             print ("Unknown run mode")
             sys.exit(1)
         opts['auto_remove'] = True
-        # print(opts)
         container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
         for e in extranets:
             create_network(e).connect(container)
         dockerpty.start(self.docker_conn.api,container.id)
-        if not self.config['run_as_root']:
-            self.docker_conn.images.remove(image.id)
     def stop(self):
         self.read_config()
         run_mode = self.config['run_mode']
@@ -190,12 +193,12 @@ class Kaboxer:
             image = self.config['image']
         except KeyError:
             image = 'kaboxer/'+self.args.app
-        if run_mode == 'server':
+        if run_mode == 'headless':
             containers = self.docker_conn.containers.list(filters={'name': self.args.app})
             container = containers[0]
             container.stop()
         else:
-            print ("Can't stop a non-server component")
+            print ("Can't stop a non-headless component")
             sys.exit(1)
 
     def build(self):
