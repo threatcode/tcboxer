@@ -20,7 +20,6 @@
 override_dh_compress:
 	dh_compress -X kbx-hello
 
-
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )
 #override_dh_auto_configure:
