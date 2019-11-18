@@ -1,0 +1,11 @@
+default_component: server
+components:
+  server:
+    run_mode: headless
+    executable: /kbx-hello server
+  cli:
+    run_mode: cli
+    executable: /kbx-hello cli --host localhost
+  gui:
+    run_mode: gui
+    executable: /kbx-hello gui --host localhost

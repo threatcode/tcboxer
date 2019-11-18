@@ -1,0 +1,11 @@
+[Unit]
+Description=The kbx-hello server (all in one container)
+After=network.target docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/kaboxer run kbx-hello-allinone
+ExecStop=/usr/bin/kaboxer stop kbx-hello-allinone
+
+[Install]
+WantedBy=multi-user.target

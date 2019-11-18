@@ -19,6 +19,8 @@ class Kaboxer:
 
         parser_run = subparsers.add_parser('run', help='run containerized app')
         parser_run.add_argument('app')
+        parser_run.add_argument("--component", help='component to run')
+        parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
         parser_run.add_argument("--detach", action="store_true")
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.run)
@@ -74,6 +76,11 @@ class Kaboxer:
 
     def run(self):
         self.read_config()
+
+        if self.args.reuse_container:
+            containers = self.docker_conn.containers.list(filters={'name': self.args.app})
+            container = containers[0]
+
         run_mode = self.config['run_mode']
         opts = {}
         if self.args.detach:
@@ -127,6 +134,8 @@ class Kaboxer:
             gid = pwd.getpwuid(os.getuid()).pw_gid
             gname = grp.getgrgid(gid).gr_name
             home_in = os.path.join('/home',uname)
+
+        if not self.config['run_as_root'] and not self.args.reuse_container:
             opts2 = opts.copy()
             opts2['detach'] = False
             opts2['tty'] = True
@@ -176,11 +185,20 @@ class Kaboxer:
         else:
             print ("Unknown run mode")
             sys.exit(1)
-        opts['auto_remove'] = True
-        container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
-        for e in extranets:
-            create_network(e).connect(container)
-        dockerpty.start(self.docker_conn.api,container.id)
+        opts['entrypoint'] = ''
+        if 'executable' in self.config:
+            executable = self.config['executable']
+        else:
+            executable = self.args.executable
+        if not self.args.reuse_container:
+            opts['auto_remove'] = True
+            container = self.docker_conn.containers.create(image, executable, **opts)
+            for e in extranets:
+                create_network(e).connect(container)
+            dockerpty.start(self.docker_conn.api,container.id)
+        else:
+            dockerpty.exec_command(self.docker_conn.api, container.id, self.args.executable)
+
     def stop(self):
         self.read_config()
         run_mode = self.config['run_mode']
@@ -227,7 +245,7 @@ class Kaboxer:
     def purge(self):
         self.docker_conn.images.remove('kaboxer/'+self.args.app)
 
-    def read_config(self):
+    def load_config(self):
         paths = [
             '.',
             '/etc/kaboxer',
@@ -237,13 +255,25 @@ class Kaboxer:
             config_file = os.path.join(p,self.args.app+'.yaml')
             if os.path.isfile(config_file):
                 try:
-                    self.config = yaml.safe_load(open(config_file))
-                    return
+                    return yaml.safe_load(open(config_file))
                 except:
                     print("Error loading config file "+config_file)
                     sys.exit(1)
         print("Missing config file")
         sys.exit(1)
+
+    def read_config(self):
+        confs = self.load_config()
+        if 'default_component' not in confs:
+            # Single config
+            self.config = confs
+            return
+        try:
+            component = self.args.component
+            confs['components'][component]
+        except:
+            component = confs['default_component']
+        self.config = confs['components'][component]
 
     def create_network(self, netname):
         for n in self.docker_conn.networks.list():

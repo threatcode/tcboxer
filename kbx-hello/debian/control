@@ -38,3 +38,14 @@ Description: Demonstrator for kaboxer (GUI part)
  .
  This package contains the graphical client.
 
+Package: kbx-hello-allinone
+Architecture: all
+Depends: ${misc:Depends}
+Description: Demonstrator for kaboxer (all in one container)
+ kaboxer is a framework for deploying applications that are hard to
+ package properly.
+ .
+ kbx-hello is a sample app that uses the kaboxer framework.
+ .
+ This package contains the full container, with the server and both
+ clients.
