@@ -1,3 +1,10 @@
+kbx-hello (0.3.0-1) unstable; urgency=medium
+
+  * Update to current kaboxer (0.3.0), demonstrating the multiple
+    components per image and the starting of a component in a running container.
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Mon, 18 Nov 2019 16:29:34 +0100
+
 kbx-hello (0.1.0-1) unstable; urgency=medium
 
   * Demo for current kaboxer (0.1.0).

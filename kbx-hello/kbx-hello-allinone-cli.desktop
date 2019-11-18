@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=kbx-hello-allinone-cli
+GenericName=Hello World app for kaboxer (text-mode client, running in the existing all-in-one container)
+Exec=kaboxer run --reuse-container --component cli kbx-hello-allinone
+Terminal=true
+Type=Application
+Categories=Development

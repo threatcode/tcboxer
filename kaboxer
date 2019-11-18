@@ -7,6 +7,9 @@ import sys
 import re
 import grp
 import subprocess
+import shlex
+import io
+import tarfile
 
 import docker
 import dockerpty
@@ -19,6 +22,8 @@ class Kaboxer:
 
         parser_run = subparsers.add_parser('run', help='run containerized app')
         parser_run.add_argument('app')
+        parser_run.add_argument("--component", help='component to run')
+        parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
         parser_run.add_argument("--detach", action="store_true")
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.run)
@@ -74,6 +79,11 @@ class Kaboxer:
 
     def run(self):
         self.read_config()
+
+        if self.args.reuse_container:
+            containers = self.docker_conn.containers.list(filters={'name': self.args.app})
+            container = containers[0]
+
         run_mode = self.config['run_mode']
         opts = {}
         if self.args.detach:
@@ -109,16 +119,11 @@ class Kaboxer:
         except KeyError:
             image = 'kaboxer/'+self.args.app
 
-        try:
-            opts['command'] = self.config['extra_opts']
-        except KeyError:
-            pass
-
         if 'run_as_root' not in self.config:
             self.config['run_as_root'] = False
 
         if self.config['run_as_root']:
-            home_in = '/root'
+            self.home_in = '/root'
         else:
             import pwd
             uid = os.getuid()
@@ -126,13 +131,15 @@ class Kaboxer:
             gecos = pwd.getpwuid(os.getuid()).pw_gecos
             gid = pwd.getpwuid(os.getuid()).pw_gid
             gname = grp.getgrgid(gid).gr_name
-            home_in = os.path.join('/home',uname)
+            self.home_in = os.path.join('/home',uname)
+
+        if not self.config['run_as_root'] and not self.args.reuse_container:
             opts2 = opts.copy()
             opts2['detach'] = False
             opts2['tty'] = True
             precmds = [
                 [ 'addgroup', '--debug', '--gid', str(gid), gname ],
-                [ 'adduser', '--debug', '--uid', str(uid), '--gid', str(gid), '--home', home_in, '--gecos', gecos, '--disabled-password', uname ],
+                [ 'adduser', '--debug', '--uid', str(uid), '--gid', str(gid), '--home', self.home_in, '--gecos', gecos, '--disabled-password', uname ],
             ]
             container = self.docker_conn.containers.create(image, **opts2)
             opts['entrypoint'] = container.attrs['Config']['Entrypoint']
@@ -149,38 +156,69 @@ class Kaboxer:
                 image = container.commit()
                 container.remove()
             opts['user'] = uid
-            opts['environment']['HOME'] = home_in
+            opts['environment']['HOME'] = self.home_in
 
         if run_mode == 'cli':
             opts['tty'] = True
             opts['stdin_open'] = True
         elif run_mode == 'gui':
-            xsock = '/tmp/.X11-unix'
-            xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
-            xauth_in = os.path.join(home_in,'.docker.xauth')
-            f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
-            g = subprocess.Popen(['xauth', '-f', xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
-            for l in f:
-                l = str(l,'utf-8')
-                l.strip()
-                ll = re.sub('^[^ ]*', 'ffff', l) + "\n"
-                g.write(bytes(ll, 'utf-8'))
-            g.close()
-            f.close()
+            self.create_xauth()
             opts['environment']['DISPLAY'] = os.getenv('DISPLAY')
-            opts['environment']['XAUTHORITY'] = xauth_in
-            opts['mounts'].append(docker.types.Mount(xauth_in,xauth_out,type='bind'))
-            opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
+            opts['environment']['XAUTHORITY'] = self.xauth_in
+            opts['mounts'].append(docker.types.Mount(self.xauth_in,self.xauth_out,type='bind'))
         elif run_mode == 'headless':
             opts['name'] = self.args.app
         else:
             print ("Unknown run mode")
             sys.exit(1)
-        opts['auto_remove'] = True
-        container = self.docker_conn.containers.create(image, *self.args.executable, **opts)
-        for e in extranets:
-            create_network(e).connect(container)
-        dockerpty.start(self.docker_conn.api,container.id)
+        if run_mode == 'gui' or ('allow_x11' in self.config and self.config['allow_x11']):
+            xsock = '/tmp/.X11-unix'
+            opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
+        if 'executable' in self.config:
+            executable = self.config['executable']
+        else:
+            executable = self.args.executable
+        if not isinstance(executable,list):
+            executable = shlex.split(executable)
+        try:
+            executable.extend(shlex.split(self.config['extra_opts']))
+        except KeyError:
+            pass
+        try:
+            opts['entrypoint'] = ''
+        except KeyError:
+            pass
+
+        if self.args.reuse_container:
+            if run_mode == 'gui':
+                self.create_xauth()
+                bio = io.BytesIO()
+                tf = tarfile.open(mode='w:',fileobj=bio)
+                ti = tarfile.TarInfo()
+                ti.name = self.xauth_in
+                def tifilter(x):
+                    if not self.config['run_as_root']:
+                        x.uid = uid
+                        x.gid = gid
+                        x.uname = uname
+                        x.gname = gname
+                    return x
+                tf.add(self.xauth_out, arcname=self.xauth_in, filter=tifilter)
+                tf.close()
+                container.put_archive('/', bio.getvalue())
+            ex_with_env = ['env']
+            for e in opts['environment']:
+                ex_with_env.append("%s=%s" % (e, shlex.quote(opts['environment'][e])))
+            ex_with_env.extend(executable)
+            executable = ex_with_env
+            dockerpty.exec_command(self.docker_conn.api, container.id, executable)
+        else:
+            opts['auto_remove'] = True
+            container = self.docker_conn.containers.create(image, executable, **opts)
+            for e in extranets:
+                create_network(e).connect(container)
+            dockerpty.start(self.docker_conn.api,container.id)
+
     def stop(self):
         self.read_config()
         run_mode = self.config['run_mode']
@@ -227,7 +265,7 @@ class Kaboxer:
     def purge(self):
         self.docker_conn.images.remove('kaboxer/'+self.args.app)
 
-    def read_config(self):
+    def load_config(self):
         paths = [
             '.',
             '/etc/kaboxer',
@@ -237,19 +275,47 @@ class Kaboxer:
             config_file = os.path.join(p,self.args.app+'.yaml')
             if os.path.isfile(config_file):
                 try:
-                    self.config = yaml.safe_load(open(config_file))
-                    return
+                    return yaml.safe_load(open(config_file))
                 except:
                     print("Error loading config file "+config_file)
                     sys.exit(1)
         print("Missing config file")
         sys.exit(1)
 
+    def read_config(self):
+        confs = self.load_config()
+        if 'default_component' not in confs:
+            # Single config
+            self.config = confs
+            return
+        try:
+            component = self.args.component
+            confs['components'][component]
+        except:
+            component = confs['default_component']
+        self.config = confs['components'][component]
+
     def create_network(self, netname):
         for n in self.docker_conn.networks.list():
             if n.name == netname:
                 return n
         return self.docker_conn.networks.create(name=netname, driver='bridge')
+
+    def create_xauth(self):
+        if os.getenv('DISPLAY') is None:
+            print("No DISPLAY set, are you running in a graphical session?")
+            sys.exit(1)
+        self.xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
+        self.xauth_in = os.path.join(self.home_in,'.docker.xauth')
+        f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
+        g = subprocess.Popen(['xauth', '-f', self.xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
+        for l in f:
+            l = str(l,'utf-8')
+            l.strip()
+            ll = re.sub('^[^ ]*', 'ffff', l) + "\n"
+            g.write(bytes(ll, 'utf-8'))
+        g.close()
+        f.close()
 
 kaboxer = Kaboxer()
 kaboxer.go()
