@@ -1,5 +1,6 @@
 run_mode: cli
 run_as_root: true
+executable: /kbx-hello cli
 networks:
   - kbx-hello
 mounts:

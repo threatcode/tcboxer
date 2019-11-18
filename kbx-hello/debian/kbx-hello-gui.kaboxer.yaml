@@ -1,5 +1,6 @@
 run_mode: gui
 run_as_root: true
+executable: /kbx-hello gui
 networks:
   - kbx-hello
 mounts:
