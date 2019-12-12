@@ -50,7 +50,7 @@ B<dh_kaboxer> [S<I<debhelper options>>]
 
 =head1 DESCRIPTION
 
-dh_kaboxer is a debhelper program that is responsible for...
+dh_kaboxer is a debhelper program that eases generation and deployment of Kaboxer images
 
 A debhelper addon is also provided.  This makes it possible to just use
 
