@@ -2,7 +2,7 @@ Source: kaboxer
 Section: devel
 Priority: optional
 Maintainer: Roland Mas <lolando@debian.org>
-Build-Depends: debhelper (>= 11), python3, dh-python
+Build-Depends: debhelper-compat (= 12), python3, dh-python
 Standards-Version: 4.5.0
 Homepage: https://gitlab.com/kalilinux/tools/kaboxer
 #Vcs-Browser: https://salsa.debian.org/debian/kaboxer
