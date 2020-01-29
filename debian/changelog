@@ -1,3 +1,17 @@
+kaboxer (0.3.1) kali-dev; urgency=medium
+
+  * Get rid of dh_make boilerplate
+  * Add proper python dependency
+  * Add missing dependency on python3-dockerpty
+  * Bump Standards-Version to 4.5.0
+  * Switch to debhelper compat level 12
+  * Update Maintainer field
+  * Configure git-buildpackage for Kali
+  * Add GitLab's CI configuration file
+  * Adapt defaults for the specific case of kaboxer
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Wed, 29 Jan 2020 15:16:23 +0100
+
 kaboxer (0.3.0) unstable; urgency=medium
 
   * Allow several components per image.
