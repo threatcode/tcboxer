@@ -2,7 +2,7 @@ Source: kaboxer
 Section: devel
 Priority: optional
 Maintainer: Roland Mas <lolando@debian.org>
-Build-Depends: debhelper (>= 11)
+Build-Depends: debhelper (>= 11), python3, dh-python
 Standards-Version: 4.1.3
 Homepage: https://gitlab.com/kalilinux/tools/kaboxer
 #Vcs-Browser: https://salsa.debian.org/debian/kaboxer
@@ -10,6 +10,6 @@ Homepage: https://gitlab.com/kalilinux/tools/kaboxer
 
 Package: kaboxer
 Architecture: all
-Depends: ${misc:Depends}, confget, libfile-copy-recursive-perl, sudo, python3-yaml, python3-docker
+Depends: ${misc:Depends}, ${python3:Depends}, confget, libfile-copy-recursive-perl, sudo, python3-yaml, python3-docker
 Description: Kali Application Boxer
  A framework for deploying applications to run in containers
