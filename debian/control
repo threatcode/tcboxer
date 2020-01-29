@@ -1,13 +1,13 @@
 Source: kaboxer
 Section: devel
 Priority: optional
-XSBC-Original-Maintainer: Roland Mas <lolando@debian.org>
 Maintainer: Kali Developers <devel@kali.org>
+Uploaders: Roland Mas <lolando@debian.org>, Raphaël Hertzog <raphael@offensive-security.com>
 Build-Depends: debhelper-compat (= 12), python3, dh-python
 Standards-Version: 4.5.0
 Homepage: https://gitlab.com/kalilinux/tools/kaboxer
-#Vcs-Browser: https://salsa.debian.org/debian/kaboxer
-#Vcs-Git: https://salsa.debian.org/debian/kaboxer.git
+Vcs-Git: https://gitlab.com/kalilinux/tools/kaboxer.git
+Vcs-Browser: https://gitlab.com/kalilinux/tools/kaboxer
 
 Package: kaboxer
 Architecture: all
