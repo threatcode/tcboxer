@@ -1,0 +1,79 @@
+application:
+    # The unique identifier used to refer to the application
+    id: hello-world
+    # The user-friendly name displayed everywhere
+    name: Hello World
+    # A longer (one-line) description, used in desktop file and often
+    # showed as tooltip
+    description: >
+        Hello World is a sample application.
+        Its purpose is to show a string to the user.
+    # Categories for desktop files
+    categories: Utilities;Development
+container:
+    # The technology used for the container
+    type: docker
+    origin:
+        # We use this to fetch the container from a remote registry
+        registry:
+            url: https://hub.docker.com
+            image: kaboxer/hello-world
+        # Or this if we provide a pre-built tarball
+        tarball: /usr/share/kaboxer/foo.tar.xz
+    # Whether the container can display windows on the desktop
+    allow_x11: false
+    # Whether the components share the same container
+    shared: false
+    # Default component to execute
+    default_component: default
+    # Define the network configuration
+    networks:
+        - kbx-hello
+    # Shared mounts
+    mounts:
+        - source: /var/lib/kbx-hello
+          target: /var/lib/kbx-hello
+# Components define what we can "execute" within the container
+# Simple applications will only have one. When you have multiple
+# components, you must define whether the components will be run
+# in the same container or whether they will run in separate
+# containers.
+components:
+    default:
+        # headless / cli / gui
+        run_mode: cli
+        # the command to execute
+        executable: /hello-world
+        # whether the command must be run as root
+        run_as_root: false
+    goodbye:
+        run_mode: cli
+        executable: /hello-world "Good bye"
+    server:
+        run_mode: headless
+        executable: /hello-world --server
+        # Displayed on the terminal after service has started
+        start_message: "See your message at http://localhost:8000"
+        # Displayed on the terminal after service has stopped
+        stop_message: "Thank you for trying out. Have a nice day!"
+# Configuration tweaking the behaviour of "kaboxer build"
+build:
+    # Those parameters are passed downwards to the Dockerfile
+    # via docker build --build-arg=arg=value
+    parameters:
+        arg1: value1
+# Configuration tweaking the behaviour of "kaboxer install"
+install:
+    # It must be an absolute path, we assume it points to a scalable or
+    # high-resolution icon within the container. We want to extract
+    # it and install it for use in the desktop file we will generate.
+    # The icon will be renamed to "kaboxer-<appid>.<ext>" to avoid
+    # unexpected file conflicts.
+    extract-icon: /opt/hello-world/hello-world.svg
+    # Alternatively the developer can submit its own icon
+    icon: logo/foo.svg
+    # If auto-generated desktop-files are not suitable, provide
+    # your own
+    desktop-files:
+        - foo.desktop
+        - bar.desktop
