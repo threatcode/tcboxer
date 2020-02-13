@@ -10,6 +10,13 @@ application:
         Its purpose is to show a string to the user.
     # Categories for desktop files
     categories: Utilities;Development
+packaging:
+    # Some version for the packaging rules (this file+Dockerfile)
+    revision: 12
+    # Range of upstream versions that are known to work with
+    # the current packaging rules
+    min_upstream_version: 2.0
+    max_upstream_version: 3.1.2
 container:
     # The technology used for the container
     type: docker
