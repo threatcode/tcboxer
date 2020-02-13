@@ -35,7 +35,7 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   install_file("debian/$package.kaboxer.yaml", "$tmp/usr/share/kaboxer/$package.yaml")
       if -e "debian/$package.kaboxer.yaml";
   addsubstvar($package, 'misc:Depends', 'docker.io');
-  addsubstvar($package, 'misc:Depends', 'kaboxer (>= 0.2)');
+  addsubstvar($package, 'misc:Depends', 'kaboxer (>= 0.3.2)');
 }
 
 __END__

@@ -1,3 +1,10 @@
+kaboxer (0.3.2) unstable; urgency=medium
+
+  * Expand tildes in mounts to allow persisting the home directory (or
+    part thereof) across runs.
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Thu, 13 Feb 2020 17:32:12 +0100
+
 kaboxer (0.3.1) kali-dev; urgency=medium
 
   * Get rid of dh_make boilerplate

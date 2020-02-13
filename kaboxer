@@ -110,11 +110,6 @@ class Kaboxer:
         except KeyError:
             pass
         try:
-            mounts = list(map (lambda x: docker.types.Mount(x['target'],x['source'],type='bind'), self.config['mounts']))
-            opts['mounts'] = mounts
-        except KeyError:
-            pass
-        try:
             image = self.config['image']
         except KeyError:
             image = 'kaboxer/'+self.args.app
@@ -132,6 +127,23 @@ class Kaboxer:
             gid = pwd.getpwuid(os.getuid()).pw_gid
             gname = grp.getgrgid(gid).gr_name
             self.home_in = os.path.join('/home',uname)
+
+        try:
+            for mount in self.config['mounts']:
+                s = mount['source']
+                s = os.path.expanduser(s)
+                try:
+                    os.makedirs(s)
+                except FileExistsError:
+                    pass
+                t = mount['target']
+                if t == '~':
+                    t = self.home_in
+                else:
+                    t = re.sub('^~/',self.home_in+'/',t)
+                opts['mounts'].append(docker.types.Mount(t,s,type='bind'))
+        except KeyError:
+            pass
 
         if not self.config['run_as_root'] and not self.args.reuse_container:
             opts2 = opts.copy()
