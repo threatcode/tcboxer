@@ -1,3 +1,9 @@
+kaboxer (0.3.3) unstable; urgency=medium
+
+  * Added autopkgtest for kbx-hello-* packages.
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Fri, 14 Feb 2020 14:00:54 +0100
+
 kaboxer (0.3.2) unstable; urgency=medium
 
   * Expand tildes in mounts to allow persisting the home directory (or

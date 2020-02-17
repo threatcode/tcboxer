@@ -1,0 +1,65 @@
+#! /bin/sh
+
+set -e
+
+tf=$(mktemp)
+gen_token() {
+    dd if=/dev/urandom bs=1 count=10 2>/dev/null | md5sum | cut -c -10
+}
+prompt="fetch | save <value> | delete ? "
+
+kaboxer stop kbx-hello-allinone 2>&1 || true
+kaboxer run --detach kbx-hello-allinone
+sleep 15
+
+cat > $tf <<EOF
+spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+expect "$prompt"
+send -- "delete\r"
+expect "$prompt"
+send -- "exit\r"
+expect eof
+EOF
+expect $tf
+
+# Test saving token and fetching it again in one run
+token1=$(gen_token)
+cat > $tf <<EOF
+spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+expect "$prompt"
+send -- "save $token1\r"
+expect "$prompt"
+send -- "fetch\r"
+expect "$token1"
+expect "$prompt"
+send -- "exit\r"
+expect eof
+EOF
+expect $tf
+
+# Test saving token and fetching it again in a different run
+token2=$(gen_token)
+cat > $tf <<EOF
+spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+expect "$prompt"
+send -- "save $token2\r"
+expect "$prompt"
+send -- "exit\r"
+expect eof
+EOF
+expect $tf
+
+cat > $tf <<EOF
+spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+expect "$prompt"
+send -- "fetch\r"
+expect "$token2"
+expect "$prompt"
+send -- "exit\r"
+expect eof
+EOF
+expect $tf
+
+kaboxer stop kbx-hello-allinone
+
+rm $tf
