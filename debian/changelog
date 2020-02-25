@@ -1,4 +1,4 @@
-kaboxer (0.3.3) unstable; urgency=medium
+kaboxer (0.3.3) kali-dev; urgency=medium
 
   * Added autopkgtest for kbx-hello-* packages.
 
