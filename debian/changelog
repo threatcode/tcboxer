@@ -1,3 +1,9 @@
+kaboxer (0.3.4) unstable; urgency=medium
+
+  * Allow specifying options for Docker.
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Mon, 02 Mar 2020 10:38:44 +0100
+
 kaboxer (0.3.3) kali-dev; urgency=medium
 
   * Added autopkgtest for kbx-hello-* packages.

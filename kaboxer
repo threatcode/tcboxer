@@ -85,7 +85,10 @@ class Kaboxer:
             container = containers[0]
 
         run_mode = self.config['run_mode']
-        opts = {}
+        try:
+            opts = self.config['docker_options']
+        except:
+            opts = {}
         if self.args.detach:
             if self.config['run_mode'] == 'headless':
                 opts['detach'] = True
