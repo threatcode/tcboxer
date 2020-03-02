@@ -1,8 +1,8 @@
-kaboxer (0.3.4) unstable; urgency=medium
+kaboxer (0.3.4) kali-dev; urgency=medium
 
   * Allow specifying options for Docker.
 
- -- Roland Mas <roland.mas@gnurandal.com>  Mon, 02 Mar 2020 10:38:44 +0100
+ -- Roland Mas <roland.mas@gnurandal.com>  Mon, 02 Mar 2020 12:39:18 +0100
 
 kaboxer (0.3.3) kali-dev; urgency=medium
 
