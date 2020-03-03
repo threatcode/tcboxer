@@ -15,10 +15,9 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   autoscript($package, 'postrm', 'postrm-kaboxer', "s/#PACKAGE#/$package/g");
   my $tmp = tmpdir($package);
   install_dir("$tmp/usr/share/kaboxer");
-  doit("kaboxer", "build", "--tarball", "$tmp/usr/share/kaboxer/$package.tar", "$package", ".");
+  doit("kaboxer", "build", "--save", "--tarball", "$tmp/usr/share/kaboxer/$package.tar", "$package", ".");
+  doit("kaboxer", "install", "--destdir", "$tmp", "--prefix", "/usr", "--tarball", "$tmp/usr/share/kaboxer/$package.tar", "$package");
   install_dir("$tmp/etc/kaboxer");
-  install_file("$package.kaboxer.yaml", "$tmp/usr/share/kaboxer/$package.kaboxer.yaml")
-      if -e "$package.kaboxer.yaml";
   addsubstvar($package, 'misc:Depends', 'docker.io');
   addsubstvar($package, 'misc:Depends', 'kaboxer (>= 0.3.4)');
 }
