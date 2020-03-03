@@ -1,8 +1,0 @@
-run_mode: headless
-run_as_root: true
-executable: /kbx-hello server
-networks:
-  - kbx-hello
-mounts:
-  - source: /var/lib/kbx-hello
-    target: /var/lib/kbx-hello

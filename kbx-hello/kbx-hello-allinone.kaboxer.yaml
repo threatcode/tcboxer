@@ -1,0 +1,28 @@
+application:
+    id: kbx-hello-allinone
+    # The user-friendly name displayed everywhere
+    name: Hello World for Kaboxer (all-in-one)
+    # A longer (one-line) description, used in desktop file and often
+    # showed as tooltip
+    description: >
+        kbx-hello is the hello-world application demonstrator for Kaboxer
+    # Categories for desktop files
+    categories: Utilities;Development
+container:
+  default_component: server
+  shared: true
+  type: docker
+build:
+  docker:
+    file: kbx-hello-allinone.Dockerfile
+components:
+  server:
+    run_mode: headless
+    allow_x11: true
+    executable: /kbx-hello --path /tmp server
+  cli:
+    run_mode: cli
+    executable: /kbx-hello --path /tmp cli --host localhost
+  gui:
+    run_mode: gui
+    executable: /kbx-hello --path /tmp gui --host localhost

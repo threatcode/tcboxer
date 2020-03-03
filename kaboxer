@@ -10,6 +10,7 @@ import subprocess
 import shlex
 import io
 import tarfile
+import glob
 
 import docker
 import dockerpty
@@ -33,7 +34,8 @@ class Kaboxer:
         parser_stop.set_defaults(func=self.stop)
 
         parser_build = subparsers.add_parser('build', help='build image')
-        parser_build.add_argument('app')
+        parser_build.add_argument("--tarball", help='tar file to save the image into')
+        parser_build.add_argument('app', nargs='?')
         parser_build.add_argument('path', nargs='?')
         parser_build.set_defaults(func=self.build)
 
@@ -250,18 +252,58 @@ class Kaboxer:
             sys.exit(1)
 
     def build(self):
+        yamlfiles = []
+        globs = [ 'kaboxer.yaml', '*.kaboxer.yaml' ]
+        for g in globs:
+            for f in glob.glob(g):
+                try:
+                    yamlfiles.append(f)
+                except:
+                    pass
+        if self.args.app is None:
+            for f in yamlfiles:
+                y = yaml.safe_load(open(f))
+                try:
+                    y['application']['id']
+                    parsed_config = y
+                    break
+                except:
+                    pass
+        else:
+            for f in yamlfiles:
+                y = yaml.safe_load(open(f))
+                try:
+                    if y['application']['id'] == self.args.app:
+                        parsed_config = y
+                        break
+                except:
+                    pass
+        try:
+            app = parsed_config['application']['id']
+        except:
+            print("Failed to find appropriate kaboxer.yaml file")
+            sys.exit(1)
         if self.args.path is None:
-            path = os.path.join('/usr/src/kaboxer', self.args.app)
+            path = os.getcwd()
         else:
             path = self.args.path
-        self.docker_conn.images.build(path=path, tag='kaboxer/'+self.args.app+':latest', rm=True, forcerm=True)
+        try:
+            df = os.path.join(path,parsed_config['build']['docker']['file'])
+        except:
+            df = os.path.join(path,'Dockerfile')
+        self.docker_conn.images.build(path=path, tag='kaboxer/'+app+':latest', dockerfile=df, rm=True, forcerm=True)
+        if self.args.tarball is not None:
+            self.save_to_file(self.args.tarball)
 
     def save(self):
+        self.save_to_file(self.args.file)
+
+    def save_to_file(self,destfile):
         images = self.docker_conn.images.list()
         for image in images:
             for tag in image.tags:
                 if tag == 'kaboxer/'+self.args.app + ':latest':
-                    f = open(self.args.file, 'wb')
+                    f = open(destfile, 'wb')
                     for chunk in image.save():
                         f.write(chunk)
                     f.close()

@@ -14,26 +14,11 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   autoscript($package, 'postinst', 'postinst-kaboxer', "s/#PACKAGE#/$package/g");
   autoscript($package, 'postrm', 'postrm-kaboxer', "s/#PACKAGE#/$package/g");
   my $tmp = tmpdir($package);
-  install_dir("$tmp/usr/src/kaboxer");
-  install_dir("$tmp/usr/src/kaboxer/$package");
   install_dir("$tmp/usr/share/kaboxer");
-  my $tempdir = tempdir();
-  dircopy("kaboxer-source", "$tempdir")
-      if -e "kaboxer-source";
-  cp("debian/$package.Dockerfile", "$tempdir/Dockerfile")
-      if -e "debian/$package.Dockerfile";
-  doit("kaboxer", "build", "$package", "$tempdir");
-  doit("kaboxer", "save", "$package", "$tmp/usr/share/kaboxer/$package.tar");
-  doit("rm", "-r", "$tempdir");
-  dircopy("kaboxer-source", "$tmp/usr/src/kaboxer/$package")
-      if -e "kaboxer-source";
-  install_file("debian/$package.Dockerfile", "$tmp/usr/src/kaboxer/$package/Dockerfile")
-      if -e "debian/$package.Dockerfile";
+  doit("kaboxer", "build", "--tarball", "$tmp/usr/share/kaboxer/$package.tar", "$package", ".");
   install_dir("$tmp/etc/kaboxer");
-  install_file("debian/$package.Kaboxerfile", "$tmp/etc/kaboxer/$package.Kaboxerfile")
-      if -e "debian/$package.Kaboxerfile";
-  install_file("debian/$package.kaboxer.yaml", "$tmp/usr/share/kaboxer/$package.yaml")
-      if -e "debian/$package.kaboxer.yaml";
+  install_file("$package.kaboxer.yaml", "$tmp/usr/share/kaboxer/$package.kaboxer.yaml")
+      if -e "$package.kaboxer.yaml";
   addsubstvar($package, 'misc:Depends', 'docker.io');
   addsubstvar($package, 'misc:Depends', 'kaboxer (>= 0.3.4)');
 }
