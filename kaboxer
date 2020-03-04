@@ -49,6 +49,12 @@ class Kaboxer:
         parser_install.add_argument('path', nargs='?')
         parser_install.set_defaults(func=self.install)
 
+        parser_clean = subparsers.add_parser('clean', help='clean directory')
+        parser_clean.add_argument("--tarball", help='tar file to clean (if if the dir)')
+        parser_clean.add_argument('app', nargs='?')
+        parser_clean.add_argument('path', nargs='?')
+        parser_clean.set_defaults(func=self.clean)
+
         parser_pull = subparsers.add_parser('pull', help='fetch image')
         parser_pull.add_argument('app')
         parser_pull.set_defaults(func=self.pull)
@@ -314,9 +320,25 @@ class Kaboxer:
         (image, _) = self.docker_conn.images.build(path=path, tag='kaboxer/'+app+':latest', dockerfile=df, rm=True, forcerm=True)
         if self.save:
             if self.args.tarball is not None:
-                self.save_image_to_file(image,self.args.tarball)
+                tarball = self.args.tarball
             else:
-                self.save_image_to_file(image,os.path.join(path,parsed_config['application']['id']+'.tar'))
+                tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
+            self.save_image_to_file(image,tarball)
+
+    def clean(self):
+        if self.args.path is None:
+            path = os.getcwd()
+        else:
+            path = self.args.path
+        path = os.path.realpath(path)
+        parsed_config = self.find_config_for_build_app()
+        app = parsed_config['application']['id']
+        if self.args.tarball is not None:
+            tarball = self.args.tarball
+        else:
+            tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
+        if os.path.commonpath([path,tarball]) == path and os.path.isfile(tarball):
+            os.unlink(tarball)
 
     def install(self):
         parsed_config = self.find_config_for_build_app()
