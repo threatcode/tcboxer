@@ -17,6 +17,10 @@
 %:
 	dh $@ --with=kaboxer --with=systemd
 
+# If "kaboxer build" and "kaboxer install" gain extra options, here's how to override them:
+#override_dh_kaboxer:
+#	dh_kaboxer --build-opts="--blabla --blibli" --install-opts="--foo --bar"
+
 
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )
