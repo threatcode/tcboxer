@@ -1,3 +1,9 @@
+kaboxer (0.4~) UNRELEASED; urgency=medium
+
+  * Implement kaboxer as a standalone framework.
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Tue, 03 Mar 2020 16:37:50 +0100
+
 kaboxer (0.3.4) kali-dev; urgency=medium
 
   * Allow specifying options for Docker.
