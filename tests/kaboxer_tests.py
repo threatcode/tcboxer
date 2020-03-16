@@ -22,7 +22,7 @@ class TestKaboxer(unittest.TestCase):
         self.tarpath = os.path.join(self.fixdir,self.tarfile)
 
     def tearDown(self):
-        self.run_command("docker image rm kaboxer/%s:latest" % (self.iname,))
+        self.run_command("docker image rm kaboxer/%s:latest 2>&1" % (self.iname,))
         shutil.rmtree(self.tdname)
         pass
 
@@ -112,3 +112,4 @@ class TestKaboxer(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
