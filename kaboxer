@@ -12,9 +12,9 @@ import shutil
 import io
 import tarfile
 import glob
-
 import docker
 import dockerpty
+import jinja2
 
 class Kaboxer:
     def __init__(self):
@@ -268,10 +268,13 @@ class Kaboxer:
             sys.exit(1)
 
     def find_config_for_build_app(self):
-        if self.args.path is None:
+        try:
+            if self.args.path is None:
+                path = os.getcwd()
+            else:
+                path = self.args.path
+        except:
             path = os.getcwd()
-        else:
-            path = self.args.path
         yamlfiles = []
         globs = [ 'kaboxer.yaml', '*.kaboxer.yaml' ]
         for g in globs:
@@ -324,6 +327,58 @@ class Kaboxer:
             else:
                 tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
             self.save_image_to_file(image,tarball)
+        self._gen_desktop_files()
+
+    def _gen_desktop_files(self):
+        parsed_config = self.find_config_for_build_app()
+        template_text = """[Desktop Entry]
+Name={{ p.name }}
+Comment={{ p.comment }}
+Exec={{ p.exec }}
+Icon=kaboxer-{{ p.appid }}
+Terminal={{ p.terminal }}
+Type=Application
+Categories={{ p.categories }}
+"""
+        t = jinja2.Template(template_text)
+        for component in parsed_config['components']:
+            params = {
+                'comment': parsed_config['application']['description'],
+                'component': component,
+                'appid': parsed_config['application']['id'],
+                'categories': parsed_config['application']['categories'],
+            }
+            params['reuse_container'] = ''
+            try:
+                if parsed_config['components'][component]['reuse_container']:
+                    params['reuse_container'] = '--reuse-container'
+            except:
+                pass
+            if parsed_config['components'][component]['run_mode'] == 'headless':
+                # One .desktop file for starting
+                params['name'] = "Start %s" % (parsed_config['application']['name'],)
+                params['terminal'] = 'True'
+                params['exec'] = "kaboxer run %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
+                ofname = 'kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component)
+                with open(ofname, 'w') as outfile:
+                    outfile.write(t.render(p=params))
+                # One .desktop file for stopping
+                params['name'] = "Stop %s" % (parsed_config['application']['name'],)
+                params['terminal'] = 'False'
+                params['exec'] = "kaboxer stop %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
+                ofname = 'kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component)
+                with open(ofname, 'w') as outfile:
+                    outfile.write(t.render(p=params))
+            else:
+                params['name'] = parsed_config['application']['name']
+                ofname = 'kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component)
+                params['exec'] = "kaboxer run %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
+                if parsed_config['components'][component]['run_mode'] == 'cli':
+                    params['terminal'] = 'True'
+                else:
+                    params['terminal'] = 'False'
+                with open(ofname, 'w') as outfile:
+                    outfile.write(t.render(p=params))
 
     def clean(self):
         if self.args.path is None:

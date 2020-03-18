@@ -20,6 +20,7 @@ class TestKaboxer(unittest.TestCase):
                         shell=True)
         self.tarfile = "%s.tar"%(self.iname,)
         self.tarpath = os.path.join(self.fixdir,self.tarfile)
+        self.desktopfile = "kaboxer-%s-default.desktop"%(self.iname,)
 
     def tearDown(self):
         self.run_command("docker image rm kaboxer/%s:latest 2>&1" % (self.iname,))
@@ -109,6 +110,12 @@ class TestKaboxer(unittest.TestCase):
         installed_tarfile_usr = os.path.join(self.fixdir,'target','usr','share','kaboxer',self.tarfile)
         self.assertTrue(os.path.isfile(installed_tarfile_usr),
                          "Tarfile not installed (expecting %s)" % (installed_tarfile,))
+
+    def test_gen_desktop(self):
+        self.run_and_check_command("kaboxer build",
+                                   "Error when running kaboxer build")
+        self.assertTrue(os.path.isfile(os.path.join(self.fixdir,self.desktopfile)),
+                        "No .desktop file present after kaboxer build")
 
 if __name__ == '__main__':
     unittest.main()
