@@ -327,7 +327,10 @@ class Kaboxer:
             else:
                 tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
             self.save_image_to_file(image,tarball)
-        self._gen_desktop_files()
+        try:
+            parsed_config['install']['desktop-files']
+        except:
+            self._gen_desktop_files()
 
     def _gen_desktop_files(self):
         parsed_config = self.find_config_for_build_app()
@@ -434,14 +437,17 @@ Categories={{ p.categories }}
         else:
             builddestpath = os.path.join(self.args.destdir, os.path.relpath(destpath,'/'))
         os.makedirs(builddestpath, exist_ok=True)
-        desktopfiles = []
-        for component in parsed_config['components']:
-            if parsed_config['components'][component]['run_mode'] == 'headless':
-                shutil.copy(tarball,builddestpath)
-                desktopfiles.append('kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component))
-                desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component))
-            else:
-                desktopfiles.append('kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component))
+        try:
+            desktopfiles = parsed_config['install']['desktop-files']
+        except:
+            desktopfiles = []
+            for component in parsed_config['components']:
+                if parsed_config['components'][component]['run_mode'] == 'headless':
+                    shutil.copy(tarball,builddestpath)
+                    desktopfiles.append('kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component))
+                    desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component))
+                else:
+                    desktopfiles.append('kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component))
         for d in desktopfiles:
             shutil.copy(d,builddestpath)
 

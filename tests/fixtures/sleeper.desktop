@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Alpine sleeper (manual desktop file)
+Exec=kaboxer run --component daemon CONTAINERID
+Terminal=true
+Type=Application
+Categories=Development

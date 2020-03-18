@@ -20,7 +20,11 @@ class TestKaboxer(unittest.TestCase):
                         shell=True)
         self.tarfile = "%s.tar"%(self.iname,)
         self.tarpath = os.path.join(self.fixdir,self.tarfile)
-        self.desktopfile = "kaboxer-%s-default.desktop"%(self.iname,)
+        self.desktopfiles = [
+            "kaboxer-%s-default.desktop"%(self.iname,),
+            "kaboxer-%s-daemon-start.desktop"%(self.iname,),
+            "kaboxer-%s-daemon-stop.desktop"%(self.iname,),
+        ]
 
     def tearDown(self):
         self.run_command("docker image rm kaboxer/%s:latest 2>&1" % (self.iname,))
@@ -111,19 +115,40 @@ class TestKaboxer(unittest.TestCase):
         self.assertTrue(os.path.isfile(installed_tarfile_usr),
                          "Tarfile not installed (expecting %s)" % (installed_tarfile,))
 
-    def test_gen_desktop(self):
-        self.run_and_check_command("kaboxer build",
-                                   "Error when running kaboxer build")
-        self.assertTrue(os.path.isfile(os.path.join(self.fixdir,self.desktopfile)),
-                        "No .desktop file present after kaboxer build")
-
-    def test_install_desktop(self):
+    def test_auto_desktop_files(self):
         self.test_build_and_save()
+        for i in self.desktopfiles:
+            self.assertTrue(os.path.isfile(os.path.join(self.fixdir,i)),
+                            "No %s file present after kaboxer build"%(i,))
         self.run_and_check_command("kaboxer install --destdir %s" % (os.path.join(self.fixdir,'target')),
                                    "Error when running kaboxer install")
-        installed_desktopfile = os.path.join(self.fixdir,'target','usr','local','share','applications',self.desktopfile)
-        self.assertTrue(os.path.isfile(installed_desktopfile),
-                        "Desktop file not installed (expecting %s)" % (installed_desktopfile,))
+        for i in self.desktopfiles:
+            idf = os.path.join(self.fixdir,'target','usr','local','share','applications',i)
+            self.assertTrue(os.path.isfile(idf),
+                            "Generated desktop file not installed at %s" % (idf,))
+        idf = os.path.join(self.fixdir,'target','usr','local','share','applications','sleeper.desktop')
+        self.assertFalse(os.path.isfile(idf),
+                         "Manual desktop file installed at %s" % (idf,))
+
+    def test_manual_desktop_files(self):
+        with open(os.path.join(self.fixdir,'kaboxer.yaml'), 'a') as outfile:
+            outfile.write("""install:
+  desktop-files:
+    - sleeper.desktop
+""")
+        self.test_build_and_save()
+        for i in self.desktopfiles:
+            self.assertFalse(os.path.isfile(os.path.join(self.fixdir,i)),
+                             "%s file present after kaboxer build"%(i,))
+        self.run_and_check_command("kaboxer install --destdir %s" % (os.path.join(self.fixdir,'target')),
+                                   "Error when running kaboxer install")
+        for i in self.desktopfiles:
+            idf = os.path.join(self.fixdir,'target','usr','local','share','applications',i)
+            self.assertFalse(os.path.isfile(idf),
+                             "Generated desktop file installed at %s" % (idf,))
+        idf = os.path.join(self.fixdir,'target','usr','local','share','applications','sleeper.desktop')
+        self.assertTrue(os.path.isfile(idf),
+                        "Manual desktop file not installed at %s" % (idf,))
 
 if __name__ == '__main__':
     unittest.main()
