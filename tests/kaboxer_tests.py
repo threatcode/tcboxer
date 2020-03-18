@@ -117,6 +117,14 @@ class TestKaboxer(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.fixdir,self.desktopfile)),
                         "No .desktop file present after kaboxer build")
 
+    def test_install_desktop(self):
+        self.test_build_and_save()
+        self.run_and_check_command("kaboxer install --destdir %s" % (os.path.join(self.fixdir,'target')),
+                                   "Error when running kaboxer install")
+        installed_desktopfile = os.path.join(self.fixdir,'target','usr','local','share','applications',self.desktopfile)
+        self.assertTrue(os.path.isfile(installed_desktopfile),
+                        "Desktop file not installed (expecting %s)" % (installed_desktopfile,))
+
 if __name__ == '__main__':
     unittest.main()
 

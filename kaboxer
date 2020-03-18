@@ -402,6 +402,7 @@ Categories={{ p.categories }}
         else:
             path = self.args.path
         app = parsed_config['application']['id']
+        # Install image tarball
         if self.args.tarball is not None:
             tarball = self.args.tarball
         else:
@@ -416,6 +417,7 @@ Categories={{ p.categories }}
             shutil.copy(tarball,builddestpath)
         except shutil.SameFileError:
             pass
+        # Update and install real kaboxer.yaml file
         try:
             del(parsed_config['container']['origin']['registry'])
         except:
@@ -425,6 +427,23 @@ Categories={{ p.categories }}
         parsed_config['container']['origin']['tarball'] = os.path.join(destpath,app+'.tar')
         with open(os.path.join(builddestpath,app+'.yaml'),'w') as y:
             y.write(yaml.dump(parsed_config))
+        # Install desktop file(s)
+        destpath = os.path.join(self.args.prefix, 'share/applications')
+        if self.args.destdir == '':
+            builddestpath = destpath
+        else:
+            builddestpath = os.path.join(self.args.destdir, os.path.relpath(destpath,'/'))
+        os.makedirs(builddestpath, exist_ok=True)
+        desktopfiles = []
+        for component in parsed_config['components']:
+            if parsed_config['components'][component]['run_mode'] == 'headless':
+                shutil.copy(tarball,builddestpath)
+                desktopfiles.append('kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component))
+                desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component))
+            else:
+                desktopfiles.append('kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component))
+        for d in desktopfiles:
+            shutil.copy(d,builddestpath)
 
     def save(self):
         images = self.docker_conn.images.list()
