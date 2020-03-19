@@ -16,6 +16,7 @@ import docker
 import dockerpty
 import jinja2
 import prompt_toolkit
+import tempfile
 
 class Kaboxer:
     def __init__(self):
@@ -411,7 +412,16 @@ Categories={{ p.categories }}
         if os.path.commonpath([path,tarball]) == path and os.path.isfile(tarball):
             os.unlink(tarball)
 
+    def _install_to_path(self,f,path):
+        if self.args.destdir == '':
+            builddestpath = destpath
+        else:
+            builddestpath = os.path.join(self.args.destdir, os.path.relpath(path,'/'))
+        os.makedirs(builddestpath, exist_ok=True)
+        shutil.copy(f,builddestpath)
+
     def install(self):
+        main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
         parsed_config = self.find_config_for_build_app()
         if self.args.path is None:
             path = os.getcwd()
@@ -423,14 +433,8 @@ Categories={{ p.categories }}
             tarball = self.args.tarball
         else:
             tarball = os.path.join(path,app+'.tar')
-        destpath = os.path.join(self.args.prefix, 'share/kaboxer')
-        if self.args.destdir == '':
-            builddestpath = destpath
-        else:
-            builddestpath = os.path.join(self.args.destdir, os.path.relpath(destpath,'/'))
-        os.makedirs(builddestpath, exist_ok=True)
         try:
-            shutil.copy(tarball,builddestpath)
+            self._install_to_path(tarball, main_destpath)
         except shutil.SameFileError:
             pass
         # Update and install real kaboxer.yaml file
@@ -440,16 +444,13 @@ Categories={{ p.categories }}
             pass
         if 'origin' not in parsed_config['container']:
             parsed_config['container']['origin'] = {}
-        parsed_config['container']['origin']['tarball'] = os.path.join(destpath,app+'.tar')
-        with open(os.path.join(builddestpath,app+'.yaml'),'w') as y:
-            y.write(yaml.dump(parsed_config))
+        parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
+        with tempfile.TemporaryDirectory() as td:
+            tf = os.path.join(td,app+'.yaml')
+            with open(tf,'w') as y:
+                y.write(yaml.dump(parsed_config))
+            self._install_to_path(tf, main_destpath)
         # Install desktop file(s)
-        destpath = os.path.join(self.args.prefix, 'share/applications')
-        if self.args.destdir == '':
-            builddestpath = destpath
-        else:
-            builddestpath = os.path.join(self.args.destdir, os.path.relpath(destpath,'/'))
-        os.makedirs(builddestpath, exist_ok=True)
         try:
             desktopfiles = parsed_config['install']['desktop-files']
         except:
@@ -461,7 +462,30 @@ Categories={{ p.categories }}
                 else:
                     desktopfiles.append('kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component))
         for d in desktopfiles:
-            shutil.copy(d,builddestpath)
+            self._install_to_path(d,os.path.join(self.args.prefix, 'share', 'applications'))
+        # Install icon file(s)
+        try:
+            iconfile = parsed_config['install']['icon']
+            (_,ife) = os.path.splitext(os.path.basename(iconfile))
+            with tempfile.TemporaryDirectory() as td:
+                renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
+                shutil.copy(iconfile,renamed_icon)
+                self._install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
+        except KeyError:
+            pass
+        try:
+            iconfile = parsed_config['install']['extract-icon']
+            (_,ife) = os.path.splitext(os.path.basename(iconfile))
+            with tempfile.TemporaryDirectory() as td:
+                renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
+                temp_container = self.docker_conn.containers.create('kaboxer/'+parsed_config['application']['id'])
+                container_id = temp_container.id
+                subprocess.call("docker cp %s:%s %s" % (container_id, iconfile, renamed_icon),
+                                shell=True)
+                temp_container.remove()
+                self._install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
+        except KeyError:
+            pass
 
     def save(self):
         images = self.docker_conn.images.list()

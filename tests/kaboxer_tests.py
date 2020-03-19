@@ -150,6 +150,16 @@ class TestKaboxer(unittest.TestCase):
         self.assertTrue(os.path.isfile(idf),
                         "Manual desktop file not installed at %s" % (idf,))
 
+    def test_install_icons(self):
+        self.test_build_and_save()
+        self.run_and_check_command("kaboxer install --destdir %s" % (os.path.join(self.fixdir,'target')),
+                                   "Error when running kaboxer install")
+        installed_shipped_icon = os.path.join(self.fixdir,'target','usr','local','share','icons',"kaboxer-%s.svg" % (self.iname,))
+        self.assertTrue(os.path.isfile(installed_shipped_icon),
+                        "Shipped icon not installed (expecting %s)" % (installed_shipped_icon,))
+        installed_extracted_icon = os.path.join(self.fixdir,'target','usr','local','share','icons',"kaboxer-%s.png" % (self.iname,))
+        self.assertTrue(os.path.isfile(installed_extracted_icon),
+                        "Extracted icon not installed (expecting %s)" % (installed_extracted_icon,))
 if __name__ == '__main__':
     unittest.main()
 

@@ -8,6 +8,9 @@ container:
 build:
   docker:
     file: Dockerfile
+install:
+  icon: system-run-symbolic.svg
+  extract-icon: /usr/share/pixmaps/debian-logo.png
 components:
   default:
     run_mode: cli
