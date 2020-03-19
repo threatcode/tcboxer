@@ -15,6 +15,7 @@ import glob
 import docker
 import dockerpty
 import jinja2
+import prompt_toolkit
 
 class Kaboxer:
     def __init__(self):
@@ -26,7 +27,8 @@ class Kaboxer:
         parser_run.add_argument('app')
         parser_run.add_argument("--component", help='component to run')
         parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
-        parser_run.add_argument("--detach", action="store_true")
+        parser_run.add_argument("--detach", help='run in the background', action="store_true")
+        parser_run.add_argument("--prompt-before-detach", help='message to display before detaching')
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.run)
 
@@ -251,6 +253,8 @@ class Kaboxer:
             for e in extranets:
                 create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api,container.id)
+            if self.args.detach and self.args.prompt_before_detach:
+                c = prompt_toolkit.prompt(self.args.prompt_before_detach)
 
     def stop(self):
         self.read_config()
@@ -342,6 +346,7 @@ Icon=kaboxer-{{ p.appid }}
 Terminal={{ p.terminal }}
 Type=Application
 Categories={{ p.categories }}
+
 """
         t = jinja2.Template(template_text)
         for component in parsed_config['components']:
@@ -354,32 +359,40 @@ Categories={{ p.categories }}
             params['reuse_container'] = ''
             try:
                 if parsed_config['components'][component]['reuse_container']:
-                    params['reuse_container'] = '--reuse-container'
+                    params['reuse_container'] = '--reuse-container '
             except:
                 pass
+            try:
+                component_name = parsed_config['components'][component]['name']
+            except:
+                component_name = parsed_config['application']['name']
             if parsed_config['components'][component]['run_mode'] == 'headless':
                 # One .desktop file for starting
-                params['name'] = "Start %s" % (parsed_config['application']['name'],)
-                params['terminal'] = 'True'
-                params['exec'] = "kaboxer run %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
+                params['name'] = "Start %s" % (component_name,)
+                params['terminal'] = 'true'
+                try:
+                    detach_message = parsed_config['components'][component]['start_message']
+                except:
+                    detach_message = "%s started" % (component_name,)
+                params['exec'] = "kaboxer run --detach --prompt_before_detach %s%s--component %s %s" % (shlex.quote(detach_message), params['reuse_container'], params['component'], params['appid'])
                 ofname = 'kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
                 # One .desktop file for stopping
-                params['name'] = "Stop %s" % (parsed_config['application']['name'],)
-                params['terminal'] = 'False'
+                params['name'] = "Stop %s" % (component_name,)
+                params['terminal'] = 'false'
                 params['exec'] = "kaboxer stop %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
                 ofname = 'kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
             else:
-                params['name'] = parsed_config['application']['name']
+                params['name'] = component_name
                 ofname = 'kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component)
                 params['exec'] = "kaboxer run %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
                 if parsed_config['components'][component]['run_mode'] == 'cli':
-                    params['terminal'] = 'True'
+                    params['terminal'] = 'true'
                 else:
-                    params['terminal'] = 'False'
+                    params['terminal'] = 'false'
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
 
