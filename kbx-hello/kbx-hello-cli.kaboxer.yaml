@@ -9,6 +9,9 @@ container:
 build:
   docker:
     file: kbx-hello-cli.Dockerfile
+install:
+  desktop-files:
+    - kbx-hello-cli.desktop
 components:
   default:
     run_mode: cli

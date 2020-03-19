@@ -7,7 +7,7 @@ application:
     description: >
         kbx-hello is the hello-world application demonstrator for Kaboxer
     # Categories for desktop files
-    categories: Utilities;Development
+    categories: Development
 container:
   default_component: server
   shared: true
@@ -20,9 +20,15 @@ components:
     run_mode: headless
     allow_x11: true
     executable: /kbx-hello --path /tmp server
+    name: Hello World app for kaboxer (all-in-one container, server component)
+    start_message: kbx-hello server started
   cli:
     run_mode: cli
     executable: /kbx-hello --path /tmp cli --host localhost
+    reuse_container: true
+    name: Hello World app for kaboxer (all-in-one container, cli component)
   gui:
     run_mode: gui
     executable: /kbx-hello --path /tmp gui --host localhost
+    reuse_container: true
+    name: Hello World app for kaboxer (all-in-one container, gui component)

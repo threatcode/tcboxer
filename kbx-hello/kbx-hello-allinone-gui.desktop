@@ -1,6 +1,0 @@
-[Desktop Entry]
-Name=kbx-hello-allinone-gui
-GenericName=Hello World app for kaboxer (GUI client, running in the existing all-in-one container)
-Exec=kaboxer run --reuse-container --component gui kbx-hello-allinone
-Type=Application
-Categories=Development
