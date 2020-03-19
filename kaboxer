@@ -443,7 +443,6 @@ Categories={{ p.categories }}
             desktopfiles = []
             for component in parsed_config['components']:
                 if parsed_config['components'][component]['run_mode'] == 'headless':
-                    shutil.copy(tarball,builddestpath)
                     desktopfiles.append('kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component))
                     desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component))
                 else:
