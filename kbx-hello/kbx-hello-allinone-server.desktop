@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=kbx-hello-allinone-server
-GenericName=Hello World app for kaboxer (all-in-one container, server component)
-Exec=kaboxer run kbx-hello-allinone
-Terminal=true
-Type=Application
-Categories=Development

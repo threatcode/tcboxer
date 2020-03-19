@@ -1,15 +1,20 @@
 application:
     id: CONTAINERID
-    name: Alpine
-    description: >
-        test container for kaboxer
+    name: Kaboxer test sleeper
+    description: Test container for Kaboxer that only sleeps
     categories: Utilities;Development
 container:
   type: docker
 build:
   docker:
     file: Dockerfile
+install:
+  icon: system-run-symbolic.svg
+  extract-icon: /usr/share/pixmaps/debian-logo.png
 components:
   default:
     run_mode: cli
-    executable: /bin/sh
+    executable: /bin/sleep 60
+  daemon:
+    run_mode: headless
+    executable: /bin/sleep 60
