@@ -414,7 +414,7 @@ Categories={{ p.categories }}
 
     def _install_to_path(self,f,path):
         if self.args.destdir == '':
-            builddestpath = destpath
+            builddestpath = path
         else:
             builddestpath = os.path.join(self.args.destdir, os.path.relpath(path,'/'))
         os.makedirs(builddestpath, exist_ok=True)
