@@ -37,6 +37,10 @@ class Kaboxer:
         parser_stop.add_argument('app')
         parser_stop.set_defaults(func=self.stop)
 
+        parser_prepare = subparsers.add_parser('prepare', help='prepare container')
+        parser_prepare.add_argument('app')
+        parser_prepare.set_defaults(func=self.prepare)
+
         parser_build = subparsers.add_parser('build', help='build image')
         parser_build.add_argument("--save", action="store_true", help='save container image after build')
         parser_build.add_argument("--tarball", help='tar file to save the image into')
@@ -48,6 +52,7 @@ class Kaboxer:
         parser_install.add_argument("--tarball", help='tar file to install')
         parser_install.add_argument("--destdir", help='build-time destination dir', default='')
         parser_install.add_argument("--prefix", help='prefix for the installation path', default='/usr/local')
+        parser_install.add_argument("--skip-local-tarball", action="store_true", help='do not install tarball locally (if configured to use a registry)')
         parser_install.add_argument('app', nargs='?')
         parser_install.add_argument('path', nargs='?')
         parser_install.set_defaults(func=self.install)
@@ -99,19 +104,21 @@ class Kaboxer:
         self.args.func()
 
     def run(self):
-        self.read_config()
+        self.prepare()
+
+        image = self._get_image_name()
 
         if self.args.reuse_container:
             containers = self.docker_conn.containers.list(filters={'name': self.args.app})
             container = containers[0]
 
-        run_mode = self.config['run_mode']
+        run_mode = self.component_config['run_mode']
         try:
-            opts = self.config['docker_options']
+            opts = self.component_config['docker_options']
         except:
             opts = {}
         if self.args.detach:
-            if self.config['run_mode'] == 'headless':
+            if self.component_config['run_mode'] == 'headless':
                 opts['detach'] = True
             else:
                 print ("Can't detach a non-headless component")
@@ -120,28 +127,24 @@ class Kaboxer:
         opts['mounts'] = []
         extranets = []
         try:
-            netname = self.config['networks'][0]
+            netname = self.component_config['networks'][0]
             self.create_network(netname)
             opts['network'] = netname
-            extranets = self.config['networks'][1:]
+            extranets = self.component_config['networks'][1:]
         except KeyError:
             pass
         try:
             ports = {}
-            for publish_port in self.config['publish_ports']:
+            for publish_port in self.component_config['publish_ports']:
                 ports[publish_port] = publish_port
             opts['ports'] = ports
         except KeyError:
             pass
-        try:
-            image = self.config['image']
-        except KeyError:
-            image = 'kaboxer/'+self.args.app
 
-        if 'run_as_root' not in self.config:
-            self.config['run_as_root'] = False
+        if 'run_as_root' not in self.component_config:
+            self.component_config['run_as_root'] = False
 
-        if self.config['run_as_root']:
+        if self.component_config['run_as_root']:
             self.home_in = '/root'
         else:
             import pwd
@@ -153,7 +156,7 @@ class Kaboxer:
             self.home_in = os.path.join('/home',uname)
 
         try:
-            for mount in self.config['mounts']:
+            for mount in self.component_config['mounts']:
                 s = mount['source']
                 s = os.path.expanduser(s)
                 try:
@@ -169,7 +172,7 @@ class Kaboxer:
         except KeyError:
             pass
 
-        if not self.config['run_as_root'] and not self.args.reuse_container:
+        if not self.component_config['run_as_root'] and not self.args.reuse_container:
             opts2 = opts.copy()
             opts2['detach'] = False
             opts2['tty'] = True
@@ -207,17 +210,17 @@ class Kaboxer:
         else:
             print ("Unknown run mode")
             sys.exit(1)
-        if run_mode == 'gui' or ('allow_x11' in self.config and self.config['allow_x11']):
+        if run_mode == 'gui' or ('allow_x11' in self.component_config and self.component_config['allow_x11']):
             xsock = '/tmp/.X11-unix'
             opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
-        if 'executable' in self.config:
-            executable = self.config['executable']
+        if 'executable' in self.component_config:
+            executable = self.component_config['executable']
         else:
             executable = self.args.executable
         if not isinstance(executable,list):
             executable = shlex.split(executable)
         try:
-            executable.extend(shlex.split(self.config['extra_opts']))
+            executable.extend(shlex.split(self.component_config['extra_opts']))
         except KeyError:
             pass
         try:
@@ -233,7 +236,7 @@ class Kaboxer:
                 ti = tarfile.TarInfo()
                 ti.name = self.xauth_in
                 def tifilter(x):
-                    if not self.config['run_as_root']:
+                    if not self.component_config['run_as_root']:
                         x.uid = uid
                         x.gid = gid
                         x.uname = uname
@@ -259,9 +262,9 @@ class Kaboxer:
 
     def stop(self):
         self.read_config()
-        run_mode = self.config['run_mode']
+        run_mode = self.component_config['run_mode']
         try:
-            image = self.config['image']
+            image = self.component_config['image']
         except KeyError:
             image = 'kaboxer/'+self.args.app
         if run_mode == 'headless':
@@ -294,6 +297,7 @@ class Kaboxer:
                 try:
                     y['application']['id']
                     parsed_config = y
+                    self.config_file = f
                     break
                 except:
                     pass
@@ -303,7 +307,7 @@ class Kaboxer:
                 try:
                     if y['application']['id'] == self.args.app:
                         parsed_config = y
-                        found_config = f
+                        self.config_file = f
                         break
                 except:
                     pass
@@ -326,7 +330,7 @@ class Kaboxer:
         except:
             df = os.path.join(path,'Dockerfile')
         (image, _) = self.docker_conn.images.build(path=path, tag='kaboxer/'+app+':latest', dockerfile=df, rm=True, forcerm=True)
-        if self.save:
+        if self.args.save:
             if self.args.tarball is not None:
                 tarball = self.args.tarball
             else:
@@ -429,27 +433,32 @@ Categories={{ p.categories }}
             path = self.args.path
         app = parsed_config['application']['id']
         # Install image tarball
-        if self.args.tarball is not None:
-            tarball = self.args.tarball
+        if not self.args.skip_local_tarball:
+            if self.args.tarball is not None:
+                tarball = self.args.tarball
+            else:
+                tarball = os.path.join(path,app+'.tar')
+            try:
+                self._install_to_path(tarball, main_destpath)
+            except shutil.SameFileError:
+                pass
+        # Install kaboxer.yaml file
+        # Update it first if we ship the tarball
+        if self.args.skip_local_tarball:
+            self._install_to_path(self.config_file, main_destpath)
         else:
-            tarball = os.path.join(path,app+'.tar')
-        try:
-            self._install_to_path(tarball, main_destpath)
-        except shutil.SameFileError:
-            pass
-        # Update and install real kaboxer.yaml file
-        try:
-            del(parsed_config['container']['origin']['registry'])
-        except:
-            pass
-        if 'origin' not in parsed_config['container']:
-            parsed_config['container']['origin'] = {}
-        parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
-        with tempfile.TemporaryDirectory() as td:
-            tf = os.path.join(td,app+'.yaml')
-            with open(tf,'w') as y:
-                y.write(yaml.dump(parsed_config))
-            self._install_to_path(tf, main_destpath)
+            try:
+                del(parsed_config['container']['origin']['registry'])
+            except:
+                pass
+            if 'origin' not in parsed_config['container']:
+                parsed_config['container']['origin'] = {}
+            parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
+            with tempfile.TemporaryDirectory() as td:
+                tf = os.path.join(td,app+'.yaml')
+                with open(tf,'w') as y:
+                    y.write(yaml.dump(parsed_config))
+                self._install_to_path(tf, main_destpath)
         # Install desktop file(s)
         try:
             desktopfiles = parsed_config['install']['desktop-files']
@@ -502,10 +511,75 @@ Categories={{ p.categories }}
             for chunk in image.save():
                 f.write(chunk)
 
-    def load(self):
-        f = open(self.args.file, 'rb')
+    def _load_image(self, tarfile):
+        f = open(tarfile, 'rb')
         for image in self.docker_conn.images.load(f):
             image.tag('kaboxer/'+self.args.app, tag='latest')
+
+    def load(self):
+        self._load_image(self.args.file)
+
+    def _find_image(self, name):
+        images = self.docker_conn.images.list()
+        for image in images:
+            for tag in image.tags:
+                if tag == name:
+                    return True
+        return False
+
+    def _get_image_name(self):
+        self.read_config()
+        try:
+            if 'registry' in self.config['container']['origin']:
+                registry = self.config['container']['origin']['registry']['url']
+                try:
+                    image = self.config['container']['origin']['registry']['image']
+                except KeyError:
+                    image = self.config['application']['id']
+            return "%s/%s" % (registry, image)
+        except KeyError:
+            pass
+        return "kaboxer/%s" % (self.config['application']['id'],)
+
+    def prepare(self):
+        self.read_config()
+        full_image_name = self._get_image_name()
+        if self._find_image(full_image_name+':latest'):
+            return
+        try:
+            if 'registry' in self.config['container']['origin']:
+                if not self._find_image(full_image_name+':latest'):
+                    print("Pulling image from registry")
+                    self.docker_conn.images.pull(full_image_name)
+                return
+            if 'tarball' in self.config['container']['origin']:
+                paths = [
+                    '.',
+                    '/usr/local/share/kaboxer',
+                    '/usr/share/kaboxer',
+                ]
+                for p in paths:
+                    tarfile = os.path.join(p,self.config['container']['origin'])
+                    if os.path.isfile(tarfile):
+                        print("Loading image from "+tarfile)
+                        self._load_image(tarfile)
+                    return
+        except KeyError:
+            pass
+        if not self._find_image(full_image_name+':latest'):
+            paths = [
+                '.',
+                '/usr/local/share/kaboxer',
+                '/usr/share/kaboxer',
+            ]
+            for p in paths:
+                tarfile = os.path.join(p,self.config['application']['id']+'.tar')
+                if os.path.isfile(tarfile):
+                    print("Loading image from "+tarfile)
+                    self._load_image(tarfile)
+                    return
+        print("Cannot prepare image")
+        sys.exit(1)
 
     def pull(self):
         self.build()
@@ -521,43 +595,45 @@ Categories={{ p.categories }}
             '/usr/share/kaboxer',
         ]
         for p in paths:
-            config_file = os.path.join(p,self.args.app+'.yaml')
-            if os.path.isfile(config_file):
-                try:
-                    return yaml.safe_load(open(config_file))
-                except:
-                    print("Error loading config file "+config_file)
-                    sys.exit(1)
-        print("Missing config file")
+            for filename in [ self.args.app+'.yaml', 'kaboxer.yaml' ]:
+                config_file = os.path.join(p,filename)
+                if os.path.isfile(config_file):
+                    try:
+                        y = yaml.safe_load(open(config_file))
+                        if y['application']['id'] == self.args.app:
+                            return y
+                    except:
+                        pass
+        print("Could not find appropriate config file")
         sys.exit(1)
 
     def read_config(self):
-        confs = self.load_config()
+        self.config = self.load_config()
         # If a component was specified
         try:
             component = self.args.component
-            self.config = confs['components'][component]
+            self.component_config = self.config['components'][component]
             return
         except:
             pass
         # If a default component is listed in the config file
         try:
-            component = confs['container']['default_component']
-            self.config = confs['components'][component]
+            component = self.config['container']['default_component']
+            self.component_config = self.config['components'][component]
             return
         except:
             pass
         # If there is a component called "default"
         try:
-            self.config = confs['components']['default']
+            self.component_config = self.config['components']['default']
             return
         except:
             pass
         # Otherwise take the first component
         try:
-            components = sorted(confs['components'].keys())
+            components = sorted(self.config['components'].keys())
             component = components[0]
-            self.config = confs['components'][component]
+            self.component_config = self.config['components'][component]
             return
         except:
             pass

@@ -14,7 +14,7 @@ install:
 components:
   default:
     run_mode: cli
-    executable: /bin/sleep 60
+    executable: /bin/echo Hi there
   daemon:
     run_mode: headless
     executable: /bin/sleep 60
