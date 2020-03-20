@@ -1,0 +1,18 @@
+application:
+    id: kbx-demo
+    name: Kaboxer demo container
+    description: Test container for Kaboxer that only displays a Hello World
+    categories: Development
+container:
+  type: docker
+  origin:
+    registry:
+      url: registry.gitlab.com/kalilinux/tools/kaboxer
+      image: kbx-demo
+build:
+  docker:
+    file: Dockerfile
+components:
+  default:
+    run_mode: cli
+    executable: /bin/echo Hello World

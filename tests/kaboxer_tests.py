@@ -27,7 +27,7 @@ class TestKaboxer(unittest.TestCase):
         ]
 
     def tearDown(self):
-        self.run_command("docker image rm kaboxer/%s:latest 2>&1" % (self.iname,))
+        self.run_command("docker image rm kaboxer/%s:latest 2>&1 > /dev/null" % (self.iname,))
         shutil.rmtree(self.tdname)
         pass
 
@@ -39,6 +39,10 @@ class TestKaboxer(unittest.TestCase):
     def run_and_check_command(self,cmd,msg):
         ret = self.run_command(cmd)
         self.assertEqual(ret,0,msg)
+
+    def run_and_check_command_fails(self,cmd,msg):
+        ret = self.run_command(cmd)
+        self.assertNotEqual(ret,0,msg)
 
     def is_image_present(self):
         if self.run_command("docker image ls | grep -q kaboxer/%s" % (self.iname,)) == 0:
@@ -82,6 +86,28 @@ class TestKaboxer(unittest.TestCase):
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
 
+    def test_run(self):
+        self.test_build_only()
+        self.run_and_check_command("kaboxer run %s" % (self.iname,),
+                                   "Error when running kaboxer run")
+        self.run_and_check_command("kaboxer run %s | grep -q Hi.there" % (self.iname,),
+                                   "kaboxer run doesn't yield expected results")
+        self.run_and_check_command("kaboxer purge %s" % (self.iname,),
+                                   "Error when running kaboxer purge")
+        self.assertFalse(self.is_image_present(),
+                         "Docker image still present after kaboxer purge")
+        self.run_and_check_command_fails("kaboxer run %s" % (self.iname,),
+                                         "Unexpected working kaboxer run")
+
+    def test_run_after_purge(self):
+        self.test_build_and_save()
+        self.run_and_check_command("kaboxer purge %s" % (self.iname,),
+                                   "Error when running kaboxer purge")
+        self.assertFalse(self.is_image_present(),
+                         "Docker image still present after kaboxer purge")
+        self.run_and_check_command("kaboxer run %s" % (self.iname,),
+                                   "Error when running kaboxer run")
+
     def test_load_purge(self):
         self.test_build_and_save()
         self.run_and_check_command("kaboxer purge %s" % (self.iname,),
@@ -107,6 +133,10 @@ class TestKaboxer(unittest.TestCase):
         os.unlink(installed_tarfile)
         self.assertFalse(os.path.isfile(installed_tarfile),
                          "Tarfile still present after unlink (%s)" % (installed_tarfile,))
+        self.run_and_check_command("kaboxer install --skip-local-tarball --destdir %s" % (os.path.join(self.fixdir,'target')),
+                                   "Error when running kaboxer install")
+        self.assertFalse(os.path.isfile(installed_tarfile),
+                         "Tarfile present after install --skip-local-tarball (%s)" % (installed_tarfile,))
         self.run_and_check_command("kaboxer install --destdir %s --prefix %s" % (os.path.join(self.fixdir,'target'),'/usr'),
                                    "Error when running kaboxer install")
         self.assertFalse(os.path.isfile(installed_tarfile),
@@ -160,6 +190,23 @@ class TestKaboxer(unittest.TestCase):
         installed_extracted_icon = os.path.join(self.fixdir,'target','usr','local','share','icons',"kaboxer-%s.png" % (self.iname,))
         self.assertTrue(os.path.isfile(installed_extracted_icon),
                         "Extracted icon not installed (expecting %s)" % (installed_extracted_icon,))
+
+    @unittest.skip("Skipping until Docker repository at Gitlab becomes public")
+    def test_fetch(self):
+        iname = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
+        self.run_command("docker image rm %s 2>&1 > /dev/null" % (iname,))
+        self.run_command("docker image ls | grep -q %s" % (iname,))
+        self.run_and_check_command_fails("docker image ls | grep -q %s" % (iname,),
+                                         "Image %s present at beginning of test" % (iname,))
+        self.run_and_check_command("kaboxer prepare kbx-demo",
+                                   "Error when running kaboxer prepare")
+        self.run_and_check_command("docker image ls | grep -q %s" % (iname,),
+                                   "Image not fetched from registry")
+        self.run_and_check_command("kaboxer run kbx-demo",
+                                   "Failed to run kbx-demo")
+        self.run_and_check_command("kaboxer run kbx-demo | grep -q 'Hello World'",
+                                   "Running kbx-demo doesn't yield the expected results")
+
 if __name__ == '__main__':
     unittest.main()
 
