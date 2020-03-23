@@ -1,8 +1,8 @@
-kaboxer (0.4~) UNRELEASED; urgency=medium
+kaboxer (0.4) kali-dev; urgency=medium
 
   * Implement kaboxer as a standalone framework.
 
- -- Roland Mas <roland.mas@gnurandal.com>  Tue, 03 Mar 2020 16:37:50 +0100
+ -- Roland Mas <roland.mas@gnurandal.com>  Mon, 23 Mar 2020 15:16:04 +0100
 
 kaboxer (0.3.4) kali-dev; urgency=medium
 
