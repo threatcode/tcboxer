@@ -536,7 +536,7 @@ Categories={{ p.categories }}
                     image = self.config['container']['origin']['registry']['image']
                 except KeyError:
                     image = self.config['application']['id']
-            return "%s/%s" % (registry, image)
+                return "%s/%s" % (registry, image)
         except KeyError:
             pass
         return "kaboxer/%s" % (self.config['application']['id'],)
