@@ -487,14 +487,24 @@ Categories={{ p.categories }}
             (_,ife) = os.path.splitext(os.path.basename(iconfile))
             with tempfile.TemporaryDirectory() as td:
                 renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
-                temp_container = self.docker_conn.containers.create('kaboxer/'+parsed_config['application']['id'])
-                container_id = temp_container.id
-                subprocess.call("docker cp %s:%s %s" % (container_id, iconfile, renamed_icon),
-                                shell=True)
-                temp_container.remove()
+                self._extract_file_from_image('kaboxer/'+parsed_config['application']['id'],iconfile,renamed_icon)
                 self._install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
         except KeyError:
             pass
+
+    def _extract_file_from_image(self,image,infile,outfile):
+        temp_container = self.docker_conn.containers.create(image)
+        (bits, stat) = temp_container.get_archive(infile)
+        with tempfile.TemporaryFile() as temptar:
+            for chunk in bits:
+                temptar.write(chunk)
+            temptar.seek(0)
+            tf = tarfile.open(fileobj=temptar)
+            ti = tf.getmembers()[0]
+            with tempfile.TemporaryDirectory() as td:
+                tf.extract(ti,path=td,set_attrs=False)
+                shutil.move(os.path.join(td,ti.name), outfile)
+        temp_container.remove()
 
     def save(self):
         images = self.docker_conn.images.list()
