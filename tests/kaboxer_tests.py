@@ -209,6 +209,13 @@ class TestKaboxer(unittest.TestCase):
         self.run_and_check_command("kaboxer run kbx-demo | grep -q 'Hello World'",
                                    "Running kbx-demo doesn't yield the expected results")
 
+    def test_version(self):
+        self.test_build_only()
+        self.run_and_check_command("kaboxer version %s" % (self.app_name,),
+                                   "Error when running kaboxer version")
+        self.run_and_check_command("kaboxer version %s | grep -q 1.2.3" % (self.app_name, ),
+                                   "Unexpected output from kaboxer version")
+
 if __name__ == '__main__':
     unittest.main()
 

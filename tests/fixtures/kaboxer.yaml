@@ -3,6 +3,8 @@ application:
     name: Kaboxer test sleeper
     description: Test container for Kaboxer that only sleeps
     categories: Utilities;Development
+packaging:
+  revision: 1.2.3
 container:
   type: docker
 build:
