@@ -38,9 +38,10 @@ class Kaboxer:
         parser_stop.add_argument('app')
         parser_stop.set_defaults(func=self.stop)
 
-        parser_version = subparsers.add_parser('version', help='get installed version of containerized app')
-        parser_version.add_argument('app')
-        parser_version.set_defaults(func=self.version)
+        parser_get_meta_file = subparsers.add_parser('get-meta-file', help='get installed get_meta_file of containerized app')
+        parser_get_meta_file.add_argument('app')
+        parser_get_meta_file.add_argument('file')
+        parser_get_meta_file.set_defaults(func=self.get_meta_file)
 
         parser_prepare = subparsers.add_parser('prepare', help='prepare container')
         parser_prepare.add_argument('app')
@@ -280,7 +281,7 @@ class Kaboxer:
             print ("Can't stop a non-headless component")
             sys.exit(1)
 
-    def version(self):
+    def get_meta_file(self):
         self.read_config()
         try:
             image = self.component_config['image']
@@ -288,7 +289,7 @@ class Kaboxer:
             image = 'kaboxer/'+self.args.app
         tf = tempfile.mkstemp()
         tfn = tf[1]
-        self._extract_file_from_image(image,'/kaboxer/version',tfn)
+        self._extract_file_from_image(image,os.path.join('/kaboxer/',self.args.file),tfn)
         v = str(open(tfn).read())
         print(v)
 
@@ -348,10 +349,15 @@ class Kaboxer:
             df = os.path.join(path,'Dockerfile')
         tagname='kaboxer/'+app+':latest'
         (image, _) = self.docker_conn.images.build(path=path, dockerfile=df, rm=True, forcerm=True)
-        with tempfile.NamedTemporaryFile(mode='w+t') as tempversion:
-            tempversion.write(parsed_config['packaging']['revision'])
-            tempversion.flush()
-            image = self._inject_file_into_image(image,tempversion.name,'/kaboxer/version')
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+            tmp.write(parsed_config['packaging']['revision'])
+            tmp.flush()
+            image = self._inject_file_into_image(image,tmp.name,'/kaboxer/version')
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+            tmp.write(yaml.dump(sys.argv))
+            tmp.flush()
+            image = self._inject_file_into_image(image,tmp.name,'/kaboxer/kaboxer-build-cmd')
+        image = self._inject_file_into_image(image,df,'/kaboxer/Dockerfile')
         image.tag(tagname)
         if self.args.save:
             if self.args.tarball is not None:

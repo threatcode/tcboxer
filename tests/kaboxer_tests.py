@@ -39,22 +39,22 @@ class TestKaboxer(unittest.TestCase):
         # print ("RUNNING %s" % (cmd,))
         return subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=ignore_output).returncode
 
-    def run_and_check_command(self,cmd,msg=None,ignore_output=False):
-        ret = self.run_command(cmd,ignore_output=ignore_output)
+    def run_and_check_command(self,cmd,msg=None):
+        o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True)
         if msg is None:
-            msg = "Error when running %s"%(cmd,)
-        self.assertEqual(ret,0,msg)
+            msg = "Error when running %s\nSTDOUT:\n%s\nSTDERR:\n%s"%(cmd,o.stdout,o.stderr)
+        self.assertEqual(o.returncode,0,msg)
 
-    def run_and_check_command_fails(self,cmd,msg=None,ignore_output=False):
-        ret = self.run_command(cmd,ignore_output=ignore_output)
+    def run_and_check_command_fails(self,cmd,msg=None):
+        o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True)
         if msg is None:
-            msg = "Unexpected success when running %s"%(cmd,)
-        self.assertNotEqual(ret,0,msg)
+            msg = "Unexpected success when running %s\nSTDOUT:\n%s\nSTDERR:\n%s"%(cmd,o.stdout,o.stderr)
+        self.assertNotEqual(o.returncode,0,msg)
 
     def run_command_check_output_matches(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
         if fail_msg is None:
-            fail_msg = "Unexpected success when running %s"%(cmd,)
+            fail_msg = "Error when running %s\nSTDOUT=%s\nSTDERR=%s"%(cmd,o.stdout,o.stderr)
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output when running %s"%(cmd,)
@@ -104,8 +104,7 @@ class TestKaboxer(unittest.TestCase):
         self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
-        self.run_and_check_command_fails("kaboxer run %s" % (self.app_name,),
-                                         ignore_output=True)
+        self.run_and_check_command_fails("kaboxer run %s" % (self.app_name,))
 
     def test_run_after_purge(self):
         self.test_build_and_save()
@@ -193,7 +192,8 @@ class TestKaboxer(unittest.TestCase):
     def test_fetch(self):
         self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
         self.image_name = self.app_name
-        self.run_command("docker image rm %s" % (self.app_name,), ignore_output=True)
+        if self.is_image_present():
+            self.run_command("docker image rm %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          msg="Image %s present at beginning of test" % (self.app_name,))
         self.run_and_check_command("kaboxer prepare kbx-demo")
@@ -203,10 +203,12 @@ class TestKaboxer(unittest.TestCase):
         self.run_command_check_output_matches("kaboxer run kbx-demo",
                                       "Hello World")
 
-    def test_version(self):
+    def test_meta_files(self):
         self.test_build_only()
-        self.run_command_check_output_matches("kaboxer version %s" % (self.app_name,),
-                                      "1.2.3")
+        self.run_command_check_output_matches("kaboxer get-meta-file %s version" % (self.app_name,),
+                                              "1.2.3")
+        self.run_command_check_output_matches("kaboxer get-meta-file %s Dockerfile" % (self.app_name,),
+                                              "FROM debian:stable-slim")
 
 if __name__ == '__main__':
     unittest.main()
