@@ -17,6 +17,7 @@ import dockerpty
 import jinja2
 import prompt_toolkit
 import tempfile
+import pathlib
 
 class Kaboxer:
     def __init__(self):
@@ -36,6 +37,10 @@ class Kaboxer:
         parser_stop = subparsers.add_parser('stop', help='stop running containerized app')
         parser_stop.add_argument('app')
         parser_stop.set_defaults(func=self.stop)
+
+        parser_version = subparsers.add_parser('version', help='get installed version of containerized app')
+        parser_version.add_argument('app')
+        parser_version.set_defaults(func=self.version)
 
         parser_prepare = subparsers.add_parser('prepare', help='prepare container')
         parser_prepare.add_argument('app')
@@ -275,6 +280,18 @@ class Kaboxer:
             print ("Can't stop a non-headless component")
             sys.exit(1)
 
+    def version(self):
+        self.read_config()
+        try:
+            image = self.component_config['image']
+        except KeyError:
+            image = 'kaboxer/'+self.args.app
+        tf = tempfile.mkstemp()
+        tfn = tf[1]
+        self._extract_file_from_image(image,'/kaboxer/version',tfn)
+        v = str(open(tfn).read())
+        print(v)
+
     def find_config_for_build_app(self):
         try:
             if self.args.path is None:
@@ -329,7 +346,13 @@ class Kaboxer:
             df = os.path.join(path,parsed_config['build']['docker']['file'])
         except:
             df = os.path.join(path,'Dockerfile')
-        (image, _) = self.docker_conn.images.build(path=path, tag='kaboxer/'+app+':latest', dockerfile=df, rm=True, forcerm=True)
+        tagname='kaboxer/'+app+':latest'
+        (image, _) = self.docker_conn.images.build(path=path, dockerfile=df, rm=True, forcerm=True)
+        with tempfile.NamedTemporaryFile(mode='w+t') as tempversion:
+            tempversion.write(parsed_config['packaging']['revision'])
+            tempversion.flush()
+            image = self._inject_file_into_image(image,tempversion.name,'/kaboxer/version')
+        image.tag(tagname)
         if self.args.save:
             if self.args.tarball is not None:
                 tarball = self.args.tarball
@@ -340,6 +363,7 @@ class Kaboxer:
             parsed_config['install']['desktop-files']
         except:
             self._gen_desktop_files()
+
 
     def _gen_desktop_files(self):
         parsed_config = self.find_config_for_build_app()
@@ -506,6 +530,32 @@ Categories={{ p.categories }}
                 shutil.move(os.path.join(td,ti.name), outfile)
         temp_container.remove()
 
+    def _inject_file_into_image(self,image,outfile,infile):
+        temp_container = self.docker_conn.containers.create(image)
+        with tempfile.TemporaryFile() as temptar:
+            tf = tarfile.open(fileobj=temptar,mode='w')
+            (dirname,filename) = os.path.split(infile)
+            p = pathlib.Path(dirname)
+            for parent in reversed(p.parents):
+                ti = tarfile.TarInfo(name=str(parent))
+                ti.type = tarfile.DIRTYPE
+                tf.addfile(ti)
+            ti = tarfile.TarInfo(name=infile)
+            ti.size = os.stat(outfile).st_size
+            tf.addfile(ti, fileobj=open(outfile,mode='rb'))
+            tf.close()
+            temptar.seek(0)
+            buf = b''
+            while True:
+                b = temptar.read()
+                if not b:
+                    break
+                buf += b
+            temp_container.put_archive('/',buf)
+        image = temp_container.commit()
+        temp_container.remove()
+        return image
+
     def save(self):
         images = self.docker_conn.images.list()
         for image in images:
@@ -559,7 +609,7 @@ Categories={{ p.categories }}
         try:
             if 'registry' in self.config['container']['origin']:
                 if not self._find_image(full_image_name+':latest'):
-                    print("Pulling image from registry")
+                    #print("Pulling image from registry")
                     self.docker_conn.images.pull(full_image_name)
                 return
             if 'tarball' in self.config['container']['origin']:
@@ -571,7 +621,7 @@ Categories={{ p.categories }}
                 for p in paths:
                     tarfile = os.path.join(p,self.config['container']['origin'])
                     if os.path.isfile(tarfile):
-                        print("Loading image from "+tarfile)
+                        #print("Loading image from "+tarfile)
                         self._load_image(tarfile)
                     return
         except KeyError:
@@ -585,7 +635,7 @@ Categories={{ p.categories }}
             for p in paths:
                 tarfile = os.path.join(p,self.config['application']['id']+'.tar')
                 if os.path.isfile(tarfile):
-                    print("Loading image from "+tarfile)
+                    #print("Loading image from "+tarfile)
                     self._load_image(tarfile)
                     return
         print("Cannot prepare image")
