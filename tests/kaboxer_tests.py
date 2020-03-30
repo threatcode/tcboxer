@@ -204,11 +204,38 @@ class TestKaboxer(unittest.TestCase):
                                       "Hello World")
 
     def test_meta_files(self):
-        self.test_build_only()
+        self.run_and_check_command("kaboxer build")
+        self.assertTrue(self.is_image_present(),
+                        "No Docker image present after build")
         self.run_command_check_output_matches("kaboxer get-meta-file %s version" % (self.app_name,),
-                                              "1.2.3")
+                                              "1.0")
+        self.run_command_check_output_matches("kaboxer get-meta-file %s packaging-revision" % (self.app_name,),
+                                              "3")
         self.run_command_check_output_matches("kaboxer get-meta-file %s Dockerfile" % (self.app_name,),
                                               "FROM debian:stable-slim")
+        self.run_command("docker image rm %s:latest" % (self.image_name,),
+                         ignore_output=True)
+        self.run_and_check_command("kaboxer build --version 1.1")
+        self.assertTrue(self.is_image_present(),
+                        "No Docker image present after build")
+        self.run_command_check_output_matches("kaboxer get-meta-file %s version" % (self.app_name,),
+                                              "1.1")
+        self.run_command("docker image rm %s:latest" % (self.image_name,),
+                         ignore_output=True)
+        self.run_and_check_command_fails("kaboxer build --version 2.0")
+        self.run_and_check_command("kaboxer build --version 2.0 --ignore-version")
+        self.run_command("docker image rm %s:latest" % (self.image_name,),
+                         ignore_output=True)
+        self.run_command("sed -i -e s/1.0/1.5/ %s" % (os.path.join(self.fixdir,'Dockerfile'),))
+        self.run_and_check_command_fails("kaboxer build")
+        self.assertFalse(self.is_image_present(),
+                        "Docker image present after failed build")
+        self.run_and_check_command("kaboxer build --ignore-version")
+        self.assertTrue(self.is_image_present(),
+                        "No Docker image present after build")
+        self.run_command("docker image rm %s:latest" % (self.image_name,),
+                         ignore_output=True)
+
 
 if __name__ == '__main__':
     unittest.main()

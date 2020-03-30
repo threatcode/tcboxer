@@ -4,7 +4,9 @@ application:
     description: Test container for Kaboxer that only sleeps
     categories: Utilities;Development
 packaging:
-  revision: 1.2.3
+  revision: 3
+  min_upstream_version: 0.9
+  max_upstream_version: 1.4
 container:
   type: docker
 build:
