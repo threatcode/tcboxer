@@ -282,10 +282,7 @@ class Kaboxer:
     def stop(self):
         self.read_config()
         run_mode = self.component_config['run_mode']
-        try:
-            image = self.component_config['image']
-        except KeyError:
-            image = 'kaboxer/'+self.args.app
+        image = 'kaboxer/'+self.args.app
         if run_mode == 'headless':
             containers = self.docker_conn.containers.list(filters={'name': self.args.app})
             container = containers[0]
@@ -303,10 +300,7 @@ class Kaboxer:
 
     def get_meta_file(self):
         self.read_config()
-        try:
-            image = self.component_config['image']
-        except KeyError:
-            image = 'kaboxer/'+self.args.app
+        image = 'kaboxer/'+self.args.app
         print(self._get_meta_file(image,self.args.file))
 
     def find_config_for_build_app(self):
