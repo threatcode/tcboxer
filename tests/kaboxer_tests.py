@@ -232,6 +232,11 @@ class TestKaboxer(unittest.TestCase):
         self.run_command("docker image rm %s:latest" % (self.image_name,),
                          ignore_output=True)
 
+    def test_list(self):
+        self.run_and_check_command("kaboxer build")
+        self.run_command_check_output_matches("kaboxer list",
+                                              "%s: 1.0" % (self.app_name,))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -48,6 +48,9 @@ class Kaboxer:
         parser_prepare.add_argument('app')
         parser_prepare.set_defaults(func=self.prepare)
 
+        parser_list = subparsers.add_parser('list', help='list installed containers')
+        parser_list.set_defaults(func=self.list)
+
         parser_build = subparsers.add_parser('build', help='build image')
         parser_build.add_argument("--save", action="store_true", help='save container image after build')
         parser_build.add_argument("--version", help='app version')
@@ -107,6 +110,13 @@ class Kaboxer:
                 else:
                     print ("No access to Docker, are you a member of group docker or kaboxer?")
                     sys.exit(1)
+
+        self.config_paths = [
+            '.',
+            '/etc/kaboxer',
+            '/usr/local/share/kaboxer',
+            '/usr/share/kaboxer',
+        ]
 
     def go(self):
         self.args = self.parser.parse_args()
@@ -284,17 +294,20 @@ class Kaboxer:
             print ("Can't stop a non-headless component")
             sys.exit(1)
 
+    def _get_meta_file(self, image, filename):
+        tf = tempfile.mkstemp()
+        tfn = tf[1]
+        self._extract_file_from_image(image,os.path.join('/kaboxer/',filename),tfn)
+        v = str(open(tfn).read())
+        return v
+
     def get_meta_file(self):
         self.read_config()
         try:
             image = self.component_config['image']
         except KeyError:
             image = 'kaboxer/'+self.args.app
-        tf = tempfile.mkstemp()
-        tfn = tf[1]
-        self._extract_file_from_image(image,os.path.join('/kaboxer/',self.args.file),tfn)
-        v = str(open(tfn).read())
-        print(v)
+        print(self._get_meta_file(image,self.args.file))
 
     def find_config_for_build_app(self):
         try:
@@ -308,10 +321,7 @@ class Kaboxer:
         globs = [ 'kaboxer.yaml', '*.kaboxer.yaml' ]
         for g in globs:
             for f in glob.glob(os.path.join(path,g)):
-                try:
-                    yamlfiles.append(f)
-                except:
-                    pass
+                yamlfiles.append(f)
         if self.args.app is None:
             for f in yamlfiles:
                 y = yaml.safe_load(open(f))
@@ -713,14 +723,24 @@ Categories={{ p.categories }}
     def purge(self):
         self.docker_conn.images.remove('kaboxer/'+self.args.app)
 
+    def list(self):
+        yamlfiles = []
+        globs = [ 'kaboxer.yaml', '*.yaml' ]
+        installed_apps = {}
+        for p in self.config_paths:
+            for g in globs:
+                for f in glob.glob(os.path.join(p,g)):
+                    try:
+                        y = yaml.safe_load(open(f))
+                        aid = y['application']['id']
+                        installed_apps[aid] = self._get_meta_file('kaboxer/'+aid,'version').strip()
+                    except:
+                        pass
+        for aid in installed_apps:
+            print("%s: %s" % (aid, installed_apps[aid]))
+
     def load_config(self):
-        paths = [
-            '.',
-            '/etc/kaboxer',
-            '/usr/local/share/kaboxer',
-            '/usr/share/kaboxer',
-        ]
-        for p in paths:
+        for p in self.config_paths:
             for filename in [ self.args.app+'.yaml', 'kaboxer.yaml' ]:
                 config_file = os.path.join(p,filename)
                 if os.path.isfile(config_file):
