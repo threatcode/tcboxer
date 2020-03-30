@@ -9,6 +9,8 @@ container:
 build:
   docker:
     file: kbx-hello-gui.Dockerfile
+packaging:
+  revision: 1
 components:
   default:
     run_mode: gui
