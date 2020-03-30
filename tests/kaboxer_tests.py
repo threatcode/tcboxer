@@ -17,9 +17,7 @@ class TestKaboxer(unittest.TestCase):
                         self.fixdir)
         self.app_name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
         self.image_name = 'kaboxer/' + self.app_name
-        subprocess.call("sed -i -e s/CONTAINERID/%s/ %s" % (self.app_name,
-                                                            os.path.join(self.fixdir,'kaboxer.yaml')),
-                        shell=True)
+        self.run_command("sed -i -e s/CONTAINERID/%s/ %s" % (self.app_name, 'kaboxer.yaml'))
         self.tarfile = "%s.tar"%(self.app_name,)
         self.tarpath = os.path.join(self.fixdir,self.tarfile)
         self.desktopfiles = [
@@ -29,9 +27,7 @@ class TestKaboxer(unittest.TestCase):
         ]
 
     def tearDown(self):
-        subprocess.run("docker image rm %s:latest" % (self.image_name,),
-                       shell=True,
-                       capture_output=True)
+        self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
         shutil.rmtree(self.tdname)
         pass
 
