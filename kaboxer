@@ -292,11 +292,10 @@ class Kaboxer:
             sys.exit(1)
 
     def _get_meta_file(self, image, filename):
-        tf = tempfile.mkstemp()
-        tfn = tf[1]
-        self._extract_file_from_image(image,os.path.join('/kaboxer/',filename),tfn)
-        v = str(open(tfn).read())
-        return v
+        with tempfile.NamedTemporaryFile(mode='w+t',prefix="getmetafile") as tmp:
+            self._extract_file_from_image(image,os.path.join('/kaboxer/',filename),tmp.name)
+            v = str(open(tmp.name).read())
+            return v
 
     def get_meta_file(self):
         self.read_config()
