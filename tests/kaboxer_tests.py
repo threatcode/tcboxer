@@ -9,7 +9,9 @@ import random
 import string
 import re
 
-class TestKaboxer(unittest.TestCase):
+unittest.TestLoader.sortTestMethodsUsing = None
+
+class TestKaboxerCommon(unittest.TestCase):
     def setUp(self):
         self.tdname = tempfile.mkdtemp()
         self.fixdir = os.path.join(self.tdname,'fixtures')
@@ -62,10 +64,14 @@ class TestKaboxer(unittest.TestCase):
         else:
             return False
 
-    def test_build_only(self):
+    def build(self):
         self.run_and_check_command("kaboxer build")
         self.assertTrue(self.is_image_present(),
                         "No Docker image present after build")
+
+class TestKaboxerLocally(TestKaboxerCommon):
+    def test_build_only(self):
+        self.build()
 
     def test_build_and_save(self):
         self.run_and_check_command("kaboxer build --save")
@@ -75,7 +81,7 @@ class TestKaboxer(unittest.TestCase):
                         "Image not saved (expecting %s)" % (self.tarpath,))
 
     def test_build_then_separate_save(self):
-        self.test_build_only()
+        self.build()
         tarfile = "%s.tar"%(self.app_name,)
         self.run_and_check_command("kaboxer save %s %s"%(self.app_name,self.tarfile))
         self.assertTrue(os.path.isfile(self.tarpath),
@@ -88,13 +94,13 @@ class TestKaboxer(unittest.TestCase):
                          "Image still present after clean (expecting %s)" % (self.tarfile,))
 
     def test_purge(self):
-        self.test_build_only()
+        self.build()
         self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
 
     def test_run(self):
-        self.test_build_only()
+        self.build()
         self.run_command_check_output_matches("kaboxer run %s" % (self.app_name,),
                                       "Hi there")
         self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
@@ -184,21 +190,6 @@ class TestKaboxer(unittest.TestCase):
         self.assertTrue(os.path.isfile(installed_extracted_icon),
                         "Extracted icon not installed (expecting %s)" % (installed_extracted_icon,))
 
-    @unittest.skip("Skipping until Docker repository at Gitlab becomes public")
-    def test_fetch(self):
-        self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
-        self.image_name = self.app_name
-        if self.is_image_present():
-            self.run_command("docker image rm %s" % (self.app_name,))
-        self.assertFalse(self.is_image_present(),
-                         msg="Image %s present at beginning of test" % (self.app_name,))
-        self.run_and_check_command("kaboxer prepare kbx-demo")
-        self.run_command_check_output_matches("docker image ls",
-                                      self.app_name,
-                                      unexpected_msg="Image not fetched from registry")
-        self.run_command_check_output_matches("kaboxer run kbx-demo",
-                                      "Hello World")
-
     def test_meta_files(self):
         self.run_and_check_command("kaboxer build")
         self.assertTrue(self.is_image_present(),
@@ -236,6 +227,21 @@ class TestKaboxer(unittest.TestCase):
         self.run_and_check_command("kaboxer build")
         self.run_command_check_output_matches("kaboxer list",
                                               "%s: 1.0" % (self.app_name,))
+
+class TestKaboxerWithRegistry(TestKaboxerCommon):
+    def test_fetch(self):
+        self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
+        self.image_name = self.app_name
+        if self.is_image_present():
+            self.run_command("docker image rm %s" % (self.app_name,))
+        self.assertFalse(self.is_image_present(),
+                         msg="Image %s present at beginning of test" % (self.app_name,))
+        self.run_and_check_command("kaboxer prepare kbx-demo")
+        self.run_command_check_output_matches("docker image ls",
+                                      self.app_name,
+                                      unexpected_msg="Image not fetched from registry")
+        self.run_command_check_output_matches("kaboxer run kbx-demo",
+                                      "Hello World")
 
 
 if __name__ == '__main__':
