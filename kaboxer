@@ -53,6 +53,7 @@ class Kaboxer:
 
         parser_build = subparsers.add_parser('build', help='build image')
         parser_build.add_argument("--save", action="store_true", help='save container image after build')
+        parser_build.add_argument("--push", action="store_true", help='push container image to registry after build')
         parser_build.add_argument("--version", help='app version')
         parser_build.add_argument("--ignore-version", action="store_true", help='ignore version checks')
         parser_build.add_argument("--tarball", help='tar file to save the image into')
@@ -73,7 +74,7 @@ class Kaboxer:
         parser_clean.add_argument("--tarball", help='tar file to clean (if if the dir)')
         parser_clean.add_argument('app', nargs='?')
         parser_clean.add_argument('path', nargs='?')
-        parser_clean.set_defaults(func=self.cmd clean)
+        parser_clean.set_defaults(func=self.cmd_clean)
 
         parser_pull = subparsers.add_parser('pull', help='fetch image')
         parser_pull.add_argument('app')
@@ -371,7 +372,6 @@ class Kaboxer:
             df = os.path.join(path,parsed_config['build']['docker']['file'])
         except:
             df = os.path.join(path,'Dockerfile')
-        tagname='kaboxer/'+app+':latest'
         buildargs = {}
         if self.args.version:
             if not self.args.ignore_version:
@@ -385,8 +385,8 @@ class Kaboxer:
         with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
             try:
                 self.extract_file_from_image(image,'/kaboxer/version',tmp.name)
+                saved_version = open(tmp.name).readline().strip()
                 if not self.args.ignore_version:
-                    saved_version = open(tmp.name).readline().strip()
                     try:
                         self.do_version_checks(saved_version,parsed_config)
                     except Exception as e:
@@ -395,6 +395,7 @@ class Kaboxer:
                         sys.exit(1)
             except Exception as e:
                 if self.args.version:
+                    saved_version = self.args.version
                     tmp.write(self.args.version)
                 else:
                     print("Unable to determine version (use --version?)")
@@ -422,6 +423,9 @@ class Kaboxer:
             tmp.write(yaml.dump(savedbuildargs))
             tmp.flush()
             image = self.inject_file_into_image(image,tmp.name,'/kaboxer/docker-build-parameters')
+        tagname='kaboxer/%s:latest'%(app,)
+        image.tag(tagname)
+        tagname='kaboxer/%s:%s'%(app,str(saved_version))
         image.tag(tagname)
         if self.args.save:
             if self.args.tarball is not None:
@@ -429,12 +433,32 @@ class Kaboxer:
             else:
                 tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
             self.save_image_to_file(image,tarball)
+        if self.args.push:
+            if 'registry' in parsed_config['container']['origin']:
+                registry = parsed_config['container']['origin']['registry']['url']
+                try:
+                    imagename = parsed_config['container']['origin']['registry']['image']
+                except KeyError:
+                    imagename = parsed_config['application']['id']
+                remotename = '%s/%s' % (registry, imagename)
+                tagname='%s:latest'%(remotename,)
+                image.tag(tagname)
+                tagname='%s:%s'%(remotename,str(saved_version))
+                image.tag(tagname)
+                self.docker_conn.images.push(remotename)
         try:
             parsed_config['install']['desktop-files']
         except:
             self.gen_desktop_files()
 
+    def cmd_push(self):
+        parsed_config = self.find_config_for_build_app()
+        app = parsed_config['application']['id']
+        tagname='kaboxer/'+app+':latest'
+        buildargs = {}
 
+
+        
     def gen_desktop_files(self):
         parsed_config = self.find_config_for_build_app()
         template_text = """[Desktop Entry]

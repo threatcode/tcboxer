@@ -12,6 +12,8 @@ container:
 build:
   docker:
     file: Dockerfile
+packaging:
+  revision: 1
 components:
   default:
     run_mode: cli

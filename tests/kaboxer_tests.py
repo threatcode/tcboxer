@@ -27,11 +27,14 @@ class TestKaboxerCommon(unittest.TestCase):
             "kaboxer-%s-daemon-start.desktop"%(self.app_name,),
             "kaboxer-%s-daemon-stop.desktop"%(self.app_name,),
         ]
+        shutil.copy(os.path.join(self.fixdir, 'kbx-demo.kaboxer.yaml'),
+                    os.path.join(self.fixdir, 'kbx-demo.yaml'))
 
     def tearDown(self):
         self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm %s:1.1" % (self.image_name,), ignore_output=True)
         shutil.rmtree(self.tdname)
-        pass
 
     def run_command(self,cmd,ignore_output=False):
         # print ("RUNNING %s" % (cmd,))
@@ -59,7 +62,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertTrue(re.search(expected,o.stdout),unexpected_msg + " (%s doesn't match %s)" % (o.stdout, expected))
 
     def is_image_present(self):
-        if self.run_command("docker image ls | grep -q %s" % (self.image_name,)) == 0:
+        if self.run_command("docker image ls | grep -q '%s *latest'" % (self.image_name,)) == 0:
             return True
         else:
             return False
@@ -213,6 +216,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_and_check_command("kaboxer build --version 2.0 --ignore-version")
         self.run_command("docker image rm %s:latest" % (self.image_name,),
                          ignore_output=True)
+        self.run_command("docker image rm %s:2.0" % (self.image_name,),
+                         ignore_output=True)
         self.run_command("sed -i -e s/1.0/1.5/ %s" % (os.path.join(self.fixdir,'Dockerfile'),))
         self.run_and_check_command_fails("kaboxer build")
         self.assertFalse(self.is_image_present(),
@@ -222,6 +227,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
                         "No Docker image present after build")
         self.run_command("docker image rm %s:latest" % (self.image_name,),
                          ignore_output=True)
+        self.run_command("docker image rm %s:1.5" % (self.image_name,),
+                         ignore_output=True)
 
     def test_list(self):
         self.run_and_check_command("kaboxer build")
@@ -229,9 +236,26 @@ class TestKaboxerLocally(TestKaboxerCommon):
                                               "%s: 1.0" % (self.app_name,))
 
 class TestKaboxerWithRegistry(TestKaboxerCommon):
-    def test_fetch(self):
+    def setUp(self):
+        super(TestKaboxerWithRegistry,self).setUp()
         self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
         self.image_name = self.app_name
+
+    def remove_images(self):
+        self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm kaboxer/kbx-demo:1.0", ignore_output=True)
+        self.run_command("docker image rm kaboxer/kbx-demo:latest", ignore_output=True)
+
+    def tearDown(self):
+        self.remove_images()
+        super(TestKaboxerWithRegistry,self).tearDown()
+
+    def test_build_push_and_fetch(self):
+        self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
+        self.image_name = self.app_name
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.remove_images()
         if self.is_image_present():
             self.run_command("docker image rm %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
@@ -243,7 +267,5 @@ class TestKaboxerWithRegistry(TestKaboxerCommon):
         self.run_command_check_output_matches("kaboxer run kbx-demo",
                                       "Hello World")
 
-
 if __name__ == '__main__':
     unittest.main()
-
