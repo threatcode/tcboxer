@@ -95,7 +95,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
 
     def test_purge(self):
         self.build()
-        self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
 
@@ -103,14 +103,14 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.build()
         self.run_command_check_output_matches("kaboxer run %s" % (self.app_name,),
                                       "Hi there")
-        self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
         self.run_and_check_command_fails("kaboxer run %s" % (self.app_name,))
 
     def test_run_after_purge(self):
         self.test_build_and_save()
-        self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
         self.run_command_check_output_matches("kaboxer run %s" % (self.app_name,),
@@ -118,13 +118,13 @@ class TestKaboxerLocally(TestKaboxerCommon):
 
     def test_load_purge(self):
         self.test_build_and_save()
-        self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
         self.run_and_check_command("kaboxer load %s %s" % (self.app_name,self.tarfile))
         self.assertTrue(self.is_image_present(),
                         "No Docker image present after load")
-        self.run_and_check_command("kaboxer purge %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
 

@@ -91,6 +91,7 @@ class Kaboxer:
 
         parser_purge = subparsers.add_parser('purge', help='purge image')
         parser_purge.add_argument('app')
+        parser_purge.add_argument("--prune", action="store_true", help='prune unused images')
         parser_purge.set_defaults(func=self.cmd_purge)
 
         try:
@@ -715,6 +716,8 @@ Categories={{ p.categories }}
 
     def cmd_purge(self):
         self.docker_conn.images.remove('kaboxer/'+self.args.app)
+        if self.args.prune:
+            self.docker_conn.images.prune(filters={'dangling': True})
 
     def cmd_list(self):
         yamlfiles = []
