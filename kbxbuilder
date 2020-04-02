@@ -1,0 +1,75 @@
+#! /usr/bin/python3
+
+import argparse
+import yaml
+import os
+import sys
+import subprocess
+
+class Kbxbuilder:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser()
+
+        subparsers = self.parser.add_subparsers(title='subcommands', help='action to perform', dest='action', required=True)
+
+        parser_build_one = subparsers.add_parser('build-one', help='build one app')
+        parser_build_one.add_argument('app')
+        parser_build_one.set_defaults(func=self.cmd_build_one)
+
+        parser_build_all = subparsers.add_parser('build-all', help='build all apps')
+        parser_build_all.set_defaults(func=self.cmd_build_all)
+
+        self.config_paths = [
+            '.',
+            '/etc/kaboxer',
+        ]
+
+        self.config = {}
+        self.apps = {}
+
+        for p in self.config_paths:
+            f = os.path.join(p, 'kbxbuilder.config.yaml')
+            try:
+                self.config = yaml.safe_load(open(f))
+                self.config_file = f
+                print ("Loading config file %s" + f)
+                break
+            except:
+                pass
+
+        for p in self.config_paths:
+            f = os.path.join(p, 'kbxbuilder.apps.yaml')
+            try:
+                self.apps = yaml.safe_load(open(f))
+                self.apps_file = f
+                print ("Loading apps file %s" + f)
+                break
+            except:
+                pass
+
+    def go(self):
+        self.args = self.parser.parse_args()
+        self.args.func()
+
+    def build_one(self, app):
+        try:
+            buildmode = self.apps[app]['buildmode']
+        except:
+            print("Cannot find how to build "+app)
+            sys.exit(1)
+        if buildmode == 'kaboxer':
+            cmd = "kaboxer build %s" % (app,)
+            subprocess.run(cmd, shell=True)
+            if self.apps[app]['push']:
+                cmd = "kaboxer push %s" % (app,)
+                subprocess.run(cmd, shell=True)
+
+    def cmd_build_one(self):
+        self.build_one(self.args.app)
+
+    def cmd_build_all(self):
+        for app in self.apps:
+            self.build_one(app)
+
+kbxbuilder = Kbxbuilder()
+kbxbuilder.go()

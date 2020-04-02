@@ -235,9 +235,9 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_command_check_output_matches("kaboxer list",
                                               "%s: 1.0" % (self.app_name,))
 
-class TestKaboxerWithRegistry(TestKaboxerCommon):
+class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
     def setUp(self):
-        super(TestKaboxerWithRegistry,self).setUp()
+        super().setUp()
         self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
         self.image_name = self.app_name
 
@@ -249,11 +249,10 @@ class TestKaboxerWithRegistry(TestKaboxerCommon):
 
     def tearDown(self):
         self.remove_images()
-        super(TestKaboxerWithRegistry,self).tearDown()
+        super().tearDown()
 
+class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
     def test_build_with_push_and_fetch(self):
-        self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
-        self.image_name = self.app_name
         self.run_and_check_command("kaboxer build --push kbx-demo")
         self.remove_images()
         if self.is_image_present():
@@ -268,8 +267,6 @@ class TestKaboxerWithRegistry(TestKaboxerCommon):
                                       "Hello World")
 
     def test_build_then_push_and_fetch(self):
-        self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
-        self.image_name = self.app_name
         self.run_and_check_command("kaboxer build kbx-demo")
         self.run_and_check_command("kaboxer push kbx-demo")
         self.remove_images()
@@ -281,6 +278,27 @@ class TestKaboxerWithRegistry(TestKaboxerCommon):
         self.run_command_check_output_matches("docker image ls",
                                       self.app_name,
                                       unexpected_msg="Image not fetched from registry")
+        self.run_command_check_output_matches("kaboxer run kbx-demo",
+                                      "Hello World")
+
+class TestKbxbuilder(TestKaboxerWithRegistryCommon):
+    def test_build_one(self):
+        self.run_and_check_command("kbxbuilder build-one kbx-demo")
+        self.remove_images()
+        if self.is_image_present():
+            self.run_command("docker image rm %s" % (self.app_name,))
+        self.assertFalse(self.is_image_present(),
+                         msg="Image %s present at beginning of test" % (self.app_name,))
+        self.run_command_check_output_matches("kaboxer run kbx-demo",
+                                      "Hello World")
+
+    def test_build_all(self):
+        self.run_and_check_command("kbxbuilder build-all")
+        self.remove_images()
+        if self.is_image_present():
+            self.run_command("docker image rm %s" % (self.app_name,))
+        self.assertFalse(self.is_image_present(),
+                         msg="Image %s present at beginning of test" % (self.app_name,))
         self.run_command_check_output_matches("kaboxer run kbx-demo",
                                       "Hello World")
 
