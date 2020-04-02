@@ -80,6 +80,10 @@ class Kaboxer:
         parser_pull.add_argument('app')
         parser_pull.set_defaults(func=self.cmd_pull)
 
+        parser_push = subparsers.add_parser('push', help='push image to registry')
+        parser_push.add_argument('app')
+        parser_push.set_defaults(func=self.cmd_push)
+
         parser_save = subparsers.add_parser('save', help='save image')
         parser_save.add_argument('app')
         parser_save.add_argument('file')
@@ -434,18 +438,7 @@ class Kaboxer:
                 tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
             self.save_image_to_file(image,tarball)
         if self.args.push:
-            if 'registry' in parsed_config['container']['origin']:
-                registry = parsed_config['container']['origin']['registry']['url']
-                try:
-                    imagename = parsed_config['container']['origin']['registry']['image']
-                except KeyError:
-                    imagename = parsed_config['application']['id']
-                remotename = '%s/%s' % (registry, imagename)
-                tagname='%s:latest'%(remotename,)
-                image.tag(tagname)
-                tagname='%s:%s'%(remotename,str(saved_version))
-                image.tag(tagname)
-                self.docker_conn.images.push(remotename)
+            self.cmd_push()
         try:
             parsed_config['install']['desktop-files']
         except:
@@ -454,11 +447,29 @@ class Kaboxer:
     def cmd_push(self):
         parsed_config = self.find_config_for_build_app()
         app = parsed_config['application']['id']
-        tagname='kaboxer/'+app+':latest'
-        buildargs = {}
+        if 'registry' not in parsed_config['container']['origin']:
+            print ("No registry defined for %s"%(app,))
+            sys.exit(1)
+        registry = parsed_config['container']['origin']['registry']['url']
+        try:
+            imagename = parsed_config['container']['origin']['registry']['image']
+        except KeyError:
+            imagename = parsed_config['application']['id']
+        tagname = "kaboxer/%s:latest"%(imagename,)
+        image = self.find_image(tagname)
+        if not image:
+            print("No %s image found"%(tagname,))
+            sys.exit(1)
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+            self.extract_file_from_image(image.id,'/kaboxer/version',tmp.name)
+            saved_version = open(tmp.name).readline().strip()
+        remotename = '%s/%s' % (registry, imagename)
+        tagname='%s:latest'%(remotename,)
+        image.tag(tagname)
+        tagname='%s:%s'%(remotename,str(saved_version))
+        image.tag(tagname)
+        self.docker_conn.images.push(remotename)
 
-
-        
     def gen_desktop_files(self):
         parsed_config = self.find_config_for_build_app()
         template_text = """[Desktop Entry]
@@ -678,7 +689,7 @@ Categories={{ p.categories }}
         for image in images:
             for tag in image.tags:
                 if tag == name:
-                    return True
+                    return image
         return False
 
     def get_image_name(self):
