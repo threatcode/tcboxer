@@ -451,6 +451,7 @@ class Kaboxer:
             print ("No registry defined for %s"%(app,))
             sys.exit(1)
         registry = parsed_config['container']['origin']['registry']['url']
+        registry = re.sub('^https?://','',registry)
         try:
             imagename = parsed_config['container']['origin']['registry']['image']
         except KeyError:
@@ -697,6 +698,7 @@ Categories={{ p.categories }}
         try:
             if 'registry' in self.config['container']['origin']:
                 registry = self.config['container']['origin']['registry']['url']
+                registry = re.sub('^https?://','',registry)
                 try:
                     image = self.config['container']['origin']['registry']['image']
                 except KeyError:

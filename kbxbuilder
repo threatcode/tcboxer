@@ -5,6 +5,9 @@ import yaml
 import os
 import sys
 import subprocess
+import git
+import jinja2
+import re
 
 class Kbxbuilder:
     def __init__(self):
@@ -32,17 +35,38 @@ class Kbxbuilder:
             try:
                 self.config = yaml.safe_load(open(f))
                 self.config_file = f
-                print ("Loading config file %s" + f)
+                print ("Loading config file " + f)
                 break
             except:
-                pass
+                raise
+
+        def walk(node, replace_needed=False):
+            for key, item in node.items():
+                if isinstance(item, dict):
+                    replace_needed = walk(item, replace_needed)
+                else:
+                    if re.search('\{\{',item):
+                        replace_needed = True
+                        t = jinja2.Template(item)
+                        node[key] = t.render(config=self.config)
+            return replace_needed
+
+        i = 10
+        while i > 0:
+            i -= 1
+            if not walk(self.config):
+                break
+
+        if i == 0:
+            print("Dependency loop in config file")
+            sys.exit(1)
 
         for p in self.config_paths:
             f = os.path.join(p, 'kbxbuilder.apps.yaml')
             try:
                 self.apps = yaml.safe_load(open(f))
                 self.apps_file = f
-                print ("Loading apps file %s" + f)
+                print ("Loading apps file " + f)
                 break
             except:
                 pass
@@ -57,12 +81,49 @@ class Kbxbuilder:
         except:
             print("Cannot find how to build "+app)
             sys.exit(1)
+
+        os.makedirs(self.config['builder']['workdir'], exist_ok=True)
+        checkoutdir = os.path.join(self.config['builder']['workdir'], app)
+        try:
+            branch = self.apps[app]['branch']
+        except KeyError:
+            branch = 'master'
+        if os.path.isdir(checkoutdir):
+            repo = git.Repo(checkoutdir)
+            origin = repo.remotes['origin']
+            if origin.url != self.apps[app]['git_url']:
+                print("Switching remote URL")
+                git.remote.Remote.remove(repo,'origin')
+                git.remote.Remote.add(repo,'origin',self.apps[app]['git_url'])
+                origin = repo.remotes['origin']
+            else:
+                print("Remote already on the correct URL")
+            origin.fetch('--prune')
+        else:
+            repo = git.Repo.clone_from(self.apps[app]['git_url'], checkoutdir)
+        try:
+            repo.git.checkout('remotes/origin/'+branch)
+        except:
+            repo.git.checkout(branch)
+
+        print(repo.remotes['origin'].url)
+        revid = repo.head.commit.hexsha
+
+        if 'subdir' in self.apps[app]:
+            appdir = os.path.join(checkoutdir, self.apps[app]['subdir'])
+        else:
+            appdir = checkoutdir
+        appdir = os.path.abspath(appdir)
         if buildmode == 'kaboxer':
             cmd = "kaboxer build %s" % (app,)
-            subprocess.run(cmd, shell=True)
+            if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
+                print("Error when running " + cmd)
+                sys.exit(1)
             if self.apps[app]['push']:
                 cmd = "kaboxer push %s" % (app,)
-                subprocess.run(cmd, shell=True)
+                if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
+                    print("Error when running " + cmd)
+                    sys.exit(1)
 
     def cmd_build_one(self):
         self.build_one(self.args.app)

@@ -1,1 +1,6 @@
 builder:
+  basedir: .
+  workdir: "{{ config['builder']['basedir'] }}/work"
+  datadir: "{{ config['builder']['basedir'] }}/data"
+  buildlogsdir: "{{ config['builder']['basedir'] }}/build-logs"
+  logfile: "{{ config['builder']['datadir'] }}/kbx-builder.log"

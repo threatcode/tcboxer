@@ -1,3 +1,5 @@
 kbx-demo:
   buildmode: kaboxer
   push: True
+  git_url: https://gitlab.com/kalilinux/tools/kaboxer.git
+  subdir: tests/fixtures

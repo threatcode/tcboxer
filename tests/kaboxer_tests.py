@@ -8,6 +8,7 @@ import subprocess
 import random
 import string
 import re
+import yaml
 
 unittest.TestLoader.sortTestMethodsUsing = None
 
@@ -282,6 +283,15 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
                                       "Hello World")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
+    def setUp(self):
+        super().setUp()
+        appsfile = os.path.join(self.fixdir,'kbxbuilder.apps.yaml')
+        with open(appsfile) as f:
+            y = yaml.safe_load(f)
+        y['kbx-demo']['git_url'] = os.getcwd()
+        with open(appsfile,'w') as f:
+            f.write(yaml.dump(y))
+
     def test_build_one(self):
         self.run_and_check_command("kbxbuilder build-one kbx-demo")
         self.remove_images()
