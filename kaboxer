@@ -19,6 +19,7 @@ import prompt_toolkit
 import tempfile
 import pathlib
 import packaging.version as packaging_version
+import logging
 
 class Kaboxer:
     def __init__(self):
@@ -99,13 +100,17 @@ class Kaboxer:
         parser_purge.add_argument("--prune", action="store_true", help='prune unused images')
         parser_purge.set_defaults(func=self.cmd_purge)
 
+        self.logger = logging.Logger('kbxbuilder')
+        ch = logging.StreamHandler()
+        self.logger.addHandler(ch)
+
         try:
             self.docker_conn = docker.from_env()
             self.docker_conn.containers.list()
         except:
             groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
             if 'docker' in groups:
-                print ("No access to Docker even though you're a member of the docker group, is docker.service running?")
+                self.logger.error ("No access to Docker even though you're a member of the docker group, is docker.service running?")
                 sys.exit(1)
             else:
                 if 'kaboxer' in groups:
@@ -114,7 +119,7 @@ class Kaboxer:
                     sys.stderr.flush()
                     os.execv('/usr/bin/sudo', nc)
                 else:
-                    print ("No access to Docker, are you a member of group docker or kaboxer?")
+                    self.logger.error ("No access to Docker, are you a member of group docker or kaboxer?")
                     sys.exit(1)
 
         self.config_paths = [
@@ -146,7 +151,7 @@ class Kaboxer:
             if self.component_config['run_mode'] == 'headless':
                 opts['detach'] = True
             else:
-                print ("Can't detach a non-headless component")
+                self.logger.error ("Can't detach a non-headless component")
                 sys.exit(1)
         opts['environment'] = {}
         opts['mounts'] = []
@@ -233,7 +238,7 @@ class Kaboxer:
         elif run_mode == 'headless':
             opts['name'] = self.args.app
         else:
-            print ("Unknown run mode")
+            self.logger.error ("Unknown run mode")
             sys.exit(1)
         if run_mode == 'gui' or ('allow_x11' in self.component_config and self.component_config['allow_x11']):
             xsock = '/tmp/.X11-unix'
@@ -294,7 +299,7 @@ class Kaboxer:
             container = containers[0]
             container.stop()
         else:
-            print ("Can't stop a non-headless component")
+            self.logger.error ("Can't stop a non-headless component")
             sys.exit(1)
 
     def get_meta_file(self, image, filename):
@@ -344,7 +349,7 @@ class Kaboxer:
         try:
             app = parsed_config['application']['id']
         except:
-            print("Failed to find appropriate kaboxer.yaml file")
+            self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
         return parsed_config
 
@@ -382,7 +387,7 @@ class Kaboxer:
                 try:
                     self.do_version_checks(self.args.version,parsed_config)
                 except Exception as e:
-                    print(str(e))
+                    self.logger.error(str(e))
                     sys.exit(1)
             buildargs['KBX_APP_VERSION'] = self.args.version
         (image, _) = self.docker_conn.images.build(path=path, dockerfile=df, rm=True, forcerm=True, buildargs=buildargs)
@@ -395,14 +400,14 @@ class Kaboxer:
                         self.do_version_checks(saved_version,parsed_config)
                     except Exception as e:
                         self.docker_conn.images.remove(image=image.id)
-                        print(str(e))
+                        self.logger.error(str(e))
                         sys.exit(1)
             except Exception as e:
                 if self.args.version:
                     saved_version = self.args.version
                     tmp.write(self.args.version)
                 else:
-                    print("Unable to determine version (use --version?)")
+                    self.logger.error("Unable to determine version (use --version?)")
                     self.docker_conn.images.remove(image=image.id)
                     sys.exit(1)
                 tmp.flush()
@@ -448,7 +453,7 @@ class Kaboxer:
         parsed_config = self.find_config_for_build_app()
         app = parsed_config['application']['id']
         if 'registry' not in parsed_config['container']['origin']:
-            print ("No registry defined for %s"%(app,))
+            self.logger.error ("No registry defined for %s"%(app,))
             sys.exit(1)
         registry = parsed_config['container']['origin']['registry']['url']
         registry = re.sub('^https?://','',registry)
@@ -459,7 +464,7 @@ class Kaboxer:
         tagname = "kaboxer/%s:latest"%(imagename,)
         image = self.find_image(tagname)
         if not image:
-            print("No %s image found"%(tagname,))
+            self.logger.error("No %s image found"%(tagname,))
             sys.exit(1)
         with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
             self.extract_file_from_image(image.id,'/kaboxer/version',tmp.name)
@@ -669,7 +674,7 @@ Categories={{ p.categories }}
                 if tag == 'kaboxer/'+self.args.app + ':latest':
                     self.save_image_to_file(image,self.args.file)
                     return
-        print("No image found")
+        self.logger.error("No image found")
         sys.exit(1)
 
     def save_image_to_file(self,image,destfile):
@@ -716,7 +721,7 @@ Categories={{ p.categories }}
         try:
             if 'registry' in self.config['container']['origin']:
                 if not self.find_image(full_image_name+':latest'):
-                    #print("Pulling image from registry")
+                    self.logger.info("Pulling image from registry")
                     self.docker_conn.images.pull(full_image_name)
                 return
             if 'tarball' in self.config['container']['origin']:
@@ -728,7 +733,7 @@ Categories={{ p.categories }}
                 for p in paths:
                     tarfile = os.path.join(p,self.config['container']['origin'])
                     if os.path.isfile(tarfile):
-                        #print("Loading image from "+tarfile)
+                        self.logger.info("Loading image from "+tarfile)
                         self.load_image(tarfile)
                     return
         except KeyError:
@@ -742,10 +747,10 @@ Categories={{ p.categories }}
             for p in paths:
                 tarfile = os.path.join(p,self.config['application']['id']+'.tar')
                 if os.path.isfile(tarfile):
-                    #print("Loading image from "+tarfile)
+                    self.logger.info("Loading image from "+tarfile)
                     self.load_image(tarfile)
                     return
-        print("Cannot prepare image")
+        self.logger.error("Cannot prepare image")
         sys.exit(1)
 
     def cmd_pull(self):
@@ -783,7 +788,7 @@ Categories={{ p.categories }}
                             return y
                     except:
                         pass
-        print("Could not find appropriate config file")
+        self.logger.error("Could not find appropriate config file")
         sys.exit(1)
 
     def read_config(self):
@@ -816,7 +821,7 @@ Categories={{ p.categories }}
             return
         except:
             pass
-        print("Can't find an appropriate component")
+        self.logger.error("Can't find an appropriate component")
         sys.exit(1)
 
     def create_network(self, netname):
@@ -827,7 +832,7 @@ Categories={{ p.categories }}
 
     def create_xauth(self):
         if os.getenv('DISPLAY') is None:
-            print("No DISPLAY set, are you running in a graphical session?")
+            self.logger.error("No DISPLAY set, are you running in a graphical session?")
             sys.exit(1)
         self.xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
         self.xauth_in = os.path.join(self.home_in,'.docker.xauth')
