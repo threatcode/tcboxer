@@ -27,6 +27,8 @@ class Kbxbuilder:
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
 
+        self.subloggers = {}
+
         self.config_paths = [
             '.',
             '/etc/kaboxer',
@@ -67,6 +69,12 @@ class Kbxbuilder:
             self.logger.error("Dependency loop in config file")
             sys.exit(1)
 
+        os.makedirs(os.path.dirname(self.config['builder']['logfile']), exist_ok=True)
+        logfile = self.config['builder']['logfile']
+        ch = logging.FileHandler(logfile)
+        ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(ch)
+
         for p in self.config_paths:
             f = os.path.join(p, 'kbxbuilder.apps.yaml')
             try:
@@ -82,10 +90,22 @@ class Kbxbuilder:
         self.args.func()
 
     def build_one(self, app):
+        os.makedirs(self.config['builder']['buildlogsdir'], exist_ok=True)
+        if app not in self.subloggers:
+            logfile = os.path.join(self.config['builder']['buildlogsdir'], app+'.log')
+            self.subloggers[app] = logging.FileHandler(logfile)
+            self.subloggers[app].setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+            def flt(x):
+                try:
+                    return x.app == app
+                except:
+                    return False
+            self.subloggers[app].addFilter(flt)
+            self.logger.addHandler(self.subloggers[app])
         try:
             buildmode = self.apps[app]['buildmode']
         except:
-            self.logger.error("Cannot find how to build "+app)
+            self.logger.error("Cannot find how to build "+app, extra={'app':app})
             sys.exit(1)
 
         os.makedirs(self.config['builder']['workdir'], exist_ok=True)
@@ -94,16 +114,17 @@ class Kbxbuilder:
             branch = self.apps[app]['branch']
         except KeyError:
             branch = 'master'
+        self.logger.debug("Checking out Git repository at "+checkoutdir, extra={'app':app})
         if os.path.isdir(checkoutdir):
             repo = git.Repo(checkoutdir)
             origin = repo.remotes['origin']
             if origin.url != self.apps[app]['git_url']:
-                self.logger.info("Switching remote URL")
+                self.logger.debug("Switching remote URL", extra={'app':app})
                 git.remote.Remote.remove(repo,'origin')
                 git.remote.Remote.add(repo,'origin',self.apps[app]['git_url'])
                 origin = repo.remotes['origin']
             else:
-                self.logger.info("Remote already on the correct URL")
+                self.logger.debug("Remote already on the correct URL", extra={'app':app})
             origin.fetch('--prune')
         else:
             repo = git.Repo.clone_from(self.apps[app]['git_url'], checkoutdir)
@@ -121,22 +142,29 @@ class Kbxbuilder:
         appdir = os.path.abspath(appdir)
         if buildmode == 'kaboxer':
             cmd = "kaboxer build %s" % (app,)
+            self.logger.debug("Building kaboxer image: " + cmd, extra={'app':app})
             if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
-                self.logger.error("Error when running " + cmd)
+                self.logger.error("Error when running " + cmd, extra={'app':app})
                 sys.exit(1)
             if self.apps[app]['push']:
                 cmd = "kaboxer push %s" % (app,)
+                self.logger.debug("Pushing to registry: " + cmd, extra={'app':app})
                 if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
-                    self.logger.error("Error when running " + cmd)
+                    self.logger.error("Error when running " + cmd, extra={'app':app})
                     sys.exit(1)
 
     def cmd_build_one(self):
         self.logger.info("Building "+self.args.app)
         self.build_one(self.args.app)
+        self.logger.info("Built "+self.args.app)
 
     def cmd_build_all(self):
+        self.logger.info("Building all apps")
         for app in self.apps:
+            self.logger.info("Building "+app)
             self.build_one(app)
+            self.logger.info("Built "+app)
+        self.logger.info("Built all apps")
 
 kbxbuilder = Kbxbuilder()
 kbxbuilder.go()

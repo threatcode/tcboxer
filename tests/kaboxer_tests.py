@@ -292,6 +292,11 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
         with open(appsfile,'w') as f:
             f.write(yaml.dump(y))
 
+    def tearDown(self):
+        self.run_command('cat data/kbx-builder.log')
+        self.run_command('cat build-logs/kbx-demo.log')
+        super().tearDown()
+
     def test_build_one(self):
         self.run_and_check_command("kbxbuilder build-one kbx-demo")
         self.remove_images()
