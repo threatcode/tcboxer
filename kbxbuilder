@@ -10,6 +10,7 @@ import jinja2
 import re
 import logging
 import smtplib
+import time
 
 class Kbxbuilder:
     def __init__(self):
@@ -24,8 +25,12 @@ class Kbxbuilder:
         parser_build_all = subparsers.add_parser('build-all', help='build all apps')
         parser_build_all.set_defaults(func=self.cmd_build_all)
 
+        parser_build_as_needed = subparsers.add_parser('build-as-needed', help='build apps as needed')
+        parser_build_as_needed.set_defaults(func=self.cmd_build_as_needed)
+
         self.logger = logging.Logger('kbxbuilder')
         ch = logging.StreamHandler()
+        self.logger.setLevel(logging.INFO)
         self.logger.addHandler(ch)
 
         self.subloggers = {}
@@ -79,7 +84,16 @@ class Kbxbuilder:
         logfile = self.config['builder']['logfile']
         ch = logging.FileHandler(logfile)
         ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        ch.setLevel(logging.INFO)
         self.logger.addHandler(ch)
+
+        os.makedirs(self.config['builder']['datadir'], exist_ok=True)
+        self.statusfile = os.path.join(self.config['builder']['datadir'], 'status.yaml')
+        try:
+            self.logger.debug ("Loading status file " + f)
+            self.status = yaml.safe_load(open(self.statusfile))
+        except:
+            self.status = {}
 
         for p in self.config_paths:
             f = os.path.join(p, 'kbxbuilder.apps.yaml')
@@ -91,11 +105,29 @@ class Kbxbuilder:
             except:
                 pass
 
+    def add_status(self,app,tag,revid,status):
+        if app not in self.status:
+            self.status[app] = {}
+        t = time.time()
+        item = {
+            'tag': tag,
+            'revid': revid,
+            'status': status,
+        }
+        self.status[app][t] = item
+        if status:
+            self.status[app]['last_success'] = item.copy()
+        else:
+            self.status[app]['last_failure'] = item.copy()
+        self.logger.debug ("Saving status file")
+        with open(self.statusfile, 'w') as f:
+            f.write(yaml.dump(self.status))
+
     def go(self):
         self.args = self.parser.parse_args()
         self.args.func()
 
-    def build_one(self, app):
+    def build_one(self, app, force=True):
         os.makedirs(self.config['builder']['buildlogsdir'], exist_ok=True)
         if app not in self.subloggers:
             logfile = os.path.join(self.config['builder']['buildlogsdir'], app+'.log')
@@ -141,15 +173,25 @@ class Kbxbuilder:
 
         revid = repo.head.commit.hexsha
 
+        if not force:
+            try:
+               if self.status[app]['last_success']['revid'] == revid:
+                self.logger.info("Build of %s not needed", app, extra={'app':app})
+                return
+            except KeyError:
+                pass
+
         if 'subdir' in self.apps[app]:
             appdir = os.path.join(checkoutdir, self.apps[app]['subdir'])
         else:
             appdir = checkoutdir
         appdir = os.path.abspath(appdir)
+        self.logger.info("Building app %s at revid %s", app, revid, extra={'app':app})
         if buildmode == 'kaboxer':
             cmd = "kaboxer build %s" % (app,)
             self.logger.debug("Building kaboxer image: " + cmd, extra={'app':app})
             if subprocess.run(cmd, cwd=appdir, shell=True).returncode == 0:
+                self.add_status(app,branch,revid,'success')
                 if self.apps[app]['push']:
                     for i in self.config['on_success']:
                         if i['action'] == 'push_to_registry':
@@ -173,6 +215,7 @@ class Kbxbuilder:
                         msg['To'] = i['to']
                         s.sendmail(msg['From'], [msg['To']], msg.as_string())
             else:
+                self.add_status(app,branch,revid,'failure')
                 self.logger.error("Error when running " + cmd, extra={'app':app})
                 for i in self.config['on_failure']:
                     if i['action'] == 'execute_command':
@@ -192,16 +235,22 @@ class Kbxbuilder:
 
     def cmd_build_one(self):
         self.logger.info("Building "+self.args.app)
-        self.build_one(self.args.app)
+        self.build_one(self.args.app, force=True)
         self.logger.info("Built "+self.args.app)
 
     def cmd_build_all(self):
         self.logger.info("Building all apps")
         for app in self.apps:
             self.logger.info("Building "+app)
-            self.build_one(app)
+            self.build_one(app, force=True)
             self.logger.info("Built "+app)
         self.logger.info("Built all apps")
+
+    def cmd_build_as_needed(self):
+        self.logger.info("Building apps as needed")
+        for app in self.apps:
+            self.build_one(app, force=False)
+        self.logger.info("Built all needed apps")
 
 kbxbuilder = Kbxbuilder()
 kbxbuilder.go()
