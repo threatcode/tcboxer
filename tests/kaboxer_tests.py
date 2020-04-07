@@ -298,7 +298,7 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
         super().tearDown()
 
     def test_build_one(self):
-        self.run_and_check_command("kbxbuilder build-one kbx-demo")
+        self.run_command_check_output_matches("kbxbuilder build-one kbx-demo", "BUILD OF KBX-DEMO SUCCEEDED")
         self.remove_images()
         if self.is_image_present():
             self.run_command("docker image rm %s" % (self.app_name,))
@@ -306,6 +306,10 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
                          msg="Image %s present at beginning of test" % (self.app_name,))
         self.run_command_check_output_matches("kaboxer run kbx-demo",
                                       "Hello World")
+
+    def test_build_failure(self):
+        self.run_command("sed -i -e s/subdir/XXX/ %s" % (os.path.join(self.fixdir,'kbxbuilder.apps.yaml'),))
+        self.run_command_check_output_matches("kbxbuilder build-one kbx-demo", "BUILD OF KBX-DEMO FAILED")
 
     def test_build_all(self):
         self.run_and_check_command("kbxbuilder build-all")
