@@ -9,6 +9,8 @@ container:
 build:
   docker:
     file: kbx-hello-cli.Dockerfile
+packaging:
+  revision: 1
 install:
   desktop-files:
     - kbx-hello-cli.desktop
