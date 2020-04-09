@@ -5,4 +5,5 @@ dh-kaboxer/postinst-kaboxer /usr/share/debhelper/autoscripts
 dh-kaboxer/postrm-kaboxer /usr/share/debhelper/autoscripts
 kbx-hello /usr/share/doc/kaboxer/examples
 kaboxer /usr/bin
+kbxbuilder /usr/bin
 sudoers.d/kaboxer /etc/sudoers.d
