@@ -731,7 +731,7 @@ Categories={{ p.categories }}
                     '/usr/share/kaboxer',
                 ]
                 for p in paths:
-                    tarfile = os.path.join(p,self.config['container']['origin'])
+                    tarfile = os.path.join(p,self.config['container']['origin']['tarball'])
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from "+tarfile)
                         self.load_image(tarfile)
