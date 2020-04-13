@@ -3,4 +3,4 @@ kbx-demo:
   push: True
   git_url: https://gitlab.com/kalilinux/tools/kaboxer.git
   subdir: tests/fixtures
-  branch: 22-support-upgrade-of-kaboxed-applications
+  branch: master
