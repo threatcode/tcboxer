@@ -252,7 +252,7 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
         self.app_name = "localhost:5999/kbx-demo"
         self.image_name = self.app_name
         self.run_command('docker run -d -p %d:5000 --name %s -v %s:/var/lib/registry registry:2' \
-                         % (5999, self.nonce, os.path.join(self.fixdir, 'registry')))
+                         % (5999, self.nonce, os.path.join(self.fixdir, 'registry')), ignore_output=True)
 
     def remove_images(self):
         self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
@@ -261,9 +261,9 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
         self.run_command("docker image rm kaboxer/kbx-demo:latest", ignore_output=True)
 
     def tearDown(self):
-        self.run_command('docker container exec %s find /var/lib/registry -mindepth 1 -delete' % (self.nonce,))
-        self.run_command('docker container stop %s' % (self.nonce,))
-        self.run_command('docker container rm -v %s' % (self.nonce,))
+        self.run_command('docker container exec %s find /var/lib/registry -mindepth 1 -delete' % (self.nonce,), ignore_output=True)
+        self.run_command('docker container stop %s' % (self.nonce,), ignore_output=True)
+        self.run_command('docker container rm -v %s' % (self.nonce,), ignore_output=True)
         self.remove_images()
         super().tearDown()
 
