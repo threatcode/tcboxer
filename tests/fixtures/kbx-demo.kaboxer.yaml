@@ -7,7 +7,7 @@ container:
   type: docker
   origin:
     registry:
-      url: https://registry.gitlab.com/kalilinux/tools/kaboxer
+      url: localhost:5999
       image: kbx-demo
 build:
   docker:

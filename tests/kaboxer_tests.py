@@ -18,7 +18,8 @@ class TestKaboxerCommon(unittest.TestCase):
         self.fixdir = os.path.join(self.tdname,'fixtures')
         shutil.copytree(os.path.join(os.getcwd(),'tests','fixtures'),
                         self.fixdir)
-        self.app_name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        self.nonce = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        self.app_name = self.nonce
         self.image_name = 'kaboxer/' + self.app_name
         self.run_command("sed -i -e s/CONTAINERID/%s/ %s" % (self.app_name, 'kaboxer.yaml'))
         self.tarfile = "%s.tar"%(self.app_name,)
@@ -248,8 +249,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
 class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
     def setUp(self):
         super().setUp()
-        self.app_name = "registry.gitlab.com/kalilinux/tools/kaboxer/kbx-demo"
+        self.app_name = "localhost:5999/kbx-demo"
         self.image_name = self.app_name
+        self.run_command('docker run -d -p %d:5000 --name %s -v %s:/var/lib/registry registry:2' \
+                         % (5999, self.nonce, os.path.join(self.fixdir, 'registry')))
 
     def remove_images(self):
         self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
@@ -258,6 +261,9 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
         self.run_command("docker image rm kaboxer/kbx-demo:latest", ignore_output=True)
 
     def tearDown(self):
+        self.run_command('docker container exec %s find /var/lib/registry -mindepth 1 -delete' % (self.nonce,))
+        self.run_command('docker container stop %s' % (self.nonce,))
+        self.run_command('docker container rm -v %s' % (self.nonce,))
         self.remove_images()
         super().tearDown()
 
@@ -301,10 +307,12 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
         with open(appsfile,'w') as f:
             f.write(yaml.dump(y))
 
-    def DEBUGtearDown(self):
-        self.run_command('cat data/kbx-builder.log')
-        self.run_command('cat build-logs/kbx-demo.log')
-        self.run_command('cat data/status.yaml')
+    def tearDown(self):
+        if False:
+            self.run_command('cat data/kbx-builder.log')
+            self.run_command('cat build-logs/kbx-demo.log')
+            self.run_command('cat data/status.yaml')
+
         super().tearDown()
 
     def test_build_one(self):
