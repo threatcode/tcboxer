@@ -47,8 +47,8 @@ class Kaboxer:
         parser_get_meta_file.add_argument('file')
         parser_get_meta_file.set_defaults(func=self.cmd_get_meta_file)
 
-        parser_prepare = subparsers.add_parser('prepare', help='prepare container')
-        parser_prepare.add_argument('app')
+        parser_prepare = subparsers.add_parser('prepare', help='prepare container(s)')
+        parser_prepare.add_argument('app', nargs='+')
         parser_prepare.add_argument("--version", help='version to fetch', default='latest')
         parser_prepare.set_defaults(func=self.cmd_prepare)
 
@@ -141,9 +141,14 @@ class Kaboxer:
         self.args.func()
 
     def cmd_run(self):
-        self.cmd_prepare()
+        self.prepare([self.args.app])
 
-        image = self.get_image_name(self.args.app)
+        self.read_config(self.args.app)
+
+        image_name = self.get_image_name(self.args.app)
+        installed_apps, _ = self.list_apps()
+        tag_name = installed_apps[self.args.app]
+        image = '%s:%s'%(image_name,tag_name)
 
         if self.args.reuse_container:
             containers = self.docker_conn.containers.list(filters={'name': self.args.app})
@@ -733,46 +738,61 @@ Categories={{ p.categories }}
         return "kaboxer/%s" % (config['application']['id'],)
 
     def cmd_prepare(self):
-        self.read_config(self.args.app)
-        image_name = self.get_image_name(self.args.app)
-        tag_name = self.args.version
-        full_image_name = '%s:%s'%(image_name,tag_name)
-        if self.find_image(full_image_name):
-            return
-        try:
-            if 'registry' in self.config['container']['origin']:
-                if not self.find_image(full_image_name):
-                    self.logger.info("Pulling %s image from registry"%(full_image_name,))
-                    image = self.docker_conn.images.pull(full_image_name)
+        self.prepare(self.args.app)
+
+    def prepare(self, apps):
+        for app in apps:
+            m = re.search('([^=]+)=([^=]+)$', app)
+            if m:
+                app = m.group(1)
+                tag_name = m.group(2)
+            else:
+                installed_apps, registry_apps = self.list_apps(True)
+                if app in installed_apps:
+                    tag_name = installed_apps[app]
+                else:
+                    raa = registry_apps[app]
+                    tag_name = raa['maxversion']
+                self.read_config(app)
+            image_name = self.get_image_name(app)
+            full_image_name = '%s:%s'%(image_name,tag_name)
+            if self.find_image(full_image_name):
                 return
-            if 'tarball' in self.config['container']['origin']:
+            config = self.load_config(app)
+            try:
+                if 'registry' in config['container']['origin']:
+                    if not self.find_image(full_image_name):
+                        self.logger.info("Pulling %s image from registry"%(full_image_name,))
+                        image = self.docker_conn.images.pull(full_image_name)
+                    return
+                if 'tarball' in config['container']['origin']:
+                    paths = [
+                        '.',
+                        '/usr/local/share/kaboxer',
+                        '/usr/share/kaboxer',
+                    ]
+                    for p in paths:
+                        tarfile = os.path.join(p,config['container']['origin']['tarball'])
+                        if os.path.isfile(tarfile):
+                            self.logger.info("Loading image from "+tarfile)
+                            self.load_image(tarfile)
+                        return
+            except KeyError:
+                pass
+            if not self.find_image(full_image_name):
                 paths = [
                     '.',
                     '/usr/local/share/kaboxer',
                     '/usr/share/kaboxer',
                 ]
                 for p in paths:
-                    tarfile = os.path.join(p,self.config['container']['origin']['tarball'])
+                    tarfile = os.path.join(p,self.config['application']['id']+'.tar')
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from "+tarfile)
                         self.load_image(tarfile)
-                    return
-        except KeyError:
-            pass
-        if not self.find_image(full_image_name):
-            paths = [
-                '.',
-                '/usr/local/share/kaboxer',
-                '/usr/share/kaboxer',
-            ]
-            for p in paths:
-                tarfile = os.path.join(p,self.config['application']['id']+'.tar')
-                if os.path.isfile(tarfile):
-                    self.logger.info("Loading image from "+tarfile)
-                    self.load_image(tarfile)
-                    return
-        self.logger.error("Cannot prepare image")
-        sys.exit(1)
+                        return
+            self.logger.error("Cannot prepare image")
+            sys.exit(1)
 
     def cmd_pull(self):
         self.cmd_build()
@@ -816,7 +836,10 @@ Categories={{ p.categories }}
             for url in registries:
                 if not re.match('https?://',url):
                     url = 'http://'+url
-                req = requests.get(url+"/v2/_catalog")
+                try:
+                    req = requests.get(url+"/v2/_catalog")
+                except:
+                    continue
                 repos = req.json()['repositories']
                 for rep in repos:
                     if rep not in registry_apps:

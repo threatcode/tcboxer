@@ -84,8 +84,8 @@ class TestKaboxerCommon(unittest.TestCase):
             unexpected_msg = "Unexpected output in stderr when running %s"%(cmd,)
         self.assertTrue(re.search(expected,o.stderr),unexpected_msg + " (%s doesn't match %s)" % (o.stderr, expected))
 
-    def is_image_present(self):
-        if self.run_command("docker image ls | grep -q '%s *latest'" % (self.image_name,)) == 0:
+    def is_image_present(self, version='latest'):
+        if self.run_command("docker image ls | grep -q '%s *%s'" % (self.image_name,version)) == 0:
             return True
         else:
             return False
@@ -132,7 +132,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
-        self.run_and_check_command_fails("kaboxer run %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer run %s" % (self.app_name,))
 
     def test_run_after_purge(self):
         self.test_build_and_save()
@@ -321,7 +321,7 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.assertFalse(self.is_image_present(),
                          msg="Image %s present" % (self.app_name,))
         self.run_and_check_command("kaboxer prepare kbx-demo")
-        self.assertTrue(self.is_image_present(),
+        self.assertTrue(self.is_image_present("1.0"),
                          msg="Image %s absent" % (self.app_name,))
         self.run_command_check_stdout_matches("kaboxer list --available",
                                               "kbx-demo: .*1.0 \[available\]",
@@ -334,9 +334,11 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
                                               "kbx-demo: .*1.1 \[available\]",
                                               unexpected_msg="Image not available in registry")
         self.remove_images()
-        self.assertFalse(self.is_image_present(),
-                         msg="Image %s present" % (self.app_name,))
-        self.run_and_check_command("kaboxer prepare --version 1.0 kbx-demo")
+        self.assertFalse(self.is_image_present("1.0"),
+                         msg="Image %s present at version %s" % (self.app_name,"1.0"))
+        self.assertFalse(self.is_image_present("1.1"),
+                         msg="Image %s present at version %s" % (self.app_name,"1.1"))
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
         self.run_and_check_command("kaboxer list --installed")
         self.run_command_check_stdout_matches("kaboxer list --installed",
                                               "kbx-demo: .*1.0 \[installed\]",
