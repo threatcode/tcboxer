@@ -329,6 +329,8 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_command_check_stdout_matches("kaboxer list --installed",
                                               "kbx-demo: .*1.0 \[installed\]",
                                               unexpected_msg="Image not installed")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
         self.run_and_check_command("kaboxer build --push --version 1.1 kbx-demo")
         self.run_command_check_stdout_matches("kaboxer list --available",
                                               "kbx-demo: .*1.1 \[available\]",
@@ -339,6 +341,8 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.assertFalse(self.is_image_present("1.1"),
                          msg="Image %s present at version %s" % (self.app_name,"1.1"))
         self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
         self.run_and_check_command("kaboxer list --installed")
         self.run_command_check_stdout_matches("kaboxer list --installed",
                                               "kbx-demo: .*1.0 \[installed\]",
@@ -354,6 +358,9 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_command_check_stdout_matches("kaboxer list --all",
                                               "kbx-demo: .*1.1 \[available\]",
                                               unexpected_msg="Image 1.1 not listed as available")
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):
