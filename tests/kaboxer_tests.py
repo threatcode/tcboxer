@@ -35,6 +35,7 @@ class TestKaboxerCommon(unittest.TestCase):
     def remove_images(self):
         self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
         self.run_command("docker image rm %s:1.1" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm %s:1.2" % (self.image_name,), ignore_output=True)
         self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
 
     def tearDown(self):
@@ -273,6 +274,7 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
         super().remove_images()
         self.run_command("docker image rm kaboxer/kbx-demo:1.0", ignore_output=True)
         self.run_command("docker image rm kaboxer/kbx-demo:1.1", ignore_output=True)
+        self.run_command("docker image rm kaboxer/kbx-demo:1.2", ignore_output=True)
         self.run_command("docker image rm kaboxer/kbx-demo:latest", ignore_output=True)
 
     def tearDown(self):
@@ -358,9 +360,20 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_command_check_stdout_matches("kaboxer list --all",
                                               "kbx-demo: .*1.1 \[available\]",
                                               unexpected_msg="Image 1.1 not listed as available")
+        self.run_and_check_command("kaboxer build --push --version 1.2 kbx-demo")
+        self.remove_images()
         self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "kbx-demo: .*1.0 \[installed\]",
+                                              unexpected_msg="Image 1.0 not installed")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.0")
+        self.run_and_check_command("kaboxer upgrade kbx-demo=1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
+        self.run_and_check_command("kaboxer upgrade kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.2")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):

@@ -49,8 +49,11 @@ class Kaboxer:
 
         parser_prepare = subparsers.add_parser('prepare', help='prepare container(s)')
         parser_prepare.add_argument('app', nargs='+')
-        parser_prepare.add_argument("--version", help='version to fetch', default='latest')
         parser_prepare.set_defaults(func=self.cmd_prepare)
+
+        parser_upgrade = subparsers.add_parser('upgrade', help='upgrade container(s)')
+        parser_upgrade.add_argument('app', nargs='+')
+        parser_upgrade.set_defaults(func=self.cmd_upgrade)
 
         parser_list = subparsers.add_parser('list', help='list containers')
         parser_list.add_argument("--installed", action="store_true", help='list installed containers')
@@ -141,7 +144,7 @@ class Kaboxer:
         self.args.func()
 
     def cmd_run(self):
-        self.prepare([self.args.app])
+        self.prepare_or_upgrade([self.args.app])
 
         self.read_config(self.args.app)
 
@@ -738,9 +741,12 @@ Categories={{ p.categories }}
         return "kaboxer/%s" % (config['application']['id'],)
 
     def cmd_prepare(self):
-        self.prepare(self.args.app)
+        self.prepare_or_upgrade(self.args.app)
 
-    def prepare(self, apps):
+    def cmd_upgrade(self):
+        self.prepare_or_upgrade(self.args.app, upgrade=True)
+
+    def prepare_or_upgrade(self, apps, upgrade=False):
         for app in apps:
             m = re.search('([^=]+)=([^=]+)$', app)
             if m:
@@ -748,11 +754,10 @@ Categories={{ p.categories }}
                 tag_name = m.group(2)
             else:
                 installed_apps, registry_apps = self.list_apps(True)
-                if app in installed_apps:
+                if app in installed_apps and not upgrade:
                     tag_name = installed_apps[app]
                 else:
-                    raa = registry_apps[app]
-                    tag_name = raa['maxversion']
+                    tag_name = registry_apps[app]['maxversion']
                 self.read_config(app)
             image_name = self.get_image_name(app)
             full_image_name = '%s:%s'%(image_name,tag_name)
