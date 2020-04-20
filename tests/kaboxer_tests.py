@@ -343,6 +343,15 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
                                               unexpected_msg="Image 1.0 not installed")
         self.run_command_check_stdout_matches("kaboxer list --upgradeable",
                                               "kbx-demo: .*1.1 \[upgradeable from 1.0\]")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "kbx-demo: .*1.0 \[installed\]",
+                                              unexpected_msg="Image 1.0 not installed")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "kbx-demo: .*1.0 \[available\]",
+                                              unexpected_msg="Image 1.0 not listed as available")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "kbx-demo: .*1.1 \[available\]",
+                                              unexpected_msg="Image 1.1 not listed as available")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):
