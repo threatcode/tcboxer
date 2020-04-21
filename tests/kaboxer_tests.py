@@ -396,7 +396,22 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
                                               "Hello World 1.1")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.1")
+        self.remove_images()
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.2")
 
+    def test_upgrade_script(self):
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_and_check_command("kaboxer build --push --version 1.1 kbx-demo")
+        self.run_and_check_command("kaboxer build --push --version 1.2 kbx-demo")
+        self.remove_images()
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer upgrade kbx-demo=1.1",
+                                              "Upgrading from 1.0 to 1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):

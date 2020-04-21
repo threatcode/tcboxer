@@ -1,0 +1,6 @@
+#! /bin/sh
+
+OLD_VERSION=$1
+
+CUR_VERSION=$(cat /kaboxer/version)
+echo Upgrading from $OLD_VERSION to $CUR_VERSION

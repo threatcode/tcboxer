@@ -1,0 +1,5 @@
+#! /bin/sh
+
+CUR_VERSION=$(cat /kaboxer/version)
+echo pre-upgrade script run in version $CUR_VERSION
+

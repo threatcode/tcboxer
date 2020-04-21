@@ -749,21 +749,43 @@ Categories={{ p.categories }}
     def cmd_upgrade(self):
         self.prepare_or_upgrade(self.args.app, upgrade=True)
 
+    def do_upgrade_scripts(self, app, oldver, newver):
+        if oldver is None or oldver == newver:
+            return
+        image_name = self.get_image_name(app)
+        full_image_name = '%s:%s'%(image_name,oldver)
+        container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/pre-upgrade'])
+        dockerpty.start(self.docker_conn.api, container.id)
+        container.stop()
+        container.remove()
+        full_image_name = '%s:%s'%(image_name,newver)
+        container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/post-upgrade', oldver])
+        dockerpty.start(self.docker_conn.api, container.id)
+        container.stop()
+        container.remove()
+
     def prepare_or_upgrade(self, apps, upgrade=False):
         for app in apps:
+            installed_apps, registry_apps = self.list_apps(True)
+            previous_version = None
             m = re.search('([^=]+)=([^=]+)$', app)
             if m:
                 app = m.group(1)
-                tag_name = m.group(2)
+                target_version = m.group(2)
+                if app in installed_apps:
+                    previous_version = installed_apps[app]
             else:
-                installed_apps, registry_apps = self.list_apps(True)
-                if app in installed_apps and not upgrade:
-                    tag_name = installed_apps[app]
+                if app in installed_apps:
+                    previous_version = installed_apps[app]
+                    if upgrade:
+                        target_version = registry_apps[app]['maxversion']
+                    else:
+                        target_version = previous_version
                 else:
-                    tag_name = registry_apps[app]['maxversion']
+                    target_version = registry_apps[app]['maxversion']
                 self.read_config(app)
             image_name = self.get_image_name(app)
-            full_image_name = '%s:%s'%(image_name,tag_name)
+            full_image_name = '%s:%s'%(image_name,target_version)
             if self.find_image(full_image_name):
                 return
             config = self.load_config(app)
@@ -772,6 +794,7 @@ Categories={{ p.categories }}
                     if not self.find_image(full_image_name):
                         self.logger.info("Pulling %s image from registry"%(full_image_name,))
                         image = self.docker_conn.images.pull(full_image_name)
+                    self.do_upgrade_scripts(app, previous_version, target_version)
                     return
                 if 'tarball' in config['container']['origin']:
                     paths = [
@@ -784,6 +807,7 @@ Categories={{ p.categories }}
                         if os.path.isfile(tarfile):
                             self.logger.info("Loading image from "+tarfile)
                             self.load_image(tarfile)
+                        self.do_upgrade_scripts(app, previous_version, target_version)
                         return
             except KeyError:
                 pass
@@ -798,6 +822,7 @@ Categories={{ p.categories }}
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from "+tarfile)
                         self.load_image(tarfile)
+                        self.do_upgrade_scripts(app, previous_version, target_version)
                         return
             self.logger.error("Cannot prepare image")
             sys.exit(1)
