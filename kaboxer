@@ -34,7 +34,7 @@ class Kaboxer:
         parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
         parser_run.add_argument("--detach", help='run in the background', action="store_true")
         parser_run.add_argument("--prompt-before-detach", help='message to display before detaching')
-        parser_run.add_argument("--version", help='version to run', default='latest')
+        parser_run.add_argument("--version", help='version to run')
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.cmd_run)
 
@@ -144,17 +144,20 @@ class Kaboxer:
         self.args.func()
 
     def cmd_run(self):
-        self.prepare_or_upgrade([self.args.app])
-
-        self.read_config(self.args.app)
-
-        image_name = self.get_image_name(self.args.app)
-        installed_apps, _ = self.list_apps()
-        tag_name = installed_apps[self.args.app]
+        app = self.args.app
+        if self.args.version:
+            self.prepare_or_upgrade(["%s=%s" % (app, self.args.version)])
+            tag_name = self.args.version
+        else:
+            self.prepare_or_upgrade([app])
+            installed_apps, _ = self.list_apps()
+            tag_name = installed_apps[app]
+        self.read_config(app)
+        image_name = self.get_image_name(app)
         image = '%s:%s'%(image_name,tag_name)
 
         if self.args.reuse_container:
-            containers = self.docker_conn.containers.list(filters={'name': self.args.app})
+            containers = self.docker_conn.containers.list(filters={'name': app})
             container = containers[0]
 
         run_mode = self.component_config['run_mode']
@@ -900,7 +903,7 @@ Categories={{ p.categories }}
                             return y
                     except:
                         pass
-        self.logger.error("Could not find appropriate config file")
+        self.logger.error("Could not find appropriate config file for "+app)
         sys.exit(1)
 
     def read_config(self, app):
