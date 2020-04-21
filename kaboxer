@@ -753,16 +753,20 @@ Categories={{ p.categories }}
         if oldver is None or oldver == newver:
             return
         image_name = self.get_image_name(app)
-        full_image_name = '%s:%s'%(image_name,oldver)
-        container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/pre-upgrade'])
-        dockerpty.start(self.docker_conn.api, container.id)
-        container.stop()
-        container.remove()
-        full_image_name = '%s:%s'%(image_name,newver)
-        container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/post-upgrade', oldver])
-        dockerpty.start(self.docker_conn.api, container.id)
-        container.stop()
-        container.remove()
+        with tempfile.TemporaryDirectory() as td:
+            s = td
+            t = '/kaboxer/upgrade-data'
+            opts = { 'mounts': [docker.types.Mount(t,s,type='bind')] }
+            full_image_name = '%s:%s'%(image_name,oldver)
+            container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
+            dockerpty.start(self.docker_conn.api, container.id)
+            container.stop()
+            container.remove()
+            full_image_name = '%s:%s'%(image_name,newver)
+            container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/post-upgrade', oldver], **opts)
+            dockerpty.start(self.docker_conn.api, container.id)
+            container.stop()
+            container.remove()
 
     def prepare_or_upgrade(self, apps, upgrade=False):
         for app in apps:

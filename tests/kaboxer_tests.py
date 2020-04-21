@@ -409,7 +409,7 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.0")
         self.run_command_check_stdout_matches("kaboxer upgrade kbx-demo=1.1",
-                                              "Upgrading from 1.0 to 1.1")
+                                              "Upgrading from 1.0 to 1.1 with persisted data 1.0")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.1")
 
