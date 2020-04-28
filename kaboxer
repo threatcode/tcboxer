@@ -21,6 +21,7 @@ import pathlib
 import packaging.version as packaging_version
 import logging
 import requests
+import json
 
 class Kaboxer:
     def __init__(self):
@@ -658,6 +659,28 @@ Categories={{ p.categories }}
                 tf.extract(ti,path=td,set_attrs=False)
                 shutil.move(os.path.join(td,ti.name), outfile)
         temp_container.remove()
+
+    def extract_file_from_tarball(self,tarball,infile,outfile):
+        tf = tarfile.open(tarball)
+        manifest = tf.extractfile('manifest.json')
+        j = json.loads(manifest.read())
+        relpath = os.path.relpath(infile, '/')
+        for layer in j[0]['Layers']:
+            tfl = tarfile.open(fileobj=tf.extractfile(layer))
+            try:
+                with tempfile.TemporaryDirectory() as td:
+                    tfl.extract(relpath,path=td)
+                    shutil.move(os.path.join(td,relpath), outfile)
+                    return 1
+            except:
+                continue
+        raise Exception('Not found')
+
+    def get_meta_file_from_tarball(self, tarball, filename):
+        with tempfile.NamedTemporaryFile(mode='w+t',prefix="getmetafile") as tmp:
+            self.extract_file_from_tarball(tarball,os.path.join('/kaboxer/',filename),tmp.name)
+            v = str(open(tmp.name).read())
+            return v
 
     def inject_file_into_image(self,image,outfile,infile):
         temp_container = self.docker_conn.containers.create(image)
