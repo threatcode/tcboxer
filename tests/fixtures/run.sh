@@ -13,4 +13,8 @@ case "$1" in
 	    v=$(cat /kaboxer/version)
 	    echo "Running version $v at $(date)" >> /persist/run_history
 	fi
+	;;
+    history)
+	cat /persist/run_history
+	;;
 esac

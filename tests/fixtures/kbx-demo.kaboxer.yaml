@@ -18,3 +18,6 @@ components:
   default:
     run_mode: cli
     executable: /run.sh demo
+    mounts:
+      - source: FIXDIR/persist
+        target: /persist

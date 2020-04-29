@@ -22,6 +22,8 @@ class TestKaboxerCommon(unittest.TestCase):
         self.app_name = self.nonce
         self.image_name = 'kaboxer/' + self.app_name
         self.run_command("sed -i -e s/CONTAINERID/%s/ %s" % (self.app_name, 'kaboxer.yaml'))
+        self.run_command("sed -i -e s,FIXDIR,%s, %s" % (self.fixdir, 'kbx-demo.kaboxer.yaml'))
+        self.run_command("mkdir -p %s/persist" % (self.fixdir,))
         self.tarfile = "%s.tar"%(self.app_name,)
         self.tarpath = os.path.join(self.fixdir,self.tarfile)
         self.desktopfiles = [
@@ -418,6 +420,15 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.remove_images()
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.2")
+
+    def test_history(self):
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo /run.sh history | wc -l",
+                                              "2")
 
     def test_upgrade_script(self):
         self.run_and_check_command("kaboxer build --push kbx-demo")

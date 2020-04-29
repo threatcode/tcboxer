@@ -262,10 +262,10 @@ class Kaboxer:
         if run_mode == 'gui' or ('allow_x11' in self.component_config and self.component_config['allow_x11']):
             xsock = '/tmp/.X11-unix'
             opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
-        if 'executable' in self.component_config:
+
+        executable = self.args.executable
+        if not len(executable) and 'executable' in self.component_config:
             executable = self.component_config['executable']
-        else:
-            executable = self.args.executable
         if not isinstance(executable,list):
             executable = shlex.split(executable)
         try:
