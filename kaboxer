@@ -151,7 +151,7 @@ class Kaboxer:
             tag_name = self.args.version
         else:
             self.prepare_or_upgrade([app])
-            installed_apps, _ = self.list_apps()
+            installed_apps, _, _ = self.list_apps()
             tag_name = installed_apps[app]
         self.read_config(app)
         image_name = self.get_image_name(app)
@@ -723,13 +723,15 @@ Categories={{ p.categories }}
             for chunk in image.save():
                 f.write(chunk)
 
-    def load_image(self, tarfile):
+    def load_image(self, tarfile, appname, tag):
         f = open(tarfile, 'rb')
         for image in self.docker_conn.images.load(f):
-            image.tag('kaboxer/'+self.args.app, tag='latest')
+            image.tag('kaboxer/'+appname, tag=tag)
 
     def cmd_load(self):
-        self.load_image(self.args.file)
+        v = self.get_meta_file_from_tarball(self.args.file, 'version').strip()
+        self.logger.info("Loading %s at version %s" % (self.args.app, v))
+        self.load_image(self.args.file, self.args.app, v)
 
     def find_image(self, name):
         images = self.docker_conn.images.list()
@@ -793,7 +795,7 @@ Categories={{ p.categories }}
 
     def prepare_or_upgrade(self, apps, upgrade=False):
         for app in apps:
-            installed_apps, registry_apps = self.list_apps(True)
+            installed_apps, registry_apps, tarball_apps = self.list_apps(True)
             previous_version = None
             m = re.search('([^=]+)=([^=]+)$', app)
             if m:
@@ -805,12 +807,22 @@ Categories={{ p.categories }}
                 if app in installed_apps:
                     previous_version = installed_apps[app]
                     if upgrade:
-                        target_version = registry_apps[app]['maxversion']
+                        try:
+                            target_version = registry_apps[app]['maxversion']
+                        except KeyError:
+                            target_version = tarball_apps[app]['version']
                     else:
                         target_version = previous_version
                 else:
-                    target_version = registry_apps[app]['maxversion']
+                    try:
+                        target_version = registry_apps[app]['maxversion']
+                    except KeyError:
+                        target_version = tarball_apps[app]['version']
                 self.read_config(app)
+            if previous_version \
+               and upgrade \
+               and packaging_version.parse(target_version) <= packaging_version.parse(previous_version):
+                target_version = previous_version
             image_name = self.get_image_name(app)
             full_image_name = '%s:%s'%(image_name,target_version)
             if self.find_image(full_image_name):
@@ -833,7 +845,7 @@ Categories={{ p.categories }}
                         tarfile = os.path.join(p,config['container']['origin']['tarball'])
                         if os.path.isfile(tarfile):
                             self.logger.info("Loading image from "+tarfile)
-                            self.load_image(tarfile)
+                            self.load_image(tarfile, app, target_version)
                         self.do_upgrade_scripts(app, previous_version, target_version)
                         return
             except KeyError:
@@ -848,7 +860,7 @@ Categories={{ p.categories }}
                     tarfile = os.path.join(p,self.config['application']['id']+'.tar')
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from "+tarfile)
-                        self.load_image(tarfile)
+                        self.load_image(tarfile, app, target_version)
                         self.do_upgrade_scripts(app, previous_version, target_version)
                         return
             self.logger.error("Cannot prepare image")
@@ -858,13 +870,20 @@ Categories={{ p.categories }}
         self.cmd_build()
 
     def cmd_purge(self):
-        self.docker_conn.images.remove('kaboxer/'+self.args.app)
-        if self.args.prune:
-            self.docker_conn.images.prune(filters={'dangling': True})
+        installed_apps, _, _ = self.list_apps()
+        if self.args.app in installed_apps:
+            self.docker_conn.images.remove('kaboxer/%s:%s'%(self.args.app,installed_apps[self.args.app]))
+            try:
+                self.docker_conn.images.remove('kaboxer/%s'%(self.args.app,))
+            except:
+                pass
+            if self.args.prune:
+                self.docker_conn.images.prune(filters={'dangling': True})
 
     def list_apps(self, get_remotes=False):
         installed_apps = {}
         registry_apps = {}
+        tarball_apps = {}
 
         yamlfiles = []
         globs = [ 'kaboxer.yaml', '*.yaml' ]
@@ -884,6 +903,12 @@ Categories={{ p.categories }}
                         try:
                             registry_apps[aid] = { 'url': y['container']['origin']['registry']['url'],
                                                    'image': y['container']['origin']['registry']['image'], }
+                        except:
+                            pass
+                        try:
+                            tb = y['container']['origin']['tarball']
+                            tarball_apps[aid] = { 'tarball': tb,
+                                                  'version': self.get_meta_file_from_tarball(tb,'version').strip(), }
                         except:
                             pass
                     except:
@@ -913,7 +938,7 @@ Categories={{ p.categories }}
                         if packaging_version.parse(tag) > packaging_version.parse(curmax):
                             curmax = tag
                     registry_apps[rep]['maxversion'] = curmax
-        return (installed_apps, registry_apps)
+        return (installed_apps, registry_apps, tarball_apps)
 
     def cmd_list(self):
         show_installed = self.args.installed
@@ -925,7 +950,7 @@ Categories={{ p.categories }}
             show_upgradeable = True
         if not show_available and not show_upgradeable:
             show_installed = True
-        installed_apps, registry_apps = self.list_apps(show_available or show_upgradeable)
+        installed_apps, registry_apps, tarball_apps = self.list_apps(show_available or show_upgradeable)
         if show_installed:
             for aid in installed_apps:
                 print("%s: %s [installed]" % (aid, installed_apps[aid]))
@@ -939,10 +964,12 @@ Categories={{ p.categories }}
 
         if show_upgradeable:
             for aid in installed_apps:
-                if aid not in registry_apps:
-                    continue
-                if registry_apps[aid]['maxversion'] != installed_apps[aid]:
-                    print("%s: %s [upgradeable from %s]" % (aid, registry_apps[aid]['maxversion'], installed_apps[aid]))
+                if aid in registry_apps:
+                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(installed_apps[aid]):
+                        print("%s: %s [upgradeable from %s]" % (aid, registry_apps[aid]['maxversion'], installed_apps[aid]))
+                elif aid in tarball_apps:
+                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(installed_apps[aid]):
+                        print("%s: %s [upgradeable from %s]" % (aid, tarball_apps[aid]['version'], installed_apps[aid]))
 
     def load_config(self, app=None):
         for p in self.config_paths:

@@ -9,6 +9,8 @@ packaging:
   max_upstream_version: 1.4
 container:
   type: docker
+  origin:
+    tarball: CONTAINERID.tar
 build:
   docker:
     file: Dockerfile

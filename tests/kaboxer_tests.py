@@ -39,6 +39,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
 
     def tearDown(self):
+        # self.run_command("docker image ls")
         self.remove_images()
         shutil.rmtree(self.tdname)
 
@@ -127,7 +128,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
                          "Docker image still present after kaboxer purge")
 
     def test_run(self):
-        self.build()
+        self.test_build_and_save()
         self.run_command_check_stdout_matches("kaboxer run %s" % (self.app_name,),
                                       "Hi there")
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
@@ -149,10 +150,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
         self.run_and_check_command("kaboxer load %s %s" % (self.app_name,self.tarfile))
-        self.assertTrue(self.is_image_present(),
+        self.assertTrue(self.is_image_present("1.0"),
                         "No Docker image present after load")
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
-        self.assertFalse(self.is_image_present(),
+        self.assertFalse(self.is_image_present("1.0"),
                          "Docker image still present after kaboxer purge")
 
     def test_install(self):
@@ -261,6 +262,24 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.remove_images()
         self.run_command_check_stdout_doesnt_match("kaboxer list --installed",
                                                    "%s: 1.0 \[installed\]" % (self.app_name,))
+
+    def test_local_upgrades(self):
+        self.run_and_check_command("kaboxer build --save --version 1.1")
+        os.rename(os.path.join(self.fixdir, self.app_name+".tar"),
+                  os.path.join(self.fixdir, self.app_name+"-1.1.tar"))
+        self.remove_images()
+        self.run_and_check_command("kaboxer build --save --version 1.0")
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "%s: 1.0 \[installed\]" % (self.app_name,))
+        os.rename(os.path.join(self.fixdir, self.app_name+".tar"),
+                  os.path.join(self.fixdir, self.app_name+"-1.0.tar"))
+        shutil.copy(os.path.join(self.fixdir, self.app_name+"-1.1.tar"),
+                    os.path.join(self.fixdir, self.app_name+".tar"))
+        self.run_command_check_stdout_matches("kaboxer list --upgradeable",
+                                              "%s: .*1.1 \[upgradeable from 1.0\]" % (self.app_name,))
+        self.run_and_check_command("kaboxer upgrade %s" % (self.app_name,))
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "%s: 1.1 \[installed\]" % (self.app_name,))
 
 class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
     def setUp(self):
