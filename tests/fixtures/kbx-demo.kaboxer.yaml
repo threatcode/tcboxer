@@ -17,4 +17,4 @@ packaging:
 components:
   default:
     run_mode: cli
-    executable: /bin/cat /kbx-demo.txt /kaboxer/version
+    executable: /run.sh demo
