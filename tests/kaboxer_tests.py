@@ -438,10 +438,16 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
         self.run_command_check_stdout_matches("kaboxer upgrade kbx-demo=1.1",
                                               "Upgrading from 1.0 to 1.1 with persisted data 1.0")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                               "Hello World 1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo /run.sh history",
+                                              "3 1.0")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):

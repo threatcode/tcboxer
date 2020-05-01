@@ -172,8 +172,8 @@ class Kaboxer:
             else:
                 self.logger.error ("Can't detach a non-headless component")
                 sys.exit(1)
-        opts['environment'] = {}
-        opts['mounts'] = []
+
+        opts = self.parse_component_config(opts)
         extranets = []
         try:
             netname = self.component_config['networks'][0]
@@ -182,52 +182,14 @@ class Kaboxer:
             extranets = self.component_config['networks'][1:]
         except KeyError:
             pass
-        try:
-            ports = {}
-            for publish_port in self.component_config['publish_ports']:
-                ports[publish_port] = publish_port
-            opts['ports'] = ports
-        except KeyError:
-            pass
-
-        if 'run_as_root' not in self.component_config:
-            self.component_config['run_as_root'] = False
-
-        if self.component_config['run_as_root']:
-            self.home_in = '/root'
-        else:
-            import pwd
-            uid = os.getuid()
-            uname = pwd.getpwuid(os.getuid()).pw_name
-            gecos = pwd.getpwuid(os.getuid()).pw_gecos
-            gid = pwd.getpwuid(os.getuid()).pw_gid
-            gname = grp.getgrgid(gid).gr_name
-            self.home_in = os.path.join('/home',uname)
-
-        try:
-            for mount in self.component_config['mounts']:
-                s = mount['source']
-                s = os.path.expanduser(s)
-                try:
-                    os.makedirs(s)
-                except FileExistsError:
-                    pass
-                t = mount['target']
-                if t == '~':
-                    t = self.home_in
-                else:
-                    t = re.sub('^~/',self.home_in+'/',t)
-                opts['mounts'].append(docker.types.Mount(t,s,type='bind'))
-        except KeyError:
-            pass
 
         if not self.component_config['run_as_root'] and not self.args.reuse_container:
             opts2 = opts.copy()
             opts2['detach'] = False
             opts2['tty'] = True
             precmds = [
-                [ 'addgroup', '--debug', '--gid', str(gid), gname ],
-                [ 'adduser', '--debug', '--uid', str(uid), '--gid', str(gid), '--home', self.home_in, '--gecos', gecos, '--disabled-password', uname ],
+                [ 'addgroup', '--debug', '--gid', str(self.gid), self.gname ],
+                [ 'adduser', '--debug', '--uid', str(self.uid), '--gid', str(self.gid), '--home', self.home_in, '--gecos', self.gecos, '--disabled-password', self.uname ],
             ]
             container = self.docker_conn.containers.create(image, **opts2)
             opts['entrypoint'] = container.attrs['Config']['Entrypoint']
@@ -243,7 +205,7 @@ class Kaboxer:
                 container.wait()
                 image = container.commit()
                 container.remove()
-            opts['user'] = uid
+            opts['user'] = self.uid
             opts['environment']['HOME'] = self.home_in
 
         if run_mode == 'cli':
@@ -286,10 +248,10 @@ class Kaboxer:
                 ti.name = self.xauth_in
                 def tifilter(x):
                     if not self.component_config['run_as_root']:
-                        x.uid = uid
-                        x.gid = gid
-                        x.uname = uname
-                        x.gname = gname
+                        x.uid = self.uid
+                        x.gid = self.gid
+                        x.uname = self.uname
+                        x.gname = self.gname
                     return x
                 tf.add(self.xauth_out, arcname=self.xauth_in, filter=tifilter)
                 tf.close()
@@ -775,6 +737,7 @@ Categories={{ p.categories }}
         self.prepare_or_upgrade(self.args.app, upgrade=True)
 
     def do_upgrade_scripts(self, app, oldver, newver):
+        self.read_config(app)
         if oldver is None or oldver == newver:
             return
         image_name = self.get_image_name(app)
@@ -782,6 +745,7 @@ Categories={{ p.categories }}
             s = td
             t = '/kaboxer/upgrade-data'
             opts = { 'mounts': [docker.types.Mount(t,s,type='bind')] }
+            opts = self.parse_component_config(opts)
             full_image_name = '%s:%s'%(image_name,oldver)
             container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
             dockerpty.start(self.docker_conn.api, container.id)
@@ -1015,8 +979,54 @@ Categories={{ p.categories }}
             return
         except:
             pass
+
         self.logger.error("Can't find an appropriate component")
         sys.exit(1)
+
+    def parse_component_config(self, opts):
+        if 'environment' not in opts:
+            opts['environment'] = {}
+        if 'mounts' not in opts:
+            opts['mounts'] = []
+        try:
+            ports = {}
+            for publish_port in self.component_config['publish_ports']:
+                ports[publish_port] = publish_port
+            opts['ports'] = ports
+        except KeyError:
+            pass
+        if 'run_as_root' not in self.component_config:
+            self.component_config['run_as_root'] = False
+
+        if self.component_config['run_as_root']:
+            self.home_in = '/root'
+        else:
+            import pwd
+            self.uid = os.getuid()
+            self.uname = pwd.getpwuid(self.uid).pw_name
+            self.gecos = pwd.getpwuid(self.uid).pw_gecos
+            self.gid = pwd.getpwuid(self.uid).pw_gid
+            self.gname = grp.getgrgid(self.gid).gr_name
+            self.home_in = os.path.join('/home',self.uname)
+
+        try:
+            for mount in self.component_config['mounts']:
+                s = mount['source']
+                s = os.path.expanduser(s)
+                try:
+                    os.makedirs(s)
+                except FileExistsError:
+                    pass
+                t = mount['target']
+                if t == '~':
+                    t = self.home_in
+                else:
+                    t = re.sub('^~/',self.home_in+'/',t)
+                opts['mounts'].append(docker.types.Mount(t,s,type='bind'))
+        except KeyError:
+            pass
+
+        return opts
 
     def create_network(self, netname):
         for n in self.docker_conn.networks.list():

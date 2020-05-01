@@ -3,3 +3,4 @@
 CUR_VERSION=$(cat /kaboxer/version)
 echo pre-upgrade script run in version $CUR_VERSION
 cp /kaboxer/version /kaboxer/upgrade-data/version
+grep "^Running version" /persist/run_history | sed -e "s/ at .*//" -e "s/Running version //" | sort | uniq -c >> /kaboxer/upgrade-data/upgrade-history
