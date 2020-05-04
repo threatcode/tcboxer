@@ -22,6 +22,8 @@ class TestKaboxerCommon(unittest.TestCase):
         self.app_name = self.nonce
         self.image_name = 'kaboxer/' + self.app_name
         self.run_command("sed -i -e s/CONTAINERID/%s/ %s" % (self.app_name, 'kaboxer.yaml'))
+        self.run_command("sed -i -e s,FIXDIR,%s, %s" % (self.fixdir, 'kbx-demo.kaboxer.yaml'))
+        self.run_command("mkdir -p %s/persist" % (self.fixdir,))
         self.tarfile = "%s.tar"%(self.app_name,)
         self.tarpath = os.path.join(self.fixdir,self.tarfile)
         self.desktopfiles = [
@@ -32,10 +34,15 @@ class TestKaboxerCommon(unittest.TestCase):
         shutil.copy(os.path.join(self.fixdir, 'kbx-demo.kaboxer.yaml'),
                     os.path.join(self.fixdir, 'kbx-demo.yaml'))
 
-    def tearDown(self):
-        self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
+    def remove_images(self):
         self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
         self.run_command("docker image rm %s:1.1" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm %s:1.2" % (self.image_name,), ignore_output=True)
+        self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
+
+    def tearDown(self):
+        # self.run_command("docker image ls")
+        self.remove_images()
         shutil.rmtree(self.tdname)
 
     def run_command(self,cmd,ignore_output=False):
@@ -63,6 +70,15 @@ class TestKaboxerCommon(unittest.TestCase):
             unexpected_msg = "Unexpected output when running %s"%(cmd,)
         self.assertTrue(re.search(expected,o.stdout),unexpected_msg + " (%s doesn't match %s)" % (o.stdout, expected))
 
+    def run_command_check_stdout_doesnt_match(self,cmd,expected,fail_msg=None,unexpected_msg=None):
+        o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
+        if fail_msg is None:
+            fail_msg = "Error when running %s\nSTDOUT=%s\nSTDERR=%s"%(cmd,o.stdout,o.stderr)
+        self.assertEqual(o.returncode,0,fail_msg)
+        if unexpected_msg is None:
+            unexpected_msg = "Unexpected output when running %s"%(cmd,)
+        self.assertFalse(re.search(expected,o.stdout),unexpected_msg + " (%s matches %s)" % (o.stdout, expected))
+
     def run_command_check_stderr_matches(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
         if fail_msg is None:
@@ -72,8 +88,8 @@ class TestKaboxerCommon(unittest.TestCase):
             unexpected_msg = "Unexpected output in stderr when running %s"%(cmd,)
         self.assertTrue(re.search(expected,o.stderr),unexpected_msg + " (%s doesn't match %s)" % (o.stderr, expected))
 
-    def is_image_present(self):
-        if self.run_command("docker image ls | grep -q '%s *latest'" % (self.image_name,)) == 0:
+    def is_image_present(self, version='latest'):
+        if self.run_command("docker image ls | grep -q '%s *%s'" % (self.image_name,version)) == 0:
             return True
         else:
             return False
@@ -114,13 +130,13 @@ class TestKaboxerLocally(TestKaboxerCommon):
                          "Docker image still present after kaboxer purge")
 
     def test_run(self):
-        self.build()
+        self.test_build_and_save()
         self.run_command_check_stdout_matches("kaboxer run %s" % (self.app_name,),
                                       "Hi there")
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
-        self.run_and_check_command_fails("kaboxer run %s" % (self.app_name,))
+        self.run_and_check_command("kaboxer run %s" % (self.app_name,))
 
     def test_run_after_purge(self):
         self.test_build_and_save()
@@ -136,10 +152,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
         self.run_and_check_command("kaboxer load %s %s" % (self.app_name,self.tarfile))
-        self.assertTrue(self.is_image_present(),
+        self.assertTrue(self.is_image_present("1.0"),
                         "No Docker image present after load")
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
-        self.assertFalse(self.is_image_present(),
+        self.assertFalse(self.is_image_present("1.0"),
                          "Docker image still present after kaboxer purge")
 
     def test_install(self):
@@ -241,10 +257,31 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_command("docker image rm %s:1.5" % (self.image_name,),
                          ignore_output=True)
 
-    def test_list(self):
+    def test_list_local(self):
         self.run_and_check_command("kaboxer build")
-        self.run_command_check_stdout_matches("kaboxer list",
-                                              "%s: 1.0" % (self.app_name,))
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "%s: 1.0 \[installed\]" % (self.app_name,))
+        self.remove_images()
+        self.run_command_check_stdout_doesnt_match("kaboxer list --installed",
+                                                   "%s: 1.0 \[installed\]" % (self.app_name,))
+
+    def test_local_upgrades(self):
+        self.run_and_check_command("kaboxer build --save --version 1.1")
+        os.rename(os.path.join(self.fixdir, self.app_name+".tar"),
+                  os.path.join(self.fixdir, self.app_name+"-1.1.tar"))
+        self.remove_images()
+        self.run_and_check_command("kaboxer build --save --version 1.0")
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "%s: 1.0 \[installed\]" % (self.app_name,))
+        os.rename(os.path.join(self.fixdir, self.app_name+".tar"),
+                  os.path.join(self.fixdir, self.app_name+"-1.0.tar"))
+        shutil.copy(os.path.join(self.fixdir, self.app_name+"-1.1.tar"),
+                    os.path.join(self.fixdir, self.app_name+".tar"))
+        self.run_command_check_stdout_matches("kaboxer list --upgradeable",
+                                              "%s: .*1.1 \[upgradeable from 1.0\]" % (self.app_name,))
+        self.run_and_check_command("kaboxer upgrade %s" % (self.app_name,))
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "%s: 1.1 \[installed\]" % (self.app_name,))
 
 class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
     def setUp(self):
@@ -255,16 +292,17 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
                          % (5999, self.nonce, os.path.join(self.fixdir, 'registry')), ignore_output=True)
 
     def remove_images(self):
-        self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
-        self.run_command("docker image rm %s:latest" % (self.image_name,), ignore_output=True)
+        super().remove_images()
         self.run_command("docker image rm kaboxer/kbx-demo:1.0", ignore_output=True)
+        self.run_command("docker image rm kaboxer/kbx-demo:1.1", ignore_output=True)
+        self.run_command("docker image rm kaboxer/kbx-demo:1.2", ignore_output=True)
         self.run_command("docker image rm kaboxer/kbx-demo:latest", ignore_output=True)
 
     def tearDown(self):
+        # self.run_command('docker image ls')
         self.run_command('docker container exec %s find /var/lib/registry -mindepth 1 -delete' % (self.nonce,), ignore_output=True)
         self.run_command('docker container stop %s' % (self.nonce,), ignore_output=True)
         self.run_command('docker container rm -v %s' % (self.nonce,), ignore_output=True)
-        self.remove_images()
         super().tearDown()
 
 class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
@@ -292,10 +330,124 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
                          msg="Image %s present at beginning of test" % (self.app_name,))
         self.run_and_check_command("kaboxer prepare kbx-demo")
         self.run_command_check_stdout_matches("docker image ls",
-                                      self.app_name,
-                                      unexpected_msg="Image not fetched from registry")
+                                              self.app_name,
+                                              unexpected_msg="Image not fetched from registry")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo",
                                       "Hello World")
+
+    def test_list_registry(self):
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.remove_images()
+        self.run_command_check_stdout_matches("kaboxer list --available",
+                                              "kbx-demo: .*1.0 \[available\]",
+                                              unexpected_msg="Image not available in registry")
+        self.assertFalse(self.is_image_present(),
+                         msg="Image %s present" % (self.app_name,))
+        self.run_and_check_command("kaboxer prepare kbx-demo")
+        self.assertTrue(self.is_image_present("1.0"),
+                         msg="Image %s absent" % (self.app_name,))
+        self.run_command_check_stdout_matches("kaboxer list --available",
+                                              "kbx-demo: .*1.0 \[available\]",
+                                              unexpected_msg="Image not available in registry")
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "kbx-demo: .*1.0 \[installed\]",
+                                              unexpected_msg="Image not installed")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_and_check_command("kaboxer build --push --version 1.1 kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer list --available",
+                                              "kbx-demo: .*1.1 \[available\]",
+                                              unexpected_msg="Image not available in registry")
+        self.remove_images()
+        self.assertFalse(self.is_image_present("1.0"),
+                         msg="Image %s present at version %s" % (self.app_name,"1.0"))
+        self.assertFalse(self.is_image_present("1.1"),
+                         msg="Image %s present at version %s" % (self.app_name,"1.1"))
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_and_check_command("kaboxer list --installed")
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "kbx-demo: .*1.0 \[installed\]",
+                                              unexpected_msg="Image 1.0 not installed")
+        self.run_command_check_stdout_matches("kaboxer list --upgradeable",
+                                              "kbx-demo: .*1.1 \[upgradeable from 1.0\]")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "kbx-demo: .*1.0 \[installed\]",
+                                              unexpected_msg="Image 1.0 not installed")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "kbx-demo: .*1.0 \[available\]",
+                                              unexpected_msg="Image 1.0 not listed as available")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "kbx-demo: .*1.1 \[available\]",
+                                              unexpected_msg="Image 1.1 not listed as available")
+        self.run_and_check_command("kaboxer build --push --version 1.2 kbx-demo")
+        self.remove_images()
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer list --installed",
+                                              "kbx-demo: .*1.0 \[installed\]",
+                                              unexpected_msg="Image 1.0 not installed")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_and_check_command("kaboxer upgrade kbx-demo=1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
+        self.run_and_check_command("kaboxer upgrade kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.2")
+
+    def test_run_version(self):
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_and_check_command("kaboxer build --push --version 1.1 kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer run --version=1.0 kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run --version=1.1 kbx-demo",
+                                              "Hello World 1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
+        self.run_and_check_command("kaboxer build --push --version 1.2 kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer run --version=1.0 kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.2")
+        self.remove_images()
+        self.run_command_check_stdout_matches("kaboxer run --version=1.0 kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run --version=1.1 kbx-demo",
+                                              "Hello World 1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
+        self.remove_images()
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.2")
+
+    def test_history(self):
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo /run.sh history | wc -l",
+                                              "2")
+
+    def test_upgrade_script(self):
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_and_check_command("kaboxer build --push --version 1.1 kbx-demo")
+        self.run_and_check_command("kaboxer build --push --version 1.2 kbx-demo")
+        self.remove_images()
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_command_check_stdout_matches("kaboxer upgrade kbx-demo=1.1",
+                                              "Upgrading from 1.0 to 1.1 with persisted data 1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo /run.sh history",
+                                              "3 1.0")
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):

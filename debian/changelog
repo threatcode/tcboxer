@@ -1,8 +1,8 @@
-kaboxer (0.5~) UNRELEASED; urgency=medium
+kaboxer (0.5) kali-dev; urgency=medium
 
-  * Handle versioning
+  * Handle versioning and upgrades.
 
- -- Roland Mas <roland.mas@gnurandal.com>  Tue, 24 Mar 2020 22:57:13 +0100
+ -- Roland Mas <roland.mas@gnurandal.com>  Fri, 01 May 2020 17:35:12 +0200
 
 kaboxer (0.4) kali-dev; urgency=medium
 

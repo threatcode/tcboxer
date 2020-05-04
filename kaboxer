@@ -20,6 +20,8 @@ import tempfile
 import pathlib
 import packaging.version as packaging_version
 import logging
+import requests
+import json
 
 class Kaboxer:
     def __init__(self):
@@ -33,6 +35,7 @@ class Kaboxer:
         parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
         parser_run.add_argument("--detach", help='run in the background', action="store_true")
         parser_run.add_argument("--prompt-before-detach", help='message to display before detaching')
+        parser_run.add_argument("--version", help='version to run')
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.cmd_run)
 
@@ -45,11 +48,19 @@ class Kaboxer:
         parser_get_meta_file.add_argument('file')
         parser_get_meta_file.set_defaults(func=self.cmd_get_meta_file)
 
-        parser_prepare = subparsers.add_parser('prepare', help='prepare container')
-        parser_prepare.add_argument('app')
+        parser_prepare = subparsers.add_parser('prepare', help='prepare container(s)')
+        parser_prepare.add_argument('app', nargs='+')
         parser_prepare.set_defaults(func=self.cmd_prepare)
 
-        parser_list = subparsers.add_parser('list', help='list installed containers')
+        parser_upgrade = subparsers.add_parser('upgrade', help='upgrade container(s)')
+        parser_upgrade.add_argument('app', nargs='+')
+        parser_upgrade.set_defaults(func=self.cmd_upgrade)
+
+        parser_list = subparsers.add_parser('list', help='list containers')
+        parser_list.add_argument("--installed", action="store_true", help='list installed containers')
+        parser_list.add_argument("--available", action="store_true", help='list available containers')
+        parser_list.add_argument("--upgradeable", action="store_true", help='list upgradeable containers')
+        parser_list.add_argument("--all", action="store_true", help='list all versions of containers')
         parser_list.set_defaults(func=self.cmd_list)
 
         parser_build = subparsers.add_parser('build', help='build image')
@@ -134,12 +145,20 @@ class Kaboxer:
         self.args.func()
 
     def cmd_run(self):
-        self.cmd_prepare()
-
-        image = self.get_image_name()
+        app = self.args.app
+        if self.args.version:
+            self.prepare_or_upgrade(["%s=%s" % (app, self.args.version)])
+            tag_name = self.args.version
+        else:
+            self.prepare_or_upgrade([app])
+            installed_apps, _, _ = self.list_apps()
+            tag_name = installed_apps[app]
+        self.read_config(app)
+        image_name = self.get_image_name(app)
+        image = '%s:%s'%(image_name,tag_name)
 
         if self.args.reuse_container:
-            containers = self.docker_conn.containers.list(filters={'name': self.args.app})
+            containers = self.docker_conn.containers.list(filters={'name': app})
             container = containers[0]
 
         run_mode = self.component_config['run_mode']
@@ -153,8 +172,8 @@ class Kaboxer:
             else:
                 self.logger.error ("Can't detach a non-headless component")
                 sys.exit(1)
-        opts['environment'] = {}
-        opts['mounts'] = []
+
+        opts = self.parse_component_config(opts)
         extranets = []
         try:
             netname = self.component_config['networks'][0]
@@ -163,52 +182,14 @@ class Kaboxer:
             extranets = self.component_config['networks'][1:]
         except KeyError:
             pass
-        try:
-            ports = {}
-            for publish_port in self.component_config['publish_ports']:
-                ports[publish_port] = publish_port
-            opts['ports'] = ports
-        except KeyError:
-            pass
-
-        if 'run_as_root' not in self.component_config:
-            self.component_config['run_as_root'] = False
-
-        if self.component_config['run_as_root']:
-            self.home_in = '/root'
-        else:
-            import pwd
-            uid = os.getuid()
-            uname = pwd.getpwuid(os.getuid()).pw_name
-            gecos = pwd.getpwuid(os.getuid()).pw_gecos
-            gid = pwd.getpwuid(os.getuid()).pw_gid
-            gname = grp.getgrgid(gid).gr_name
-            self.home_in = os.path.join('/home',uname)
-
-        try:
-            for mount in self.component_config['mounts']:
-                s = mount['source']
-                s = os.path.expanduser(s)
-                try:
-                    os.makedirs(s)
-                except FileExistsError:
-                    pass
-                t = mount['target']
-                if t == '~':
-                    t = self.home_in
-                else:
-                    t = re.sub('^~/',self.home_in+'/',t)
-                opts['mounts'].append(docker.types.Mount(t,s,type='bind'))
-        except KeyError:
-            pass
 
         if not self.component_config['run_as_root'] and not self.args.reuse_container:
             opts2 = opts.copy()
             opts2['detach'] = False
             opts2['tty'] = True
             precmds = [
-                [ 'addgroup', '--debug', '--gid', str(gid), gname ],
-                [ 'adduser', '--debug', '--uid', str(uid), '--gid', str(gid), '--home', self.home_in, '--gecos', gecos, '--disabled-password', uname ],
+                [ 'addgroup', '--debug', '--gid', str(self.gid), self.gname ],
+                [ 'adduser', '--debug', '--uid', str(self.uid), '--gid', str(self.gid), '--home', self.home_in, '--gecos', self.gecos, '--disabled-password', self.uname ],
             ]
             container = self.docker_conn.containers.create(image, **opts2)
             opts['entrypoint'] = container.attrs['Config']['Entrypoint']
@@ -224,7 +205,7 @@ class Kaboxer:
                 container.wait()
                 image = container.commit()
                 container.remove()
-            opts['user'] = uid
+            opts['user'] = self.uid
             opts['environment']['HOME'] = self.home_in
 
         if run_mode == 'cli':
@@ -243,10 +224,10 @@ class Kaboxer:
         if run_mode == 'gui' or ('allow_x11' in self.component_config and self.component_config['allow_x11']):
             xsock = '/tmp/.X11-unix'
             opts['mounts'].append(docker.types.Mount(xsock,xsock,type='bind'))
-        if 'executable' in self.component_config:
+
+        executable = self.args.executable
+        if not len(executable) and 'executable' in self.component_config:
             executable = self.component_config['executable']
-        else:
-            executable = self.args.executable
         if not isinstance(executable,list):
             executable = shlex.split(executable)
         try:
@@ -267,10 +248,10 @@ class Kaboxer:
                 ti.name = self.xauth_in
                 def tifilter(x):
                     if not self.component_config['run_as_root']:
-                        x.uid = uid
-                        x.gid = gid
-                        x.uname = uname
-                        x.gname = gname
+                        x.uid = self.uid
+                        x.gid = self.gid
+                        x.uname = self.uname
+                        x.gname = self.gname
                     return x
                 tf.add(self.xauth_out, arcname=self.xauth_in, filter=tifilter)
                 tf.close()
@@ -291,7 +272,7 @@ class Kaboxer:
                 c = prompt_toolkit.prompt(self.args.prompt_before_detach)
 
     def cmd_stop(self):
-        self.read_config()
+        self.read_config(self.args.app)
         run_mode = self.component_config['run_mode']
         image = 'kaboxer/'+self.args.app
         if run_mode == 'headless':
@@ -309,7 +290,7 @@ class Kaboxer:
             return v
 
     def cmd_get_meta_file(self):
-        self.read_config()
+        self.read_config(self.args.app)
         image = 'kaboxer/'+self.args.app
         print(self.get_meta_file(image,self.args.file))
 
@@ -641,6 +622,28 @@ Categories={{ p.categories }}
                 shutil.move(os.path.join(td,ti.name), outfile)
         temp_container.remove()
 
+    def extract_file_from_tarball(self,tarball,infile,outfile):
+        tf = tarfile.open(tarball)
+        manifest = tf.extractfile('manifest.json')
+        j = json.loads(manifest.read())
+        relpath = os.path.relpath(infile, '/')
+        for layer in j[0]['Layers']:
+            tfl = tarfile.open(fileobj=tf.extractfile(layer))
+            try:
+                with tempfile.TemporaryDirectory() as td:
+                    tfl.extract(relpath,path=td)
+                    shutil.move(os.path.join(td,relpath), outfile)
+                    return 1
+            except:
+                continue
+        raise Exception('Not found')
+
+    def get_meta_file_from_tarball(self, tarball, filename):
+        with tempfile.NamedTemporaryFile(mode='w+t',prefix="getmetafile") as tmp:
+            self.extract_file_from_tarball(tarball,os.path.join('/kaboxer/',filename),tmp.name)
+            v = str(open(tmp.name).read())
+            return v
+
     def inject_file_into_image(self,image,outfile,infile):
         temp_container = self.docker_conn.containers.create(image)
         with tempfile.TemporaryFile() as temptar:
@@ -682,117 +685,272 @@ Categories={{ p.categories }}
             for chunk in image.save():
                 f.write(chunk)
 
-    def load_image(self, tarfile):
+    def load_image(self, tarfile, appname, tag):
         f = open(tarfile, 'rb')
         for image in self.docker_conn.images.load(f):
-            image.tag('kaboxer/'+self.args.app, tag='latest')
+            image.tag('kaboxer/'+appname, tag=tag)
 
     def cmd_load(self):
-        self.load_image(self.args.file)
+        v = self.get_meta_file_from_tarball(self.args.file, 'version').strip()
+        self.logger.info("Loading %s at version %s" % (self.args.app, v))
+        self.load_image(self.args.file, self.args.app, v)
 
     def find_image(self, name):
         images = self.docker_conn.images.list()
+        candidates = {}
         for image in images:
             for tag in image.tags:
                 if tag == name:
                     return image
+                if tag[:len(name)] == name and tag[len(name)] == ':':
+                    ver = tag[len(name)+1:]
+                    candidates[tag] = { 'image': image,
+                                        'version': packaging_version.parse(ver) }
+        if len(candidates):
+            versions = [ candidates[x]['version'] for x in candidates.keys() ]
+            maxver = sorted(versions)[-1]
+            for c in candidates:
+                if candidates[c]['version'] == maxver:
+                    return candidates[c]['image']
         return False
 
-    def get_image_name(self):
-        self.read_config()
+    def get_image_name(self,app,config=None):
+        if config is None:
+            config = self.load_config(app)
         try:
-            if 'registry' in self.config['container']['origin']:
-                registry = self.config['container']['origin']['registry']['url']
+            if 'registry' in config['container']['origin']:
+                registry = config['container']['origin']['registry']['url']
                 registry = re.sub('^https?://','',registry)
                 try:
-                    image = self.config['container']['origin']['registry']['image']
+                    image = config['container']['origin']['registry']['image']
                 except KeyError:
-                    image = self.config['application']['id']
+                    image = config['application']['id']
                 return "%s/%s" % (registry, image)
         except KeyError:
             pass
-        return "kaboxer/%s" % (self.config['application']['id'],)
+        return "kaboxer/%s" % (config['application']['id'],)
 
     def cmd_prepare(self):
-        self.read_config()
-        full_image_name = self.get_image_name()
-        if self.find_image(full_image_name+':latest'):
+        self.prepare_or_upgrade(self.args.app)
+
+    def cmd_upgrade(self):
+        self.prepare_or_upgrade(self.args.app, upgrade=True)
+
+    def do_upgrade_scripts(self, app, oldver, newver):
+        self.read_config(app)
+        if oldver is None or oldver == newver:
             return
-        try:
-            if 'registry' in self.config['container']['origin']:
-                if not self.find_image(full_image_name+':latest'):
-                    self.logger.info("Pulling image from registry")
-                    self.docker_conn.images.pull(full_image_name)
+        image_name = self.get_image_name(app)
+        with tempfile.TemporaryDirectory() as td:
+            s = td
+            t = '/kaboxer/upgrade-data'
+            opts = { 'mounts': [docker.types.Mount(t,s,type='bind')] }
+            opts = self.parse_component_config(opts)
+            full_image_name = '%s:%s'%(image_name,oldver)
+            container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
+            dockerpty.start(self.docker_conn.api, container.id)
+            container.stop()
+            container.remove()
+            full_image_name = '%s:%s'%(image_name,newver)
+            container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/post-upgrade', oldver], **opts)
+            dockerpty.start(self.docker_conn.api, container.id)
+            container.stop()
+            container.remove()
+
+    def prepare_or_upgrade(self, apps, upgrade=False):
+        for app in apps:
+            installed_apps, registry_apps, tarball_apps = self.list_apps(True)
+            previous_version = None
+            m = re.search('([^=]+)=([^=]+)$', app)
+            if m:
+                app = m.group(1)
+                target_version = m.group(2)
+                if app in installed_apps:
+                    previous_version = installed_apps[app]
+            else:
+                if app in installed_apps:
+                    previous_version = installed_apps[app]
+                    if upgrade:
+                        try:
+                            target_version = registry_apps[app]['maxversion']
+                        except KeyError:
+                            target_version = tarball_apps[app]['version']
+                    else:
+                        target_version = previous_version
+                else:
+                    try:
+                        target_version = registry_apps[app]['maxversion']
+                    except KeyError:
+                        target_version = tarball_apps[app]['version']
+                self.read_config(app)
+            if previous_version \
+               and upgrade \
+               and packaging_version.parse(target_version) <= packaging_version.parse(previous_version):
+                target_version = previous_version
+            image_name = self.get_image_name(app)
+            full_image_name = '%s:%s'%(image_name,target_version)
+            if self.find_image(full_image_name):
                 return
-            if 'tarball' in self.config['container']['origin']:
+            config = self.load_config(app)
+            try:
+                if 'registry' in config['container']['origin']:
+                    if not self.find_image(full_image_name):
+                        self.logger.info("Pulling %s image from registry"%(full_image_name,))
+                        image = self.docker_conn.images.pull(full_image_name)
+                    self.do_upgrade_scripts(app, previous_version, target_version)
+                    return
+                if 'tarball' in config['container']['origin']:
+                    paths = [
+                        '.',
+                        '/usr/local/share/kaboxer',
+                        '/usr/share/kaboxer',
+                    ]
+                    for p in paths:
+                        tarfile = os.path.join(p,config['container']['origin']['tarball'])
+                        if os.path.isfile(tarfile):
+                            self.logger.info("Loading image from "+tarfile)
+                            self.load_image(tarfile, app, target_version)
+                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        return
+            except KeyError:
+                pass
+            if not self.find_image(full_image_name):
                 paths = [
                     '.',
                     '/usr/local/share/kaboxer',
                     '/usr/share/kaboxer',
                 ]
                 for p in paths:
-                    tarfile = os.path.join(p,self.config['container']['origin']['tarball'])
+                    tarfile = os.path.join(p,self.config['application']['id']+'.tar')
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from "+tarfile)
-                        self.load_image(tarfile)
-                    return
-        except KeyError:
-            pass
-        if not self.find_image(full_image_name+':latest'):
-            paths = [
-                '.',
-                '/usr/local/share/kaboxer',
-                '/usr/share/kaboxer',
-            ]
-            for p in paths:
-                tarfile = os.path.join(p,self.config['application']['id']+'.tar')
-                if os.path.isfile(tarfile):
-                    self.logger.info("Loading image from "+tarfile)
-                    self.load_image(tarfile)
-                    return
-        self.logger.error("Cannot prepare image")
-        sys.exit(1)
+                        self.load_image(tarfile, app, target_version)
+                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        return
+            self.logger.error("Cannot prepare image")
+            sys.exit(1)
 
     def cmd_pull(self):
         self.cmd_build()
 
     def cmd_purge(self):
-        self.docker_conn.images.remove('kaboxer/'+self.args.app)
-        if self.args.prune:
-            self.docker_conn.images.prune(filters={'dangling': True})
+        installed_apps, _, _ = self.list_apps()
+        if self.args.app in installed_apps:
+            self.docker_conn.images.remove('kaboxer/%s:%s'%(self.args.app,installed_apps[self.args.app]))
+            try:
+                self.docker_conn.images.remove('kaboxer/%s'%(self.args.app,))
+            except:
+                pass
+            if self.args.prune:
+                self.docker_conn.images.prune(filters={'dangling': True})
 
-    def cmd_list(self):
+    def list_apps(self, get_remotes=False):
+        installed_apps = {}
+        registry_apps = {}
+        tarball_apps = {}
+
         yamlfiles = []
         globs = [ 'kaboxer.yaml', '*.yaml' ]
-        installed_apps = {}
         for p in self.config_paths:
             for g in globs:
                 for f in glob.glob(os.path.join(p,g)):
                     try:
                         y = yaml.safe_load(open(f))
                         aid = y['application']['id']
-                        installed_apps[aid] = self.get_meta_file('kaboxer/'+aid,'version').strip()
+                        try:
+                            appconfig = self.load_config(aid)
+                            imagename = self.get_image_name(aid)
+                            image = self.find_image(imagename)
+                            installed_apps[aid] = self.get_meta_file(image,'version').strip()
+                        except Exception as e:
+                            pass
+                        try:
+                            registry_apps[aid] = { 'url': y['container']['origin']['registry']['url'],
+                                                   'image': y['container']['origin']['registry']['image'], }
+                        except:
+                            pass
+                        try:
+                            tb = y['container']['origin']['tarball']
+                            tarball_apps[aid] = { 'tarball': tb,
+                                                  'version': self.get_meta_file_from_tarball(tb,'version').strip(), }
+                        except:
+                            pass
                     except:
                         pass
-        for aid in installed_apps:
-            print("%s: %s" % (aid, installed_apps[aid]))
 
-    def load_config(self):
+        if get_remotes:
+            registries = set()
+            for aid in registry_apps:
+                registries.add(registry_apps[aid]['url'])
+            for url in registries:
+                if not re.match('https?://',url):
+                    url = 'http://'+url
+                try:
+                    req = requests.get(url+"/v2/_catalog")
+                except:
+                    continue
+                repos = req.json()['repositories']
+                for rep in repos:
+                    if rep not in registry_apps:
+                        continue
+                    req2 = requests.get(url+"/v2/"+rep+"/tags/list")
+                    registry_apps[rep]['versions'] = req2.json()['tags']
+                    curmax = registry_apps[rep]['versions'][0]
+                    for tag in registry_apps[aid]['versions']:
+                        if tag == 'latest':
+                            continue
+                        if packaging_version.parse(tag) > packaging_version.parse(curmax):
+                            curmax = tag
+                    registry_apps[rep]['maxversion'] = curmax
+        return (installed_apps, registry_apps, tarball_apps)
+
+    def cmd_list(self):
+        show_installed = self.args.installed
+        show_available = self.args.available
+        show_upgradeable = self.args.upgradeable
+        if self.args.all:
+            show_installed = True
+            show_available = True
+            show_upgradeable = True
+        if not show_available and not show_upgradeable:
+            show_installed = True
+        installed_apps, registry_apps, tarball_apps = self.list_apps(show_available or show_upgradeable)
+        if show_installed:
+            for aid in installed_apps:
+                print("%s: %s [installed]" % (aid, installed_apps[aid]))
+
+        if show_available:
+            for aid in registry_apps:
+                for tag in registry_apps[aid]['versions']:
+                    if tag == 'latest':
+                        continue
+                    print("%s: %s [available]" % (aid, tag))
+
+        if show_upgradeable:
+            for aid in installed_apps:
+                if aid in registry_apps:
+                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(installed_apps[aid]):
+                        print("%s: %s [upgradeable from %s]" % (aid, registry_apps[aid]['maxversion'], installed_apps[aid]))
+                elif aid in tarball_apps:
+                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(installed_apps[aid]):
+                        print("%s: %s [upgradeable from %s]" % (aid, tarball_apps[aid]['version'], installed_apps[aid]))
+
+    def load_config(self, app=None):
         for p in self.config_paths:
-            for filename in [ self.args.app+'.yaml', 'kaboxer.yaml' ]:
+            for filename in [ app+'.yaml', app+'.kaboxer.yaml', 'kaboxer.yaml' ]:
                 config_file = os.path.join(p,filename)
                 if os.path.isfile(config_file):
                     try:
                         y = yaml.safe_load(open(config_file))
-                        if y['application']['id'] == self.args.app:
+                        if y['application']['id'] == app:
                             return y
                     except:
                         pass
-        self.logger.error("Could not find appropriate config file")
+        self.logger.error("Could not find appropriate config file for "+app)
         sys.exit(1)
 
-    def read_config(self):
-        self.config = self.load_config()
+    def read_config(self, app):
+        self.config = self.load_config(app)
         # If a component was specified
         try:
             component = self.args.component
@@ -821,8 +979,54 @@ Categories={{ p.categories }}
             return
         except:
             pass
+
         self.logger.error("Can't find an appropriate component")
         sys.exit(1)
+
+    def parse_component_config(self, opts):
+        if 'environment' not in opts:
+            opts['environment'] = {}
+        if 'mounts' not in opts:
+            opts['mounts'] = []
+        try:
+            ports = {}
+            for publish_port in self.component_config['publish_ports']:
+                ports[publish_port] = publish_port
+            opts['ports'] = ports
+        except KeyError:
+            pass
+        if 'run_as_root' not in self.component_config:
+            self.component_config['run_as_root'] = False
+
+        if self.component_config['run_as_root']:
+            self.home_in = '/root'
+        else:
+            import pwd
+            self.uid = os.getuid()
+            self.uname = pwd.getpwuid(self.uid).pw_name
+            self.gecos = pwd.getpwuid(self.uid).pw_gecos
+            self.gid = pwd.getpwuid(self.uid).pw_gid
+            self.gname = grp.getgrgid(self.gid).gr_name
+            self.home_in = os.path.join('/home',self.uname)
+
+        try:
+            for mount in self.component_config['mounts']:
+                s = mount['source']
+                s = os.path.expanduser(s)
+                try:
+                    os.makedirs(s)
+                except FileExistsError:
+                    pass
+                t = mount['target']
+                if t == '~':
+                    t = self.home_in
+                else:
+                    t = re.sub('^~/',self.home_in+'/',t)
+                opts['mounts'].append(docker.types.Mount(t,s,type='bind'))
+        except KeyError:
+            pass
+
+        return opts
 
     def create_network(self, netname):
         for n in self.docker_conn.networks.list():

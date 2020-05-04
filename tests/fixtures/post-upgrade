@@ -1,0 +1,8 @@
+#! /bin/sh
+
+OLD_VERSION=$1
+
+CUR_VERSION=$(cat /kaboxer/version)
+PERSISTED_DATA=$(cat /kaboxer/upgrade-data/version)
+echo Upgrading from $OLD_VERSION to $CUR_VERSION with persisted data $PERSISTED_DATA
+cat /kaboxer/upgrade-data/upgrade-history >> /persist/run_history

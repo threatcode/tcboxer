@@ -9,6 +9,8 @@ packaging:
   max_upstream_version: 1.4
 container:
   type: docker
+  origin:
+    tarball: CONTAINERID.tar
 build:
   docker:
     file: Dockerfile
@@ -18,7 +20,7 @@ install:
 components:
   default:
     run_mode: cli
-    executable: /bin/echo Hi there
+    executable: /run.sh hi
   daemon:
     run_mode: headless
-    executable: /bin/sleep 60
+    executable: /run.sh sleep

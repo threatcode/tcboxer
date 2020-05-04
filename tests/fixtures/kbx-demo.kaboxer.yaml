@@ -17,4 +17,7 @@ packaging:
 components:
   default:
     run_mode: cli
-    executable: /bin/echo Hello World
+    executable: /run.sh demo
+    mounts:
+      - source: FIXDIR/persist
+        target: /persist
