@@ -371,7 +371,9 @@ class Kaboxer:
                     self.logger.error(str(e))
                     sys.exit(1)
             buildargs['KBX_APP_VERSION'] = self.args.version
-        (image, _) = self.docker_conn.images.build(path=path, dockerfile=df, rm=True, forcerm=True, buildargs=buildargs)
+        (image, _) = self.docker_conn.images.build(
+            path=path, dockerfile=df, rm=True, forcerm=True, nocache=True,
+            pull=True, quiet=False, buildargs=buildargs)
         with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
             try:
                 self.extract_file_from_image(image,'/kaboxer/version',tmp.name)
