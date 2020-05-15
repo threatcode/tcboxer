@@ -1,7 +1,8 @@
-# A debhelper build system class for handling Autoconf based projects
+# A debhelper build system class for handling Kaboxer based projects
 #
 # Copyright: © 2008 Joey Hess
 #            © 2008-2009 Modestas Vainius
+#            © 2020 Offensive Security
 # License: GPL-2+
 
 package Debian::Debhelper::Buildsystem::kaboxer;
