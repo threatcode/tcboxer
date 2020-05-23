@@ -122,6 +122,9 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_and_check_command("kaboxer clean")
         self.assertFalse(os.path.isfile(self.tarpath),
                          "Image still present after clean (expecting %s)" % (self.tarfile,))
+        for i in self.desktopfiles:
+            self.assertFalse(os.path.isfile(os.path.join(self.fixdir,i)),
+                            "%s file still present after kaboxer clean"%(i,))
 
     def test_purge(self):
         self.build()
