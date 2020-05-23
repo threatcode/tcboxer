@@ -291,7 +291,7 @@ class Kaboxer:
         image = 'kaboxer/'+self.args.app
         print(self.get_meta_file(image,self.args.file))
 
-    def find_config_for_build_app(self):
+    def find_config_for_build_apps(self):
         try:
             if self.args.path is None:
                 path = os.getcwd()
@@ -301,35 +301,26 @@ class Kaboxer:
             path = os.getcwd()
         yamlfiles = []
         globs = [ 'kaboxer.yaml', '*.kaboxer.yaml' ]
+        parsed_configs = {}
         for g in globs:
             for f in glob.glob(os.path.join(path,g)):
                 yamlfiles.append(f)
-        if self.args.app is None:
-            for f in yamlfiles:
-                y = yaml.safe_load(open(f))
-                try:
-                    y['application']['id']
-                    parsed_config = y
-                    self.config_file = f
-                    break
-                except:
-                    pass
-        else:
-            for f in yamlfiles:
-                y = yaml.safe_load(open(f))
-                try:
-                    if y['application']['id'] == self.args.app:
-                        parsed_config = y
-                        self.config_file = f
-                        break
-                except:
-                    pass
-        try:
-            app = parsed_config['application']['id']
-        except:
+        for f in yamlfiles:
+            y = yaml.safe_load(open(f))
+            try:
+                app = y['application']['id']
+                if self.args.app and self.args.app != app:
+                    continue
+                if app in parsed_configs:
+                    continue
+                parsed_configs[app] = y
+                parsed_configs[app]['_config_file'] = f
+            except:
+                pass
+        if not parsed_configs:
             self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
-        return parsed_config
+        return parsed_configs
 
     def do_version_checks(self,v,config):
         parsed_v = packaging_version.parse(v)
@@ -353,108 +344,109 @@ class Kaboxer:
             path = os.getcwd()
         else:
             path = self.args.path
-        parsed_config = self.find_config_for_build_app()
-        app = parsed_config['application']['id']
-        try:
-            df = os.path.join(path,parsed_config['build']['docker']['file'])
-        except:
-            df = os.path.join(path,'Dockerfile')
-        buildargs = {}
-        if self.args.version:
-            if not self.args.ignore_version:
-                try:
-                    self.do_version_checks(self.args.version,parsed_config)
-                except Exception as e:
-                    self.logger.error(str(e))
-                    sys.exit(1)
-            buildargs['KBX_APP_VERSION'] = self.args.version
-        (image, _) = self.docker_conn.images.build(
-            path=path, dockerfile=df, rm=True, forcerm=True, nocache=True,
-            pull=True, quiet=False, buildargs=buildargs)
-        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+        parsed_configs = self.find_config_for_build_apps()
+        for app in parsed_configs:
+            parsed_config = parsed_configs[app]
             try:
-                self.extract_file_from_image(image,'/kaboxer/version',tmp.name)
-                saved_version = open(tmp.name).readline().strip()
+                df = os.path.join(path,parsed_config['build']['docker']['file'])
+            except:
+                df = os.path.join(path,'Dockerfile')
+            buildargs = {}
+            if self.args.version:
                 if not self.args.ignore_version:
                     try:
-                        self.do_version_checks(saved_version,parsed_config)
+                        self.do_version_checks(self.args.version,parsed_config)
                     except Exception as e:
-                        self.docker_conn.images.remove(image=image.id)
                         self.logger.error(str(e))
                         sys.exit(1)
-            except Exception as e:
-                if self.args.version:
-                    saved_version = self.args.version
-                    tmp.write(self.args.version)
-                else:
-                    self.logger.error("Unable to determine version (use --version?)")
-                    self.docker_conn.images.remove(image=image.id)
-                    sys.exit(1)
+                buildargs['KBX_APP_VERSION'] = self.args.version
+            (image, _) = self.docker_conn.images.build(
+                path=path, dockerfile=df, rm=True, forcerm=True, nocache=True,
+                pull=True, quiet=False, buildargs=buildargs)
+            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+                try:
+                    self.extract_file_from_image(image,'/kaboxer/version',tmp.name)
+                    saved_version = open(tmp.name).readline().strip()
+                    if not self.args.ignore_version:
+                        try:
+                            self.do_version_checks(saved_version,parsed_config)
+                        except Exception as e:
+                            self.docker_conn.images.remove(image=image.id)
+                            self.logger.error(str(e))
+                            sys.exit(1)
+                except Exception as e:
+                    if self.args.version:
+                        saved_version = self.args.version
+                        tmp.write(self.args.version)
+                    else:
+                        self.logger.error("Unable to determine version (use --version?)")
+                        self.docker_conn.images.remove(image=image.id)
+                        sys.exit(1)
                 tmp.flush()
                 image = self.inject_file_into_image(image,tmp.name,'/kaboxer/version')
-        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-            tmp.write(str(parsed_config['packaging']['revision'])+"\n")
-            tmp.flush()
-            image = self.inject_file_into_image(image,tmp.name,'/kaboxer/packaging-revision')
-        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-            tmp.write(yaml.dump(sys.argv))
-            tmp.flush()
-            image = self.inject_file_into_image(image,tmp.name,'/kaboxer/kaboxer-build-cmd')
-        image = self.inject_file_into_image(image,df,'/kaboxer/Dockerfile')
-        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-            savedbuildargs = {
-                'rm': True,
-                'forcerm': True,
-                'path': path,
-                'dockerfile': df,
-                'buildargs': buildargs
-            }
-            tmp.write(yaml.dump(savedbuildargs))
-            tmp.flush()
-            image = self.inject_file_into_image(image,tmp.name,'/kaboxer/docker-build-parameters')
-        tagname='kaboxer/%s:latest'%(app,)
-        image.tag(tagname)
-        tagname='kaboxer/%s:%s'%(app,str(saved_version))
-        image.tag(tagname)
-        if self.args.save:
-            tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
-            self.save_image_to_file(image,tarball)
-        if self.args.push:
-            self.cmd_push()
-        try:
-            parsed_config['install']['desktop-files']
-        except:
-            self.gen_desktop_files()
+            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+                tmp.write(str(parsed_config['packaging']['revision'])+"\n")
+                tmp.flush()
+                image = self.inject_file_into_image(image,tmp.name,'/kaboxer/packaging-revision')
+            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+                tmp.write(yaml.dump(sys.argv))
+                tmp.flush()
+                image = self.inject_file_into_image(image,tmp.name,'/kaboxer/kaboxer-build-cmd')
+                image = self.inject_file_into_image(image,df,'/kaboxer/Dockerfile')
+            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+                savedbuildargs = {
+                    'rm': True,
+                    'forcerm': True,
+                    'path': path,
+                    'dockerfile': df,
+                    'buildargs': buildargs
+                }
+                tmp.write(yaml.dump(savedbuildargs))
+                tmp.flush()
+                image = self.inject_file_into_image(image,tmp.name,'/kaboxer/docker-build-parameters')
+                tagname='kaboxer/%s:latest'%(app,)
+                image.tag(tagname)
+                tagname='kaboxer/%s:%s'%(app,str(saved_version))
+                image.tag(tagname)
+            if self.args.save:
+                tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
+                self.save_image_to_file(image,tarball)
+            if self.args.push:
+                self.cmd_push()
+            try:
+                parsed_config['install']['desktop-files']
+            except:
+                self.gen_desktop_files(parsed_config)
 
     def cmd_push(self):
-        parsed_config = self.find_config_for_build_app()
-        app = parsed_config['application']['id']
-        if 'registry' not in parsed_config['container']['origin']:
-            self.logger.error ("No registry defined for %s"%(app,))
-            sys.exit(1)
-        registry = parsed_config['container']['origin']['registry']['url']
-        registry = re.sub('^https?://','',registry)
-        try:
-            imagename = parsed_config['container']['origin']['registry']['image']
-        except KeyError:
-            imagename = parsed_config['application']['id']
-        tagname = "kaboxer/%s:latest"%(imagename,)
-        image = self.find_image(tagname)
-        if not image:
-            self.logger.error("No %s image found"%(tagname,))
-            sys.exit(1)
-        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-            self.extract_file_from_image(image.id,'/kaboxer/version',tmp.name)
-            saved_version = open(tmp.name).readline().strip()
-        remotename = '%s/%s' % (registry, imagename)
-        tagname='%s:latest'%(remotename,)
-        image.tag(tagname)
-        tagname='%s:%s'%(remotename,str(saved_version))
-        image.tag(tagname)
-        self.docker_conn.images.push(remotename)
+        parsed_configs = self.find_config_for_build_apps()
+        for app in parsed_configs:
+            parsed_config = parsed_configs[app]
+            if 'registry' not in parsed_config['container']['origin']:
+                self.logger.error ("No registry defined for %s"%(app,))
+                sys.exit(1)
+            registry = parsed_config['container']['origin']['registry']['url']
+            registry = re.sub('^https?://','',registry)
+            try:
+                imagename = parsed_config['container']['origin']['registry']['image']
+            except KeyError:
+                imagename = parsed_config['application']['id']
+            tagname = "kaboxer/%s:latest"%(imagename,)
+            image = self.find_image(tagname)
+            if not image:
+                self.logger.error("No %s image found"%(tagname,))
+                sys.exit(1)
+            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+                self.extract_file_from_image(image.id,'/kaboxer/version',tmp.name)
+                saved_version = open(tmp.name).readline().strip()
+            remotename = '%s/%s' % (registry, imagename)
+            tagname='%s:latest'%(remotename,)
+            image.tag(tagname)
+            tagname='%s:%s'%(remotename,str(saved_version))
+            image.tag(tagname)
+            self.docker_conn.images.push(remotename)
 
-    def gen_desktop_files(self):
-        parsed_config = self.find_config_for_build_app()
+    def gen_desktop_files(self, parsed_config):
         template_text = """[Desktop Entry]
 Name={{ p.name }}
 Comment={{ p.comment }}
@@ -519,14 +511,16 @@ Categories={{ p.categories }}
         else:
             path = self.args.path
         path = os.path.realpath(path)
-        parsed_config = self.find_config_for_build_app()
-        app = parsed_config['application']['id']
-        tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
-        if os.path.commonpath([path,tarball]) == path and os.path.isfile(tarball):
-            os.unlink(tarball)
-        desktopfiles = self._list_desktop_files()
-        for d in desktopfiles:
-            os.unlink(d)
+        parsed_configs = self.find_config_for_build_apps()
+        for app in parsed_configs:
+            parsed_config = parsed_configs[app]
+            app = parsed_config['application']['id']
+            tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
+            if os.path.commonpath([path,tarball]) == path and os.path.isfile(tarball):
+                os.unlink(tarball)
+            desktopfiles = self._list_desktop_files(parsed_config)
+            for d in desktopfiles:
+                os.unlink(d)
 
     def install_to_path(self,f,path):
         if self.args.destdir == '':
@@ -536,8 +530,7 @@ Categories={{ p.categories }}
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f,builddestpath)
 
-    def _list_desktop_files(self):
-        parsed_config = self.find_config_for_build_app()
+    def _list_desktop_files(self,parsed_config):
         try:
             desktopfiles = parsed_config['install']['desktop-files']
         except:
@@ -552,59 +545,60 @@ Categories={{ p.categories }}
 
     def cmd_install(self):
         main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
-        parsed_config = self.find_config_for_build_app()
         if self.args.path is None:
             path = os.getcwd()
         else:
             path = self.args.path
-        app = parsed_config['application']['id']
-        # Install image tarball
-        if self.args.tarball:
-            tarball = os.path.join(path,app+'.tar')
+        parsed_configs = self.find_config_for_build_apps()
+        for app in parsed_configs:
+            parsed_config = parsed_configs[app]
+            # Install image tarball
+            if self.args.tarball:
+                tarball = os.path.join(path,app+'.tar')
+                try:
+                    self.install_to_path(tarball, main_destpath)
+                except shutil.SameFileError:
+                    pass
+            # Install kaboxer.yaml file
+            # Update it first if we ship the tarball
+            if self.args.tarball:
+                try:
+                    del(parsed_config['container']['origin']['registry'])
+                except:
+                    pass
+                if 'origin' not in parsed_config['container']:
+                    parsed_config['container']['origin'] = {}
+                parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
+                with tempfile.TemporaryDirectory() as td:
+                    tf = os.path.join(td,app+'.yaml')
+                    with open(tf,'w') as y:
+                        y.write(yaml.dump(parsed_config))
+                    self.install_to_path(tf, main_destpath)
+            else:
+                self.install_to_path(parsed_config['_config_file'], main_destpath)
+            # Install desktop file(s)
+            desktopfiles = self._list_desktop_files(parsed_config)
+            for d in desktopfiles:
+                self.install_to_path(d,os.path.join(self.args.prefix, 'share', 'applications'))
+            # Install icon file(s)
             try:
-                self.install_to_path(tarball, main_destpath)
-            except shutil.SameFileError:
+                iconfile = parsed_config['install']['icon']
+                (_,ife) = os.path.splitext(os.path.basename(iconfile))
+                with tempfile.TemporaryDirectory() as td:
+                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
+                    shutil.copy(iconfile,renamed_icon)
+                    self.install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
+            except KeyError:
                 pass
-        # Install kaboxer.yaml file
-        # Update it first if we ship the tarball
-        if self.args.tarball:
             try:
-                del(parsed_config['container']['origin']['registry'])
-            except:
+                iconfile = parsed_config['install']['extract-icon']
+                (_,ife) = os.path.splitext(os.path.basename(iconfile))
+                with tempfile.TemporaryDirectory() as td:
+                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
+                    self.extract_file_from_image('kaboxer/'+parsed_config['application']['id'],iconfile,renamed_icon)
+                    self.install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
+            except KeyError:
                 pass
-            if 'origin' not in parsed_config['container']:
-                parsed_config['container']['origin'] = {}
-            parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
-            with tempfile.TemporaryDirectory() as td:
-                tf = os.path.join(td,app+'.yaml')
-                with open(tf,'w') as y:
-                    y.write(yaml.dump(parsed_config))
-                self.install_to_path(tf, main_destpath)
-        else:
-            self.install_to_path(self.config_file, main_destpath)
-        # Install desktop file(s)
-        desktopfiles = self._list_desktop_files()
-        for d in desktopfiles:
-            self.install_to_path(d,os.path.join(self.args.prefix, 'share', 'applications'))
-        # Install icon file(s)
-        try:
-            iconfile = parsed_config['install']['icon']
-            (_,ife) = os.path.splitext(os.path.basename(iconfile))
-            with tempfile.TemporaryDirectory() as td:
-                renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
-                shutil.copy(iconfile,renamed_icon)
-                self.install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
-        except KeyError:
-            pass
-        try:
-            iconfile = parsed_config['install']['extract-icon']
-            (_,ife) = os.path.splitext(os.path.basename(iconfile))
-            with tempfile.TemporaryDirectory() as td:
-                renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
-                self.extract_file_from_image('kaboxer/'+parsed_config['application']['id'],iconfile,renamed_icon)
-                self.install_to_path(renamed_icon,os.path.join(self.args.prefix, 'share', 'icons'))
-        except KeyError:
-            pass
 
     def extract_file_from_image(self,image,infile,outfile):
         temp_container = self.docker_conn.containers.create(image)

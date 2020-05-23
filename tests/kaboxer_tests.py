@@ -110,6 +110,42 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertTrue(os.path.isfile(self.tarpath),
                         "Image not saved (expecting %s)" % (self.tarpath,))
 
+    def test_build_two_apps(self):
+        self.nonce2 = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        self.app_name2 = self.nonce2
+        self.image_name2 = 'kaboxer/' + self.app_name2
+        shutil.copy(os.path.join(self.fixdir, 'kaboxer.yaml'),
+                    os.path.join(self.fixdir, 'app2.kaboxer.yaml'))
+        self.run_command("sed -i -e s/%s/%s/ %s" % (self.app_name, self.app_name2, 'app2.kaboxer.yaml'))
+        self.run_and_check_command("kaboxer build --save")
+        self.assertTrue(self.is_image_present(),
+                        "No Docker image present after build")
+        self.assertTrue(os.path.isfile(self.tarpath),
+                        "Image not saved (expecting %s)" % (self.tarpath,))
+        self.assertEqual(self.run_command("docker image ls | grep -q '%s *%s'" % (self.image_name2,'latest')),0, "No docker image present for app2 after build")
+        self.tarfile2 = "%s.tar"%(self.app_name2,)
+        self.tarpath2 = os.path.join(self.fixdir,self.tarfile2)
+        self.assertTrue(os.path.isfile(self.tarpath2),
+                        "Image not saved for app2 (expecting %s)" % (self.tarpath2,))
+
+    def test_build_one_app_only(self):
+        self.nonce2 = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        self.app_name2 = self.nonce2
+        self.image_name2 = 'kaboxer/' + self.app_name2
+        shutil.copy(os.path.join(self.fixdir, 'kaboxer.yaml'),
+                    os.path.join(self.fixdir, 'app2.kaboxer.yaml'))
+        self.run_command("sed -i -e s/%s/%s/ %s" % (self.app_name, self.app_name2, 'app2.kaboxer.yaml'))
+        self.run_and_check_command("kaboxer build --save %s" % (self.app_name,))
+        self.assertTrue(self.is_image_present(),
+                        "No Docker image present after build")
+        self.assertTrue(os.path.isfile(self.tarpath),
+                        "Image not saved (expecting %s)" % (self.tarpath,))
+        self.assertEqual(self.run_command("docker image ls | grep -q '%s *%s'" % (self.image_name2,'latest')),1, "Image for app2 unexpectedly present after build")
+        self.tarfile2 = "%s.tar"%(self.app_name2,)
+        self.tarpath2 = os.path.join(self.fixdir,self.tarfile2)
+        self.assertFalse(os.path.isfile(self.tarpath2),
+                        "Image saved for app2 (as %s)" % (self.tarpath2,))
+
     def test_build_then_separate_save(self):
         self.build()
         tarfile = "%s.tar"%(self.app_name,)
