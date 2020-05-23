@@ -163,17 +163,17 @@ class TestKaboxerLocally(TestKaboxerCommon):
 
     def test_install(self):
         self.test_build_and_save()
-        self.run_and_check_command("kaboxer install --destdir %s" % (os.path.join(self.fixdir,'target')))
+        self.run_and_check_command("kaboxer install --tarball --destdir %s" % (os.path.join(self.fixdir,'target')))
         installed_tarfile = os.path.join(self.fixdir,'target','usr','local','share','kaboxer',self.tarfile)
         self.assertTrue(os.path.isfile(installed_tarfile),
                          "Tarfile not installed (expecting %s)" % (installed_tarfile,))
         os.unlink(installed_tarfile)
         self.assertFalse(os.path.isfile(installed_tarfile),
                          "Tarfile still present after unlink (%s)" % (installed_tarfile,))
-        self.run_and_check_command("kaboxer install --skip-local-tarball --destdir %s" % (os.path.join(self.fixdir,'target')))
+        self.run_and_check_command("kaboxer install --destdir %s" % (os.path.join(self.fixdir,'target')))
         self.assertFalse(os.path.isfile(installed_tarfile),
-                         "Tarfile present after install --skip-local-tarball (%s)" % (installed_tarfile,))
-        self.run_and_check_command("kaboxer install --destdir %s --prefix %s" % (os.path.join(self.fixdir,'target'),'/usr'))
+                         "Tarfile present after install (%s)" % (installed_tarfile,))
+        self.run_and_check_command("kaboxer install --tarball --destdir %s --prefix %s" % (os.path.join(self.fixdir,'target'),'/usr'))
         self.assertFalse(os.path.isfile(installed_tarfile),
                          "Default tarfile present after install to non-default dir (%s)" % (installed_tarfile,))
         installed_tarfile_usr = os.path.join(self.fixdir,'target','usr','share','kaboxer',self.tarfile)

@@ -68,22 +68,19 @@ class Kaboxer:
         parser_build.add_argument("--push", action="store_true", help='push container image to registry after build')
         parser_build.add_argument("--version", help='app version')
         parser_build.add_argument("--ignore-version", action="store_true", help='ignore version checks')
-        parser_build.add_argument("--tarball", help='tar file to save the image into')
         parser_build.add_argument('app', nargs='?')
         parser_build.add_argument('path', nargs='?')
         parser_build.set_defaults(func=self.cmd_build)
 
         parser_install = subparsers.add_parser('install', help='install image')
-        parser_install.add_argument("--tarball", help='tar file to install')
+        parser_install.add_argument("--tarball", action="store_true", help='install tarball')
         parser_install.add_argument("--destdir", help='build-time destination dir', default='')
         parser_install.add_argument("--prefix", help='prefix for the installation path', default='/usr/local')
-        parser_install.add_argument("--skip-local-tarball", action="store_true", help='do not install tarball locally (if configured to use a registry)')
         parser_install.add_argument('app', nargs='?')
         parser_install.add_argument('path', nargs='?')
         parser_install.set_defaults(func=self.cmd_install)
 
         parser_clean = subparsers.add_parser('clean', help='clean directory')
-        parser_clean.add_argument("--tarball", help='tar file to clean (if if the dir)')
         parser_clean.add_argument('app', nargs='?')
         parser_clean.add_argument('path', nargs='?')
         parser_clean.set_defaults(func=self.cmd_clean)
@@ -420,10 +417,7 @@ class Kaboxer:
         tagname='kaboxer/%s:%s'%(app,str(saved_version))
         image.tag(tagname)
         if self.args.save:
-            if self.args.tarball is not None:
-                tarball = self.args.tarball
-            else:
-                tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
+            tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
             self.save_image_to_file(image,tarball)
         if self.args.push:
             self.cmd_push()
@@ -527,10 +521,7 @@ Categories={{ p.categories }}
         path = os.path.realpath(path)
         parsed_config = self.find_config_for_build_app()
         app = parsed_config['application']['id']
-        if self.args.tarball is not None:
-            tarball = self.args.tarball
-        else:
-            tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
+        tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
         if os.path.commonpath([path,tarball]) == path and os.path.isfile(tarball):
             os.unlink(tarball)
         desktopfiles = self._list_desktop_files()
@@ -568,20 +559,15 @@ Categories={{ p.categories }}
             path = self.args.path
         app = parsed_config['application']['id']
         # Install image tarball
-        if not self.args.skip_local_tarball:
-            if self.args.tarball is not None:
-                tarball = self.args.tarball
-            else:
-                tarball = os.path.join(path,app+'.tar')
+        if self.args.tarball:
+            tarball = os.path.join(path,app+'.tar')
             try:
                 self.install_to_path(tarball, main_destpath)
             except shutil.SameFileError:
                 pass
         # Install kaboxer.yaml file
         # Update it first if we ship the tarball
-        if self.args.skip_local_tarball:
-            self.install_to_path(self.config_file, main_destpath)
-        else:
+        if self.args.tarball:
             try:
                 del(parsed_config['container']['origin']['registry'])
             except:
@@ -594,6 +580,8 @@ Categories={{ p.categories }}
                 with open(tf,'w') as y:
                     y.write(yaml.dump(parsed_config))
                 self.install_to_path(tf, main_destpath)
+        else:
+            self.install_to_path(self.config_file, main_destpath)
         # Install desktop file(s)
         desktopfiles = self._list_desktop_files()
         for d in desktopfiles:
