@@ -346,6 +346,7 @@ class Kaboxer:
             path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
+            self.logger.info("Building %s" % (app,))
             parsed_config = parsed_configs[app]
             try:
                 df = os.path.join(path,parsed_config['build']['docker']['file'])
@@ -421,6 +422,7 @@ class Kaboxer:
     def cmd_push(self):
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
+            self.logger.info("Pushing %s" % (app,))
             parsed_config = parsed_configs[app]
             if 'registry' not in parsed_config['container']['origin']:
                 self.logger.error ("No registry defined for %s"%(app,))
@@ -513,6 +515,7 @@ Categories={{ p.categories }}
         path = os.path.realpath(path)
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
+            self.logger.info("Cleaning %s" % (app,))
             parsed_config = parsed_configs[app]
             app = parsed_config['application']['id']
             tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
@@ -551,6 +554,7 @@ Categories={{ p.categories }}
             path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
+            self.logger.info("Installing %s" % (app,))
             parsed_config = parsed_configs[app]
             # Install image tarball
             if self.args.tarball:
@@ -732,6 +736,7 @@ Categories={{ p.categories }}
         self.read_config(app)
         if oldver is None or oldver == newver:
             return
+        self.logger.info("Running upgrade scripts for %s (%s -> %s)" % (app,oldver,newver))
         image_name = self.get_image_name(app)
         with tempfile.TemporaryDirectory() as td:
             s = td
@@ -751,6 +756,7 @@ Categories={{ p.categories }}
 
     def prepare_or_upgrade(self, apps, upgrade=False):
         for app in apps:
+            self.logger.info("Preparing %s" % (app,))
             installed_apps, registry_apps, tarball_apps = self.list_apps(True)
             previous_version = None
             m = re.search('([^=]+)=([^=]+)$', app)
