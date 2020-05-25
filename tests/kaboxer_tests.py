@@ -86,6 +86,15 @@ class TestKaboxerCommon(unittest.TestCase):
             unexpected_msg = "Unexpected output in stderr when running %s"%(cmd,)
         self.assertTrue(re.search(expected,o.stderr),unexpected_msg + " (%s doesn't match %s)" % (o.stderr, expected))
 
+    def run_command_check_stderr_doesnt_match(self,cmd,expected,fail_msg=None,unexpected_msg=None):
+        o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
+        if fail_msg is None:
+            fail_msg = "Error when running %s\nSTDOUT=%s\nSTDERR=%s"%(cmd,o.stdout,o.stderr)
+        self.assertEqual(o.returncode,0,fail_msg)
+        if unexpected_msg is None:
+            unexpected_msg = "Unexpected output in stderr when running %s"%(cmd,)
+        self.assertFalse(re.search(expected,o.stderr),unexpected_msg + " (%s matches %s)" % (o.stderr, expected))
+
     def is_image_present(self, version='latest'):
         if self.run_command("docker image ls | grep -q '%s *%s'" % (self.image_name,version)) == 0:
             return True
@@ -100,6 +109,12 @@ class TestKaboxerCommon(unittest.TestCase):
 class TestKaboxerLocally(TestKaboxerCommon):
     def test_build_only(self):
         self.build()
+
+    def test_log_levels(self):
+        self.run_command_check_stderr_matches("kaboxer -v build",
+                                                   "Building %s" % (self.app_name,))
+        self.run_command_check_stderr_doesnt_match("kaboxer build",
+                                                   "Building %s" % (self.app_name,))
 
     def test_build_and_save(self):
         self.run_and_check_command("kaboxer build --save")

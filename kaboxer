@@ -26,6 +26,7 @@ import json
 class Kaboxer:
     def __init__(self):
         self.parser = argparse.ArgumentParser()
+        self.parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
 
         subparsers = self.parser.add_subparsers(title='subcommands', help='action to perform', dest='action', required=True)
 
@@ -108,7 +109,19 @@ class Kaboxer:
         parser_purge.add_argument("--prune", action="store_true", help='prune unused images')
         parser_purge.set_defaults(func=self.cmd_purge)
 
+        self.args = self.parser.parse_args()
+
+        loglevels = { 0: 'ERROR',
+                      1: 'INFO',
+                      2: 'DEBUG',
+        }
+        try:
+            ll = loglevels[self.args.verbose]
+        except KeyError:
+            ll = 'DEBUG'
+        ll = getattr(logging,ll)
         self.logger = logging.Logger('kbxbuilder')
+        self.logger.setLevel(ll)
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
 
@@ -138,7 +151,6 @@ class Kaboxer:
         ]
 
     def go(self):
-        self.args = self.parser.parse_args()
         self.args.func()
 
     def cmd_run(self):
