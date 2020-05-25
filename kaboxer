@@ -574,7 +574,7 @@ Categories={{ p.categories }}
                     parsed_config['container']['origin'] = {}
                 parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
                 with tempfile.TemporaryDirectory() as td:
-                    tf = os.path.join(td,app+'.yaml')
+                    tf = os.path.join(td,app+'.kaboxer.yaml')
                     with open(tf,'w') as y:
                         y.write(yaml.dump(parsed_config))
                     self.install_to_path(tf, main_destpath)
@@ -848,7 +848,7 @@ Categories={{ p.categories }}
         tarball_apps = {}
 
         yamlfiles = []
-        globs = [ 'kaboxer.yaml', '*.yaml' ]
+        globs = [ 'kaboxer.yaml', '*.kaboxer.yaml' ]
         for p in self.config_paths:
             for g in globs:
                 for f in glob.glob(os.path.join(p,g)):
@@ -935,7 +935,7 @@ Categories={{ p.categories }}
 
     def load_config(self, app=None):
         for p in self.config_paths:
-            for filename in [ app+'.yaml', app+'.kaboxer.yaml', 'kaboxer.yaml' ]:
+            for filename in [ app+'.kaboxer.yaml', 'kaboxer.yaml' ]:
                 config_file = os.path.join(p,filename)
                 if os.path.isfile(config_file):
                     try:

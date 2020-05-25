@@ -31,8 +31,6 @@ class TestKaboxerCommon(unittest.TestCase):
             "kaboxer-%s-daemon-start.desktop"%(self.app_name,),
             "kaboxer-%s-daemon-stop.desktop"%(self.app_name,),
         ]
-        shutil.copy(os.path.join(self.fixdir, 'kbx-demo.kaboxer.yaml'),
-                    os.path.join(self.fixdir, 'kbx-demo.yaml'))
 
     def remove_images(self):
         self.run_command("docker image rm %s:1.0" % (self.image_name,), ignore_output=True)
