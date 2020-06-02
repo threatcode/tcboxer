@@ -41,7 +41,7 @@ sub build {
 
     for my $package (@{ $dh{DOPACKAGES} }) {
 	my $tmp = tmpdir($package);
-	$this->doit_in_sourcedir("kaboxer", "build", "--save", @{$dh{KABOXER_BUILD_OPTS}}, "$package");
+	$this->doit_in_sourcedir("kaboxer", "--verbose", "build", "--save", @{$dh{KABOXER_BUILD_OPTS}}, "$package");
     }
 }
 
@@ -52,7 +52,7 @@ sub install {
     for my $package (@{ $dh{DOPACKAGES} }) {
 	my $tmp = tmpdir($package);
 	install_dir("$tmp/usr/share/kaboxer");
-	$this->doit_in_sourcedir("kaboxer", "install", "--destdir", "$tmp", "--prefix", "/usr", @{$dh{KABOXER_INSTALL_OPTS}}, "$package");
+	$this->doit_in_sourcedir("kaboxer", "--verbose", "install", "--destdir", "$tmp", "--prefix", "/usr", @{$dh{KABOXER_INSTALL_OPTS}}, "$package");
     }
 }
 
@@ -60,7 +60,7 @@ sub clean {
     my $this=shift;
 
     for my $package (@{ $dh{DOPACKAGES} }) {
-	$this->doit_in_sourcedir("kaboxer", "clean", "$package");
+	$this->doit_in_sourcedir("kaboxer", "--verbose", "clean", "$package");
     }
 }
 
