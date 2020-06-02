@@ -535,7 +535,8 @@ Categories={{ p.categories }}
                 os.unlink(tarball)
             desktopfiles = self._list_desktop_files(parsed_config)
             for d in desktopfiles:
-                os.unlink(d)
+                if os.path.isfile(d):
+                    os.unlink(d)
 
     def install_to_path(self,f,path):
         if self.args.destdir == '':
