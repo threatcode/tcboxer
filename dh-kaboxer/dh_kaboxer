@@ -14,7 +14,6 @@ init();
 
 for my $package (@{ $dh{DOPACKAGES} }) {
   my $t=tmpdir($package);
-  nonquiet_print qx/find $t/;
   next unless glob ("$t/usr/share/kaboxer/*.kaboxer.yaml");
   autoscript($package, 'postinst', 'postinst-kaboxer', "s/#PACKAGE#/$package/g");
   autoscript($package, 'postrm', 'postrm-kaboxer', "s/#PACKAGE#/$package/g");
