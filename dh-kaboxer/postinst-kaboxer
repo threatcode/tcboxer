@@ -1,5 +1,5 @@
 case "$1" in
     configure)
-	kaboxer prepare #PACKAGE#
+	kaboxer prepare #APPS#
     ;;
 esac
