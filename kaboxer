@@ -582,7 +582,6 @@ Categories={{ p.categories }}
             with tempfile.TemporaryDirectory() as td:
                 filtered_config_file = parsed_config.copy()
                 del(filtered_config_file['_config_file'])
-                self.logger.info(filtered_config_file)
                 tf = os.path.join(td,app+'.kaboxer.yaml')
                 if self.args.tarball:
                     try:
