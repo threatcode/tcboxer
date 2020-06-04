@@ -533,8 +533,8 @@ Categories={{ p.categories }}
             tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
             if os.path.commonpath([path,tarball]) == path and os.path.isfile(tarball):
                 os.unlink(tarball)
-            desktopfiles = self._list_desktop_files(parsed_config)
-            for d in desktopfiles:
+            generateddesktopfiles = self._list_desktop_files(parsed_config,generated_only=True)
+            for d in generateddesktopfiles:
                 if os.path.isfile(d):
                     os.unlink(d)
 
@@ -547,9 +547,11 @@ Categories={{ p.categories }}
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f,builddestpath)
 
-    def _list_desktop_files(self,parsed_config):
+    def _list_desktop_files(self,parsed_config,generated_only=False):
         try:
             desktopfiles = parsed_config['install']['desktop-files']
+            if generated_only:
+                return []
         except:
             desktopfiles = []
             for component in parsed_config['components']:
