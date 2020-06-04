@@ -811,8 +811,12 @@ Categories={{ p.categories }}
                 if 'registry' in config['container']['origin']:
                     if not self.find_image(full_image_name):
                         self.logger.info("Pulling %s image from registry"%(full_image_name,))
-                        image = self.docker_conn.images.pull(full_image_name)
-                    self.do_upgrade_scripts(app, previous_version, target_version)
+                        try:
+                            image = self.docker_conn.images.pull(full_image_name)
+                        except docker.errors.APIError:
+                            self.logger.error("Could not pull image from registry, wrong URL?")
+                            sys.exit(1)
+                        self.do_upgrade_scripts(app, previous_version, target_version)
                     return
                 if 'tarball' in config['container']['origin']:
                     paths = [
