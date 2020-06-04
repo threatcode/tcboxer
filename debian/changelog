@@ -1,3 +1,9 @@
+kaboxer (0.6) unstable; urgency=medium
+
+  * dh_kaboxer: decorrelate kaboxer apps from binary packages.
+
+ -- Roland Mas <roland.mas@gnurandal.com>  Thu, 04 Jun 2020 13:16:31 +0200
+
 kaboxer (0.5.1) unstable; urgency=medium
 
   * dh_kaboxer: only inject stuff (maintainer scripts, dependencies) in
