@@ -599,7 +599,7 @@ Categories={{ p.categories }}
             # Install desktop file(s)
             desktopfiles = self._list_desktop_files(parsed_config)
             for d in desktopfiles:
-                self.install_to_path(d,os.path.join(self.args.prefix, 'share', 'applications'))
+                self.install_to_path(os.path.join(path,d),os.path.join(self.args.prefix, 'share', 'applications'))
             # Install icon file(s)
             try:
                 iconfile = parsed_config['install']['icon']
