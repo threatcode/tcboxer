@@ -39,7 +39,7 @@ sub check_auto_buildable {
 sub build {
     my $this=shift;
 
-    $this->doit_in_sourcedir("kaboxer", "--verbose", "build", "--save", @{$dh{KABOXER_BUILD_OPTS}});
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "build", "--save", @_);
 }
 
 sub install {
@@ -47,13 +47,13 @@ sub install {
     my $destdir=shift;
 
     install_dir("$destdir/usr/share/kaboxer");
-    $this->doit_in_sourcedir("kaboxer", "--verbose", "install", "--destdir", "$destdir", "--prefix", "/usr", "--tarball");
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "install", "--destdir", "$destdir", "--prefix", "/usr", "--tarball", @_);
 }
 
 sub clean {
     my $this=shift;
 
-    $this->doit_in_sourcedir("kaboxer", "--verbose", "clean");
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "clean", @_);
 }
 
 1
