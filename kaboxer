@@ -535,13 +535,15 @@ Categories={{ p.categories }}
                 os.unlink(tarball)
             desktopfiles = self._list_desktop_files(parsed_config)
             for d in desktopfiles:
-                os.unlink(d)
+                if os.path.isfile(d):
+                    os.unlink(d)
 
     def install_to_path(self,f,path):
         if self.args.destdir == '':
             builddestpath = path
         else:
             builddestpath = os.path.join(self.args.destdir, os.path.relpath(path,'/'))
+        self.logger.info("Installing %s to %s" % (f,builddestpath))
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f,builddestpath)
 
@@ -577,25 +579,27 @@ Categories={{ p.categories }}
                     pass
             # Install kaboxer.yaml file
             # Update it first if we ship the tarball
-            if self.args.tarball:
-                try:
-                    del(parsed_config['container']['origin']['registry'])
-                except:
-                    pass
-                if 'origin' not in parsed_config['container']:
-                    parsed_config['container']['origin'] = {}
-                parsed_config['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
-                with tempfile.TemporaryDirectory() as td:
-                    tf = os.path.join(td,app+'.kaboxer.yaml')
-                    with open(tf,'w') as y:
-                        y.write(yaml.dump(parsed_config))
-                    self.install_to_path(tf, main_destpath)
-            else:
-                self.install_to_path(parsed_config['_config_file'], main_destpath)
+            with tempfile.TemporaryDirectory() as td:
+                filtered_config_file = parsed_config.copy()
+                del(filtered_config_file['_config_file'])
+                self.logger.info(filtered_config_file)
+                tf = os.path.join(td,app+'.kaboxer.yaml')
+                if self.args.tarball:
+                    try:
+                        del(filtered_config_file['container']['origin']['registry'])
+                    except:
+                        pass
+                    if 'origin' not in filtered_config_file['container']:
+                        filtered_config_file['container']['origin'] = {}
+                    filtered_config_file['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
+                self.logger.info(filtered_config_file)
+                with open(tf,'w') as y:
+                    y.write(yaml.dump(filtered_config_file))
+                self.install_to_path(tf, main_destpath)
             # Install desktop file(s)
             desktopfiles = self._list_desktop_files(parsed_config)
             for d in desktopfiles:
-                self.install_to_path(d,os.path.join(self.args.prefix, 'share', 'applications'))
+                self.install_to_path(os.path.join(path,d),os.path.join(self.args.prefix, 'share', 'applications'))
             # Install icon file(s)
             try:
                 iconfile = parsed_config['install']['icon']

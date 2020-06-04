@@ -7,12 +7,35 @@ use Debian::Debhelper::Dh_Lib;
 use File::Copy qw/cp/;
 use File::Copy::Recursive qw/dircopy/;
 use File::Temp qw/tempdir/;
+use YAML::XS;
+
+our $VERSION = '0.6';
+init();
 
 for my $package (@{ $dh{DOPACKAGES} }) {
-  autoscript($package, 'postinst', 'postinst-kaboxer', "s/#PACKAGE#/$package/g");
-  autoscript($package, 'postrm', 'postrm-kaboxer', "s/#PACKAGE#/$package/g");
-  addsubstvar($package, 'misc:Depends', 'docker.io');
+  my $t=tmpdir($package);
+  next unless glob ("$t/usr/share/kaboxer/*.kaboxer.yaml");
   addsubstvar($package, 'misc:Depends', 'kaboxer (>= 0.4~)');
+  my $needsdocker = 0;
+  my @apps = ();
+  foreach my $y (sort glob ("$t/usr/share/kaboxer/*.kaboxer.yaml")) {
+      open Y, $y;
+      my $yaml = '';
+      while (<Y>) {
+	  $yaml .= $_;
+      }
+      my $h = YAML::XS::Load($yaml);
+      push @apps, $h->{application}{id};
+      if ($h->{container}{type} eq 'docker') {
+	  $needsdocker = 1;
+      }
+  }
+  if ($needsdocker) {
+      addsubstvar($package, 'misc:Depends', 'docker.io');
+  }
+  my $apps = join " ", @apps;
+  autoscript($package, 'postinst', 'postinst-kaboxer', "s/#APPS#/$apps/g");
+  autoscript($package, 'postrm', 'postrm-kaboxer', "s/#APPS#/$apps/g");
 }
 
 __END__

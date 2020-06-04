@@ -39,29 +39,21 @@ sub check_auto_buildable {
 sub build {
     my $this=shift;
 
-    for my $package (@{ $dh{DOPACKAGES} }) {
-	my $tmp = tmpdir($package);
-	$this->doit_in_sourcedir("kaboxer", "build", "--save", @{$dh{KABOXER_BUILD_OPTS}}, "$package");
-    }
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "build", "--save", @{$dh{KABOXER_BUILD_OPTS}});
 }
 
 sub install {
     my $this=shift;
     my $destdir=shift;
 
-    for my $package (@{ $dh{DOPACKAGES} }) {
-	my $tmp = tmpdir($package);
-	install_dir("$tmp/usr/share/kaboxer");
-	$this->doit_in_sourcedir("kaboxer", "install", "--destdir", "$tmp", "--prefix", "/usr", @{$dh{KABOXER_INSTALL_OPTS}}, "$package");
-    }
+    install_dir("$destdir/usr/share/kaboxer");
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "install", "--destdir", "$destdir", "--prefix", "/usr", "--tarball");
 }
 
 sub clean {
     my $this=shift;
 
-    for my $package (@{ $dh{DOPACKAGES} }) {
-	$this->doit_in_sourcedir("kaboxer", "clean", "$package");
-    }
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "clean");
 }
 
 1
