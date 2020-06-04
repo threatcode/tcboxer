@@ -907,17 +907,22 @@ Categories={{ p.categories }}
             for aid in registry_apps:
                 registries.add(registry_apps[aid]['url'])
             for url in registries:
-                if not re.match('https?://',url):
-                    url = 'http://'+url
+                uurl = url
+                if not re.match('https?://',uurl):
+                    uurl = 'http://'+uurl
                 try:
-                    req = requests.get(url+"/v2/_catalog")
+                    req = requests.get(uurl+"/v2/_catalog")
+                    repos = req.json()['repositories']
                 except:
+                    for aid in registry_apps:
+                        if url == registry_apps[aid]['url']:
+                            registry_apps[aid]['versions'] = ['latest']
+                            registry_apps[aid]['maxversion'] = 'latest'
                     continue
-                repos = req.json()['repositories']
                 for rep in repos:
                     if rep not in registry_apps:
                         continue
-                    req2 = requests.get(url+"/v2/"+rep+"/tags/list")
+                    req2 = requests.get(uurl+"/v2/"+rep+"/tags/list")
                     registry_apps[rep]['versions'] = req2.json()['tags']
                     curmax = registry_apps[rep]['versions'][0]
                     for tag in registry_apps[aid]['versions']:
