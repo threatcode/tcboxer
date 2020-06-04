@@ -772,9 +772,9 @@ Categories={{ p.categories }}
             container.remove()
 
     def prepare_or_upgrade(self, apps, upgrade=False):
+        installed_apps, registry_apps, tarball_apps = self.list_apps(get_remotes=True, restrict=apps)
         for app in apps:
             self.logger.info("Preparing %s" % (app,))
-            installed_apps, registry_apps, tarball_apps = self.list_apps(True)
             previous_version = None
             m = re.search('([^=]+)=([^=]+)$', app)
             if m:
@@ -859,7 +859,7 @@ Categories={{ p.categories }}
             if self.args.prune:
                 self.docker_conn.images.prune(filters={'dangling': True})
 
-    def list_apps(self, get_remotes=False):
+    def list_apps(self, get_remotes=False, restrict=None):
         installed_apps = {}
         registry_apps = {}
         tarball_apps = {}
@@ -872,6 +872,8 @@ Categories={{ p.categories }}
                     try:
                         y = yaml.safe_load(open(f))
                         aid = y['application']['id']
+                        if restrict is not None and aid not in restrict:
+                            continue
                         try:
                             appconfig = self.load_config(aid)
                             imagename = self.get_image_name(aid)
@@ -929,7 +931,7 @@ Categories={{ p.categories }}
             show_upgradeable = True
         if not show_available and not show_upgradeable:
             show_installed = True
-        installed_apps, registry_apps, tarball_apps = self.list_apps(show_available or show_upgradeable)
+        installed_apps, registry_apps, tarball_apps = self.list_apps(get_remotes=(show_available or show_upgradeable))
         if show_installed:
             for aid in installed_apps:
                 print("%s: %s [installed]" % (aid, installed_apps[aid]))
