@@ -864,6 +864,9 @@ Categories={{ p.categories }}
         registry_apps = {}
         tarball_apps = {}
 
+        if restrict is not None:
+            restrict = [ re.sub('=.*', '', i) for i in restrict ]
+
         yamlfiles = []
         globs = [ 'kaboxer.yaml', '*.kaboxer.yaml' ]
         for p in self.config_paths:
