@@ -497,7 +497,7 @@ Categories={{ p.categories }}
                     detach_message = parsed_config['components'][component]['start_message']
                 except:
                     detach_message = "%s started" % (component_name,)
-                params['exec'] = "kaboxer run --detach --prompt_before_detach %s%s--component %s %s" % (shlex.quote(detach_message), params['reuse_container'], params['component'], params['appid'])
+                params['exec'] = "kaboxer run --detach --prompt-before-detach %s%s--component %s %s" % (shlex.quote(detach_message), params['reuse_container'], params['component'], params['appid'])
                 ofname = 'kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
