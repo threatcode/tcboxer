@@ -814,7 +814,9 @@ Categories={{ p.categories }}
                         try:
                             image = self.docker_conn.images.pull(full_image_name)
                         except docker.errors.APIError:
-                            self.logger.error("Could not pull image from registry, wrong URL?")
+                            self.logger.exception(
+                                "Could not pull %s, wrong URL?",
+                                full_image_name)
                             sys.exit(1)
                         self.do_upgrade_scripts(app, previous_version, target_version)
                     return
