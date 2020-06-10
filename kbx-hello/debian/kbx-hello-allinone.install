@@ -1,2 +1,3 @@
-debian/tmp/usr/share/kaboxer/kbx-hello-allinone* /usr/share/kaboxer/
-debian/tmp/usr/share/applications/kaboxer-kbx-hello-allinone* /usr/share/applications/
+usr/share/kaboxer/kbx-hello-allinone*
+usr/share/applications/kaboxer-kbx-hello-allinone*
+usr/share/icons/kaboxer-kbx-hello-allinone.png
