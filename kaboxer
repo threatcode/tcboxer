@@ -474,7 +474,7 @@ Categories={{ p.categories }}
         t = jinja2.Template(template_text)
         for component in parsed_config['components']:
             params = {
-                'comment': parsed_config['application']['description'],
+                'comment': parsed_config['application']['description'].split('\n')[0],
                 'component': component,
                 'appid': parsed_config['application']['id'],
                 'categories': parsed_config['application']['categories'],
