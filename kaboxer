@@ -275,7 +275,7 @@ class Kaboxer:
             opts['auto_remove'] = True
             container = self.docker_conn.containers.create(image, executable, **opts)
             for e in extranets:
-                create_network(e).connect(container)
+                self.create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api,container.id)
             if self.args.detach and self.args.prompt_before_detach:
                 c = prompt_toolkit.prompt(self.args.prompt_before_detach)
