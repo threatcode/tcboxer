@@ -813,6 +813,11 @@ Categories={{ p.categories }}
                         self.logger.info("Pulling %s image from registry"%(full_image_name,))
                         try:
                             image = self.docker_conn.images.pull(full_image_name)
+                            if target_version == 'latest':
+                                pulled_version = self.get_meta_file(image,'version').strip()
+                                versioned_image_name = '%s:%s'%(image_name,pulled_version)
+                                if not self.find_image(versioned_image_name):
+                                    image.tag(versioned_image_name)
                         except docker.errors.APIError:
                             self.logger.exception(
                                 "Could not pull %s, wrong URL?",
