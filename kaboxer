@@ -593,7 +593,6 @@ Categories={{ p.categories }}
                     if 'origin' not in filtered_config_file['container']:
                         filtered_config_file['container']['origin'] = {}
                     filtered_config_file['container']['origin']['tarball'] = os.path.join(main_destpath,app+'.tar')
-                self.logger.info(filtered_config_file)
                 with open(tf,'w') as y:
                     y.write(yaml.dump(filtered_config_file))
                 self.install_to_path(tf, main_destpath)
