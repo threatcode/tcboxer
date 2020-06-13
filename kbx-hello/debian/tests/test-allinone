@@ -60,6 +60,6 @@ expect eof
 EOF
 expect $tf
 
-kaboxer stop kbx-hello-allinone
+kaboxer stop kbx-hello-allinone | grep -q "kbx-hello-allinone server stopped"
 
 rm $tf

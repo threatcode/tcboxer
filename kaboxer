@@ -42,6 +42,7 @@ class Kaboxer:
 
         parser_stop = subparsers.add_parser('stop', help='stop running containerized app')
         parser_stop.add_argument('app')
+        parser_stop.add_argument("--component", help='component to stop')
         parser_stop.set_defaults(func=self.cmd_stop)
 
         parser_get_meta_file = subparsers.add_parser('get-meta-file', help='get installed get_meta_file of containerized app')
@@ -277,12 +278,10 @@ class Kaboxer:
             for e in extranets:
                 self.create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api,container.id)
+            self.logger.error(self.component_config)
+            component_name = self.component_config['name']
             try:
-                component_name = parsed_config['components'][component]['name']
-            except:
-                component_name = "%s/%s" % (app, component)
-            try:
-                start_message = parsed_config['components'][component]['start_message']
+                start_message = self.component_config['start_message']
             except:
                 start_message = "%s started" % (component_name, )
             if self.args.detach:
@@ -291,13 +290,20 @@ class Kaboxer:
                     prompt_toolkit.prompt("Press ENTER to exit")
 
     def cmd_stop(self):
-        self.read_config(self.args.app)
+        app = self.args.app
+        self.read_config(app)
         run_mode = self.component_config['run_mode']
-        image = 'kaboxer/'+self.args.app
+        image = 'kaboxer/'+app
         if run_mode == 'headless':
-            containers = self.docker_conn.containers.list(filters={'name': self.args.app})
+            containers = self.docker_conn.containers.list(filters={'name': app})
             container = containers[0]
+            component_name = self.component_config['name']
+            try:
+                stop_message = self.component_config['name']['stop_message']
+            except:
+                stop_message = "%s started" % (component_name, )
             container.stop()
+            print(stop_message)
         else:
             self.logger.error ("Can't stop a non-headless component")
             sys.exit(1)
@@ -996,6 +1002,7 @@ Categories={{ p.categories }}
         try:
             component = self.args.component
             self.component_config = self.config['components'][component]
+            if 'name' not in self.component_config: self.component_config['name'] = component
             return
         except:
             pass
@@ -1003,12 +1010,15 @@ Categories={{ p.categories }}
         try:
             component = self.config['container']['default_component']
             self.component_config = self.config['components'][component]
+            if 'name' not in self.component_config: self.component_config['name'] = component
             return
         except:
             pass
         # If there is a component called "default"
         try:
+            component = 'default'
             self.component_config = self.config['components']['default']
+            if 'name' not in self.component_config: self.component_config['name'] = component
             return
         except:
             pass
@@ -1017,6 +1027,7 @@ Categories={{ p.categories }}
             components = sorted(self.config['components'].keys())
             component = components[0]
             self.component_config = self.config['components'][component]
+            if 'name' not in self.component_config: self.component_config['name'] = component
             return
         except:
             pass
