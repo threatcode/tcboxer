@@ -9,7 +9,7 @@ gen_token() {
 prompt="fetch | save <value> | delete ? "
 
 kaboxer stop kbx-hello-allinone 2>&1 || true
-kaboxer run --detach kbx-hello-allinone 2>&1
+kaboxer run --detach kbx-hello-allinone 2>&1 | grep -q "kbx-hello server started"
 sleep 15
 
 cat > $tf <<EOF

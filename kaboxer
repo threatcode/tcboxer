@@ -35,7 +35,7 @@ class Kaboxer:
         parser_run.add_argument("--component", help='component to run')
         parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
         parser_run.add_argument("--detach", help='run in the background', action="store_true")
-        parser_run.add_argument("--prompt-before-detach", help='message to display before detaching')
+        parser_run.add_argument("--prompt-before-detach", action="store_true", help='display message before detaching')
         parser_run.add_argument("--version", help='version to run')
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.cmd_run)
@@ -277,8 +277,18 @@ class Kaboxer:
             for e in extranets:
                 self.create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api,container.id)
-            if self.args.detach and self.args.prompt_before_detach:
-                c = prompt_toolkit.prompt(self.args.prompt_before_detach)
+            try:
+                component_name = parsed_config['components'][component]['name']
+            except:
+                component_name = "%s/%s" % (app, component)
+            try:
+                start_message = parsed_config['components'][component]['start_message']
+            except:
+                start_message = "%s started" % (component_name, )
+            if self.args.detach:
+                print(start_message)
+                if self.args.prompt_before_detach:
+                    prompt_toolkit.prompt("Press ENTER to exit")
 
     def cmd_stop(self):
         self.read_config(self.args.app)
@@ -493,11 +503,7 @@ Categories={{ p.categories }}
                 # One .desktop file for starting
                 params['name'] = "Start %s" % (component_name,)
                 params['terminal'] = 'true'
-                try:
-                    detach_message = parsed_config['components'][component]['start_message']
-                except:
-                    detach_message = "%s started" % (component_name,)
-                params['exec'] = "kaboxer run --detach --prompt-before-detach %s %s--component %s %s" % (shlex.quote(detach_message), params['reuse_container'], params['component'], params['appid'])
+                params['exec'] = "kaboxer run --detach --prompt-before-detach %s --component %s %s" % (params['reuse_container'], params['component'], params['appid'])
                 ofname = 'kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
