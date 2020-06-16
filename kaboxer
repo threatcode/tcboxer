@@ -633,18 +633,20 @@ Categories={{ p.categories }}
                 pass
 
     def extract_file_from_image(self,image,infile,outfile):
-        temp_container = self.docker_conn.containers.create(image)
-        (bits, stat) = temp_container.get_archive(infile)
-        with tempfile.TemporaryFile() as temptar:
-            for chunk in bits:
-                temptar.write(chunk)
-            temptar.seek(0)
-            tf = tarfile.open(fileobj=temptar)
-            ti = tf.getmembers()[0]
-            with tempfile.TemporaryDirectory() as td:
-                tf.extract(ti,path=td,set_attrs=False)
-                shutil.move(os.path.join(td,ti.name), outfile)
-        temp_container.remove()
+        try:
+            temp_container = self.docker_conn.containers.create(image)
+            (bits, stat) = temp_container.get_archive(infile)
+            with tempfile.TemporaryFile() as temptar:
+                for chunk in bits:
+                    temptar.write(chunk)
+                temptar.seek(0)
+                tf = tarfile.open(fileobj=temptar)
+                ti = tf.getmembers()[0]
+                with tempfile.TemporaryDirectory() as td:
+                    tf.extract(ti,path=td,set_attrs=False)
+                    shutil.move(os.path.join(td,ti.name), outfile)
+        finally:
+            temp_container.remove()
 
     def extract_file_from_tarball(self,tarball,infile,outfile):
         tf = tarfile.open(tarball)
