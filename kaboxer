@@ -299,9 +299,9 @@ class Kaboxer:
             container = containers[0]
             component_name = self.component_config['name']
             try:
-                stop_message = self.component_config['name']['stop_message']
+                stop_message = self.component_config['stop_message']
             except:
-                stop_message = "%s started" % (component_name, )
+                stop_message = "%s stopped" % (component_name, )
             container.stop()
             print(stop_message)
         else:
@@ -1004,7 +1004,7 @@ Categories={{ p.categories }}
         try:
             component = self.args.component
             self.component_config = self.config['components'][component]
-            if 'name' not in self.component_config: self.component_config['name'] = component
+            if 'name' not in self.component_config: self.component_config['name'] = "%s/%s" % (app, component)
             return
         except:
             pass
@@ -1012,7 +1012,7 @@ Categories={{ p.categories }}
         try:
             component = self.config['container']['default_component']
             self.component_config = self.config['components'][component]
-            if 'name' not in self.component_config: self.component_config['name'] = component
+            if 'name' not in self.component_config: self.component_config['name'] = "%s/%s" % (app, component)
             return
         except:
             pass
@@ -1020,7 +1020,7 @@ Categories={{ p.categories }}
         try:
             component = 'default'
             self.component_config = self.config['components']['default']
-            if 'name' not in self.component_config: self.component_config['name'] = component
+            if 'name' not in self.component_config: self.component_config['name'] = "%s/%s" % (app, component)
             return
         except:
             pass
@@ -1029,7 +1029,7 @@ Categories={{ p.categories }}
             components = sorted(self.config['components'].keys())
             component = components[0]
             self.component_config = self.config['components'][component]
-            if 'name' not in self.component_config: self.component_config['name'] = component
+            if 'name' not in self.component_config: self.component_config['name'] = "%s/%s" % (app, component)
             return
         except:
             pass
