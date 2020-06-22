@@ -285,6 +285,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
                         "No Docker image present after build")
         self.run_command_check_stdout_matches("kaboxer get-meta-file %s version" % (self.app_name,),
                                               "1.0")
+        self.run_command_check_stdout_matches("kaboxer get-upstream-version %s" % (self.app_name,),
+                                              "1.0")
         self.run_command_check_stdout_matches("kaboxer get-meta-file %s packaging-revision" % (self.app_name,),
                                               "3")
         self.run_command_check_stdout_matches("kaboxer get-meta-file %s Dockerfile" % (self.app_name,),

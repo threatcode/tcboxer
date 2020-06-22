@@ -45,10 +45,14 @@ class Kaboxer:
         parser_stop.add_argument("--component", help='component to stop')
         parser_stop.set_defaults(func=self.cmd_stop)
 
-        parser_get_meta_file = subparsers.add_parser('get-meta-file', help='get installed get_meta_file of containerized app')
+        parser_get_meta_file = subparsers.add_parser('get-meta-file', help='get installed meta-file of containerized app')
         parser_get_meta_file.add_argument('app')
         parser_get_meta_file.add_argument('file')
         parser_get_meta_file.set_defaults(func=self.cmd_get_meta_file)
+
+        parser_get_upstream_version = subparsers.add_parser('get-upstream-version', help='get installed upstram version of containerized app')
+        parser_get_upstream_version.add_argument('app')
+        parser_get_upstream_version.set_defaults(func=self.cmd_get_upstream_version)
 
         parser_prepare = subparsers.add_parser('prepare', help='prepare container(s)')
         parser_prepare.add_argument('app', nargs='+')
@@ -318,6 +322,11 @@ class Kaboxer:
         self.read_config(self.args.app)
         image = 'kaboxer/'+self.args.app
         print(self.get_meta_file(image,self.args.file))
+
+    def cmd_get_upstream_version(self):
+        self.read_config(self.args.app)
+        image = 'kaboxer/'+self.args.app
+        print(self.get_meta_file(image,'version'))
 
     def find_config_for_build_apps(self):
         try:
