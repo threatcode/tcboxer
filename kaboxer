@@ -503,10 +503,12 @@ Categories={{ p.categories }}
         t = jinja2.Template(template_text)
         for component in parsed_config['components']:
             params = {
-                'comment': parsed_config['application']['description'].split('\n')[0],
+                'comment': parsed_config['application'].get('description',
+                                                            '').split('\n')[0],
                 'component': component,
                 'appid': parsed_config['application']['id'],
-                'categories': parsed_config['application']['categories'],
+                'categories': parsed_config['application'].get('categories',
+                                                               'Uncategorized'),
             }
             params['reuse_container'] = ''
             try:
