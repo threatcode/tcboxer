@@ -934,32 +934,37 @@ Categories={{ p.categories }}
         if get_remotes:
             registries = set()
             for aid in registry_apps:
-                registries.add(registry_apps[aid]['url'])
-            for url in registries:
-                uurl = url
-                if not re.match('https?://',uurl):
-                    uurl = 'http://'+uurl
+                url = registry_apps[aid]['url']
+                if not re.match('https?://',url):
+                    url = 'http://'+url
+                comps = re.split('/',url)
+                h = '/'.join(comps[:3])
+                p = '/'.join(comps[3:])
+                i = registry_apps[aid]['image']
+                u2 = 'v2/%s/%s/tags' % (p,i)
+                u2 = re.sub('//','/',u2)
+                registry_apps[aid]['versions'] = []
                 try:
-                    req = requests.get(uurl+"/v2/_catalog")
-                    repos = req.json()['repositories']
+                    fullurl = "%s/%s" % (h,u2)
+                    req = requests.get(fullurl)
+                    results = req.json()['results']
+                    registry_apps[aid]['versions'] = []
+                    for r in results:
+                        registry_apps[aid]['versions'].append(r['name'])
                 except:
-                    for aid in registry_apps:
-                        if url == registry_apps[aid]['url']:
-                            registry_apps[aid]['versions'] = ['latest']
-                            registry_apps[aid]['maxversion'] = 'latest'
-                    continue
-                for rep in repos:
-                    if rep not in registry_apps:
+                    fullurl = "%s/%s/list" % (h,u2)
+                    try:
+                        req = requests.get(fullurl)
+                        results = req.json()['tags']
+                    except:
                         continue
-                    req2 = requests.get(uurl+"/v2/"+rep+"/tags/list")
-                    registry_apps[rep]['versions'] = req2.json()['tags']
-                    curmax = registry_apps[rep]['versions'][0]
-                    for tag in registry_apps[aid]['versions']:
-                        if tag == 'latest':
-                            continue
-                        if packaging_version.parse(tag) > packaging_version.parse(curmax):
-                            curmax = tag
-                    registry_apps[rep]['maxversion'] = curmax
+                    for r in results:
+                        registry_apps[aid]['versions'].append(r)
+                curmax = registry_apps[aid]['versions'][0]
+                for tag in registry_apps[aid]['versions']:
+                    if packaging_version.parse(tag) > packaging_version.parse(curmax):
+                        curmax = tag
+                registry_apps[aid]['maxversion'] = curmax
         return (installed_apps, registry_apps, tarball_apps)
 
     def cmd_list(self):
@@ -980,8 +985,6 @@ Categories={{ p.categories }}
         if show_available:
             for aid in registry_apps:
                 for tag in registry_apps[aid]['versions']:
-                    if tag == 'latest':
-                        continue
                     print("%s: %s [available]" % (aid, tag))
 
         if show_upgradeable:
