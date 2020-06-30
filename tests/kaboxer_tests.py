@@ -322,6 +322,12 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_and_check_command("kaboxer build")
         self.run_command_check_stdout_matches("kaboxer list --all",
                                               "^%s\s+1.0\s" % (self.app_name,))
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "Installed version")
+        self.run_command_check_stdout_doesnt_match("kaboxer list --all --skip-headers",
+                                              "Installed version")
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "^%s\s+1.0\s" % (self.app_name,))
         self.remove_images()
         self.run_command_check_stdout_doesnt_match("kaboxer list --installed",
                                                    "^%s\s+1.0\s" % (self.app_name,))

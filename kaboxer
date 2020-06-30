@@ -68,6 +68,7 @@ class Kaboxer:
         parser_list.add_argument("--available", action="store_true", help='list available containers')
         parser_list.add_argument("--upgradeable", action="store_true", help='list upgradeable containers')
         parser_list.add_argument("--all", action="store_true", help='list all versions of containers')
+        parser_list.add_argument("--skip-headers", action="store_true", help='do not display column headers')
         parser_list.set_defaults(func=self.cmd_list)
 
         parser_build = subparsers.add_parser('build', help='build image')
@@ -997,7 +998,6 @@ Categories={{ p.categories }}
         app_data = {}
         if show_installed:
             for aid in installed_apps:
-                print("%s: %s [installed]" % (aid, installed_apps[aid]['version']))
                 if aid not in app_data: app_data[aid] = {'app': aid}
                 app_data[aid]['installed'] = installed_apps[aid]['version']
                 app_data[aid]['pacrev-yaml'] = installed_apps[aid]['packaging-revision-from-yaml']
@@ -1005,7 +1005,6 @@ Categories={{ p.categories }}
         if show_available:
             for aid in registry_apps:
                 for tag in registry_apps[aid]['versions']:
-                    print("%s: %s [available]" % (aid, tag))
                     if aid not in app_data: app_data[aid] = {'app': aid}
                     app_data[aid]['available'] = tag
 
@@ -1017,11 +1016,9 @@ Categories={{ p.categories }}
                 app_data[aid]['pacrev-image'] = installed_apps[aid]['packaging-revision-from-image']
                 if aid in registry_apps:
                     if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(installed_apps[aid]['version']):
-                        print("%s: %s [upgradeable from %s]" % (aid, registry_apps[aid]['maxversion'], installed_apps[aid]['version']))
                         app_data[aid]['available'] = registry_apps[aid]['maxversion']
                 elif aid in tarball_apps:
                     if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(installed_apps[aid]['version']):
-                        print("%s: %s [upgradeable from %s]" % (aid, tarball_apps[aid]['version'], installed_apps[aid]['version']))
                         app_data[aid]['available'] = tarball_apps[aid]['version']
 
         app_data_fields = {
@@ -1037,11 +1034,17 @@ Categories={{ p.categories }}
                 if k not in app_data[aid]:
                     app_data[aid][k] = '-'
             app_data[aid] = { k: app_data[aid][k] for k in app_data_fields }
-        print(tabulate.tabulate(app_data.values(),
-                                headers=app_data_fields,
-                                numalign="right",
-                                disable_numparse=True,
-        ))
+        if self.args.skip_headers:
+            print(tabulate.tabulate(app_data.values(),
+                                    numalign="right",
+                                    disable_numparse=True,
+            ))
+        else:
+            print(tabulate.tabulate(app_data.values(),
+                                    headers=app_data_fields,
+                                    numalign="right",
+                                    disable_numparse=True,
+            ))
 
     def load_config(self, app=None):
         for p in self.config_paths:
