@@ -22,6 +22,7 @@ import packaging.version as packaging_version
 import logging
 import requests
 import json
+import tabulate
 
 class Kaboxer:
     def __init__(self):
@@ -166,10 +167,12 @@ class Kaboxer:
         else:
             self.prepare_or_upgrade([app])
             installed_apps, _, _ = self.list_apps()
-            tag_name = installed_apps[app]
+            tag_name = installed_apps[app]['version']
         self.read_config(app)
         image_name = self.get_image_name(app)
         image = '%s:%s'%(image_name,tag_name)
+
+        self.logger.error ("Image "+image)
 
         if self.args.reuse_container:
             containers = self.docker_conn.containers.list(filters={'name': app})
@@ -803,10 +806,10 @@ Categories={{ p.categories }}
                 app = m.group(1)
                 target_version = m.group(2)
                 if app in installed_apps:
-                    previous_version = installed_apps[app]
+                    previous_version = installed_apps[app]['version']
             else:
                 if app in installed_apps:
-                    previous_version = installed_apps[app]
+                    previous_version = installed_apps[app]['version']
                     if upgrade:
                         try:
                             target_version = registry_apps[app]['maxversion']
@@ -884,7 +887,7 @@ Categories={{ p.categories }}
     def cmd_purge(self):
         installed_apps, _, _ = self.list_apps()
         if self.args.app in installed_apps:
-            self.docker_conn.images.remove('kaboxer/%s:%s'%(self.args.app,installed_apps[self.args.app]))
+            self.docker_conn.images.remove('kaboxer/%s:%s'%(self.args.app,installed_apps[self.args.app]['version']))
             try:
                 self.docker_conn.images.remove('kaboxer/%s'%(self.args.app,))
             except:
@@ -914,18 +917,30 @@ Categories={{ p.categories }}
                             appconfig = self.load_config(aid)
                             imagename = self.get_image_name(aid)
                             image = self.find_image(imagename)
-                            installed_apps[aid] = self.get_meta_file(image,'version').strip()
+                            installed_apps[aid] = {
+                                'version': self.get_meta_file(image,'version').strip(),
+                                'packaging-revision-from-image': self.get_meta_file(image,'packaging-revision').strip(),
+                                'packaging-revision-from-yaml': y['packaging']['revision'],
+                            }
+
                         except Exception as e:
                             pass
                         try:
-                            registry_apps[aid] = { 'url': y['container']['origin']['registry']['url'],
-                                                   'image': y['container']['origin']['registry']['image'], }
+                            registry_apps[aid] = {
+                                'url': y['container']['origin']['registry']['url'],
+                                'image': y['container']['origin']['registry']['image'],
+                                'packaging-revision-from-yaml': y['packaging']['revision'],
+                            }
                         except:
                             pass
                         try:
                             tb = y['container']['origin']['tarball']
-                            tarball_apps[aid] = { 'tarball': tb,
-                                                  'version': self.get_meta_file_from_tarball(tb,'version').strip(), }
+                            tarball_apps[aid] = {
+                                'tarball': tb,
+                                'version': self.get_meta_file_from_tarball(tb,'version').strip(),
+                                'packaging-revision-from-image': self.get_meta_file_from_tarball(tb,'packaging-revision').strip(),
+                                'packaging-revision-from-yaml': y['packaging']['revision'],
+                            }
                         except:
                             pass
                     except:
@@ -978,23 +993,55 @@ Categories={{ p.categories }}
         if not show_available and not show_upgradeable:
             show_installed = True
         installed_apps, registry_apps, tarball_apps = self.list_apps(get_remotes=(show_available or show_upgradeable))
+        data_rows = []
+        app_data = {}
         if show_installed:
             for aid in installed_apps:
-                print("%s: %s [installed]" % (aid, installed_apps[aid]))
-
+                print("%s: %s [installed]" % (aid, installed_apps[aid]['version']))
+                if aid not in app_data: app_data[aid] = {'app': aid}
+                app_data[aid]['installed'] = installed_apps[aid]['version']
+                app_data[aid]['pacrev-yaml'] = installed_apps[aid]['packaging-revision-from-yaml']
+                app_data[aid]['pacrev-image'] = installed_apps[aid]['packaging-revision-from-image']
         if show_available:
             for aid in registry_apps:
                 for tag in registry_apps[aid]['versions']:
                     print("%s: %s [available]" % (aid, tag))
+                    if aid not in app_data: app_data[aid] = {'app': aid}
+                    app_data[aid]['available'] = tag
 
         if show_upgradeable:
             for aid in installed_apps:
+                if aid not in app_data: app_data[aid] = {'app': aid}
+                app_data[aid]['installed'] = installed_apps[aid]['version']
+                app_data[aid]['pacrev-yaml'] = installed_apps[aid]['packaging-revision-from-yaml']
+                app_data[aid]['pacrev-image'] = installed_apps[aid]['packaging-revision-from-image']
                 if aid in registry_apps:
-                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(installed_apps[aid]):
-                        print("%s: %s [upgradeable from %s]" % (aid, registry_apps[aid]['maxversion'], installed_apps[aid]))
+                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(installed_apps[aid]['version']):
+                        print("%s: %s [upgradeable from %s]" % (aid, registry_apps[aid]['maxversion'], installed_apps[aid]['version']))
+                        app_data[aid]['available'] = registry_apps[aid]['maxversion']
                 elif aid in tarball_apps:
-                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(installed_apps[aid]):
-                        print("%s: %s [upgradeable from %s]" % (aid, tarball_apps[aid]['version'], installed_apps[aid]))
+                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(installed_apps[aid]['version']):
+                        print("%s: %s [upgradeable from %s]" % (aid, tarball_apps[aid]['version'], installed_apps[aid]['version']))
+                        app_data[aid]['available'] = tarball_apps[aid]['version']
+
+        app_data_fields = {
+            "app": "App",
+            "installed": "Installed version",
+            "available": "Available version",
+            "pacrev-yaml": "Packaging revision from YAML",
+            "pacrev-image": "Packaging revision from image",
+        }
+        for aid in app_data:
+            app_data[aid]['app'] = aid
+            for k in app_data_fields:
+                if k not in app_data[aid]:
+                    app_data[aid][k] = '-'
+            app_data[aid] = { k: app_data[aid][k] for k in app_data_fields }
+        print(tabulate.tabulate(app_data.values(),
+                                headers=app_data_fields,
+                                numalign="right",
+                                disable_numparse=True,
+        ))
 
     def load_config(self, app=None):
         for p in self.config_paths:

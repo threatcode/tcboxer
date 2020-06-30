@@ -66,7 +66,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output when running %s"%(cmd,)
-        self.assertTrue(re.search(expected,o.stdout),unexpected_msg + " (%s doesn't match %s)" % (o.stdout, expected))
+        self.assertTrue(re.search(expected,o.stdout,re.MULTILINE),unexpected_msg + " (%s doesn't match %s)" % (o.stdout, expected))
 
     def run_command_check_stdout_doesnt_match(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
@@ -75,7 +75,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output when running %s"%(cmd,)
-        self.assertFalse(re.search(expected,o.stdout),unexpected_msg + " (%s matches %s)" % (o.stdout, expected))
+        self.assertFalse(re.search(expected,o.stdout,re.MULTILINE),unexpected_msg + " (%s matches %s)" % (o.stdout, expected))
 
     def run_command_check_stderr_matches(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
@@ -84,7 +84,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output in stderr when running %s"%(cmd,)
-        self.assertTrue(re.search(expected,o.stderr),unexpected_msg + " (%s doesn't match %s)" % (o.stderr, expected))
+        self.assertTrue(re.search(expected,o.stderr,re.MULTILINE),unexpected_msg + " (%s doesn't match %s)" % (o.stderr, expected))
 
     def run_command_check_stderr_doesnt_match(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
@@ -93,7 +93,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output in stderr when running %s"%(cmd,)
-        self.assertFalse(re.search(expected,o.stderr),unexpected_msg + " (%s matches %s)" % (o.stderr, expected))
+        self.assertFalse(re.search(expected,o.stderr,re.MULTILINE),unexpected_msg + " (%s matches %s)" % (o.stderr, expected))
 
     def is_image_present(self, version='latest'):
         if self.run_command("docker image ls | grep -q '%s *%s'" % (self.image_name,version)) == 0:
@@ -320,11 +320,11 @@ class TestKaboxerLocally(TestKaboxerCommon):
 
     def test_list_local(self):
         self.run_and_check_command("kaboxer build")
-        self.run_command_check_stdout_matches("kaboxer list --installed",
-                                              "%s: 1.0 \[installed\]" % (self.app_name,))
+        self.run_command_check_stdout_matches("kaboxer list --all",
+                                              "^%s\s+1.0\s" % (self.app_name,))
         self.remove_images()
         self.run_command_check_stdout_doesnt_match("kaboxer list --installed",
-                                                   "%s: 1.0 \[installed\]" % (self.app_name,))
+                                                   "^%s\s+1.0\s" % (self.app_name,))
 
     def test_local_upgrades(self):
         self.run_and_check_command("kaboxer build --save --version 1.1")
@@ -333,16 +333,16 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.remove_images()
         self.run_and_check_command("kaboxer build --save --version 1.0")
         self.run_command_check_stdout_matches("kaboxer list --installed",
-                                              "%s: 1.0 \[installed\]" % (self.app_name,))
+                                              "^%s\s+1.0\s" % (self.app_name,))
         os.rename(os.path.join(self.fixdir, self.app_name+".tar"),
                   os.path.join(self.fixdir, self.app_name+"-1.0.tar"))
         shutil.copy(os.path.join(self.fixdir, self.app_name+"-1.1.tar"),
                     os.path.join(self.fixdir, self.app_name+".tar"))
         self.run_command_check_stdout_matches("kaboxer list --upgradeable",
-                                              "%s: .*1.1 \[upgradeable from 1.0\]" % (self.app_name,))
+                                              "^%s\s+1.0\s+1.1\s" % (self.app_name,))
         self.run_and_check_command("kaboxer upgrade %s" % (self.app_name,))
         self.run_command_check_stdout_matches("kaboxer list --installed",
-                                              "%s: 1.1 \[installed\]" % (self.app_name,))
+                                              "^%s\s+1.1\s" % (self.app_name,))
 
 class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
     def setUp(self):

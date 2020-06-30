@@ -11,6 +11,6 @@ Vcs-Browser: https://gitlab.com/kalilinux/tools/kaboxer
 
 Package: kaboxer
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}, confget, libfile-copy-recursive-perl, sudo, python3-yaml, docker.io, python3-docker, python3-dockerpty, python3-jinja2, python3-prompt-toolkit, python3-packaging, python3-git, python3-distutils, python3-requests, libyaml-libyaml-perl
+Depends: ${misc:Depends}, ${python3:Depends}, confget, libfile-copy-recursive-perl, sudo, python3-yaml, docker.io, python3-docker, python3-dockerpty, python3-jinja2, python3-prompt-toolkit, python3-packaging, python3-git, python3-distutils, python3-requests, libyaml-libyaml-perl, python3-tabulate
 Description: Kali Application Boxer
  A framework for deploying applications to run in containers
