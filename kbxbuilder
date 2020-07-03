@@ -175,9 +175,9 @@ class Kbxbuilder:
 
         if not force:
             try:
-               if self.status[app]['last_success']['revid'] == revid:
-                self.logger.info("Build of %s not needed", app, extra={'app':app})
-                return
+                if self.status[app]['last_success']['revid'] == revid:
+                    self.logger.info("Build of %s not needed", app, extra={'app':app})
+                    return
             except KeyError:
                 pass
 
