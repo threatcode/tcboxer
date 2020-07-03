@@ -23,7 +23,7 @@ container:
     origin:
         # We use this to fetch the container from a remote registry
         registry:
-            url: https://hub.docker.com
+            url: https://registry.hub.docker.com
             image: kaboxer/hello-world
         # Or this if we provide a pre-built tarball
         tarball: /usr/share/kaboxer/foo.tar.xz
