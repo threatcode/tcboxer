@@ -99,6 +99,7 @@ class Kaboxer:
 
         parser_push = subparsers.add_parser('push', help='push image to registry')
         parser_push.add_argument('app')
+        parser_push.add_argument("--version", help='version to push')
         parser_push.set_defaults(func=self.cmd_push)
 
         parser_save = subparsers.add_parser('save', help='save image')
@@ -167,13 +168,14 @@ class Kaboxer:
             tag_name = self.args.version
         else:
             self.prepare_or_upgrade([app])
-            installed_apps, _, _ = self.list_apps()
-            tag_name = installed_apps[app]['version']
+            current_apps, _, _, _ = self.list_apps()
+            tag_name = current_apps[app]['version']
+        tag_name = 'current'
         self.read_config(app)
         image_name = self.get_image_name(app)
         image = '%s:%s'%(image_name,tag_name)
 
-        self.logger.error ("Image "+image)
+        self.logger.debug ("Image "+image)
 
         if self.args.reuse_container:
             containers = self.docker_conn.containers.list(filters={'name': app})
@@ -286,7 +288,6 @@ class Kaboxer:
             for e in extranets:
                 self.create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api,container.id)
-            self.logger.error(self.component_config)
             component_name = self.component_config['name']
             try:
                 start_message = self.component_config['start_message']
@@ -446,48 +447,69 @@ class Kaboxer:
                 tmp.write(yaml.dump(savedbuildargs))
                 tmp.flush()
                 image = self.inject_file_into_image(image,tmp.name,'/kaboxer/docker-build-parameters')
-                tagname='kaboxer/%s:latest'%(app,)
-                image.tag(tagname)
                 tagname='kaboxer/%s:%s'%(app,str(saved_version))
                 image.tag(tagname)
+                tagname='kaboxer/%s:latest'%(app,)
+                if not self.find_image(tagname):
+                    image.tag(tagname)
             if self.args.save:
                 tarball = os.path.join(path,parsed_config['application']['id']+'.tar')
                 self.save_image_to_file(image,tarball)
             if self.args.push:
-                self.cmd_push()
+                self.push([saved_version])
             try:
                 parsed_config['install']['desktop-files']
             except:
                 self.gen_desktop_files(parsed_config)
 
     def cmd_push(self):
+        self.push()
+
+    def push(self, versions=[]):
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Pushing %s" % (app,))
-            parsed_config = parsed_configs[app]
-            if 'registry' not in parsed_config['container']['origin']:
-                self.logger.error ("No registry defined for %s"%(app,))
-                sys.exit(1)
-            registry = parsed_config['container']['origin']['registry']['url']
-            registry = re.sub('^https?://','',registry)
-            try:
-                imagename = parsed_config['container']['origin']['registry']['image']
-            except KeyError:
-                imagename = parsed_config['application']['id']
-            tagname = "kaboxer/%s:latest"%(imagename,)
-            image = self.find_image(tagname)
-            if not image:
-                self.logger.error("No %s image found"%(tagname,))
-                sys.exit(1)
-            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-                self.extract_file_from_image(image.id,'/kaboxer/version',tmp.name)
-                saved_version = open(tmp.name).readline().strip()
-            remotename = '%s/%s' % (registry, imagename)
-            tagname='%s:latest'%(remotename,)
-            image.tag(tagname)
-            tagname='%s:%s'%(remotename,str(saved_version))
-            image.tag(tagname)
-            self.docker_conn.images.push(remotename)
+            if len(versions) == 0:
+                if self.args.version:
+                    try:
+                        self.do_version_checks(self.args.version,parsed_config)
+                        versions = [self.args.version]
+                    except Exception as e:
+                        self.logger.error(str(e))
+                        sys.exit(1)
+                else:
+                    imagename = 'kaboxer/%s' % (app,)
+                    for image in self.docker_conn.images.list():
+                        for tag in image.tags:
+                            (i,ver) = tag.rsplit(':',1)
+                            if i != imagename:
+                                continue
+                            if ver == 'current' or ver == 'latest':
+                                continue
+                            versions.append(ver)
+            for version in versions:
+                self.logger.info("Pushing %s" % (app,))
+                parsed_config = parsed_configs[app]
+                if 'registry' not in parsed_config['container']['origin']:
+                    self.logger.error ("No registry defined for %s"%(app,))
+                    sys.exit(1)
+                registry = parsed_config['container']['origin']['registry']['url']
+                registry = re.sub('^https?://','',registry)
+                try:
+                    imagename = parsed_config['container']['origin']['registry']['image']
+                except KeyError:
+                    imagename = parsed_config['application']['id']
+                tagname = "kaboxer/%s:%s"%(imagename,version)
+                image = self.find_image(tagname)
+                if not image:
+                    self.logger.error("No %s image found"%(tagname,))
+                    sys.exit(1)
+                with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+                    self.extract_file_from_image(image.id,'/kaboxer/version',tmp.name)
+                    saved_version = open(tmp.name).readline().strip()
+                remotename = '%s/%s' % (registry, imagename)
+                tagname='%s:%s'%(remotename,saved_version)
+                image.tag(tagname)
+                self.docker_conn.images.push(remotename)
 
     def gen_desktop_files(self, parsed_config):
         template_text = """[Desktop Entry]
@@ -730,6 +752,7 @@ Categories={{ p.categories }}
         f = open(tarfile, 'rb')
         for image in self.docker_conn.images.load(f):
             image.tag('kaboxer/'+appname, tag=tag)
+        return image
 
     def cmd_load(self):
         v = self.get_meta_file_from_tarball(self.args.file, 'version').strip()
@@ -800,7 +823,7 @@ Categories={{ p.categories }}
             container.remove()
 
     def prepare_or_upgrade(self, apps, upgrade=False):
-        installed_apps, registry_apps, tarball_apps = self.list_apps(get_remotes=True, restrict=apps)
+        current_apps, registry_apps, tarball_apps, available_apps = self.list_apps(get_remotes=True, restrict=apps)
         for app in apps:
             self.logger.info("Preparing %s" % (app,))
             previous_version = None
@@ -808,23 +831,38 @@ Categories={{ p.categories }}
             if m:
                 app = m.group(1)
                 target_version = m.group(2)
-                if app in installed_apps:
-                    previous_version = installed_apps[app]['version']
+                if app in current_apps:
+                    previous_version = current_apps[app]['version']
+                    if packaging_version.parse(target_version) != packaging_version.parse(previous_version) and not upgrade:
+                        self.logger.exception(
+                            "%s is at version %s, can't run %s=%s",
+                            app, previous_version, app, target_version)
+                        sys.exit(1)
             else:
-                if app in installed_apps:
-                    previous_version = installed_apps[app]['version']
-                    if upgrade:
-                        try:
-                            target_version = registry_apps[app]['maxversion']
-                        except KeyError:
-                            target_version = tarball_apps[app]['version']
-                    else:
-                        target_version = previous_version
+                maxavail = ''
+                try:
+                    if maxavail == '' or packaging_version.parse(available_apps[app]['maxversion']) > packaging_version.parse(maxavail):
+                        maxavail = available_apps[app]['maxversion']['version']
+                except KeyError:
+                    pass
+                try:
+                    if maxavail == '' or packaging_version.parse(tarball_apps[app]['version']) > packaging_version.parse(maxavail):
+                        maxavail = tarball_apps[app]['version']
+                except KeyError:
+                    pass
+                try:
+                    if maxavail == '' or packaging_version.parse(registry_apps[app]['maxversion']) > packaging_version.parse(maxavail):
+                        maxavail = registry_apps[app]['maxversion']
+                except KeyError:
+                    pass
+
+                if app in current_apps:
+                    previous_version = current_apps[app]['version']
+                    target_version = previous_version
                 else:
-                    try:
-                        target_version = registry_apps[app]['maxversion']
-                    except KeyError:
-                        target_version = tarball_apps[app]['version']
+                    target_version = maxavail
+                if upgrade:
+                    target_version = maxavail
                 self.read_config(app)
             if previous_version \
                and upgrade \
@@ -832,12 +870,24 @@ Categories={{ p.categories }}
                 target_version = previous_version
             image_name = self.get_image_name(app)
             full_image_name = '%s:%s'%(image_name,target_version)
-            if self.find_image(full_image_name):
+            current_image_name = '%s:%s'%(image_name,'current')
+            if previous_version == target_version:
                 return
             config = self.load_config(app)
             try:
+                try:
+                    if packaging_version.parse(available_apps[app]['maxversion']) == packaging_version.parse(target_version):
+                        image = self.find_image(full_image_name)
+                        image.tag(current_image_name)
+                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        return
+                except:
+                    pass
                 if 'registry' in config['container']['origin']:
-                    if not self.find_image(full_image_name):
+                    found_image = self.find_image(full_image_name)
+                    if found_image:
+                        found_image.tag(current_image_name)
+                    else:
                         self.logger.info("Pulling %s image from registry"%(full_image_name,))
                         try:
                             image = self.docker_conn.images.pull(full_image_name)
@@ -846,6 +896,7 @@ Categories={{ p.categories }}
                                 versioned_image_name = '%s:%s'%(image_name,pulled_version)
                                 if not self.find_image(versioned_image_name):
                                     image.tag(versioned_image_name)
+                            image.tag(current_image_name)
                         except docker.errors.APIError:
                             self.logger.exception(
                                 "Could not pull %s, wrong URL?",
@@ -863,7 +914,8 @@ Categories={{ p.categories }}
                         tarfile = os.path.join(p,config['container']['origin']['tarball'])
                         if os.path.isfile(tarfile):
                             self.logger.info("Loading image from "+tarfile)
-                            self.load_image(tarfile, app, target_version)
+                            image = self.load_image(tarfile, app, target_version)
+                            image.tag(current_image_name)
                         self.do_upgrade_scripts(app, previous_version, target_version)
                         return
             except KeyError:
@@ -888,9 +940,11 @@ Categories={{ p.categories }}
         self.cmd_build()
 
     def cmd_purge(self):
-        installed_apps, _, _ = self.list_apps()
-        if self.args.app in installed_apps:
-            self.docker_conn.images.remove('kaboxer/%s:%s'%(self.args.app,installed_apps[self.args.app]['version']))
+        current_apps, _, _, available_apps = self.list_apps()
+        if self.args.app in current_apps:
+            self.docker_conn.images.remove('kaboxer/%s:current'%(self.args.app,))
+        if self.args.app in available_apps:
+            self.docker_conn.images.remove('kaboxer/%s:%s'%(self.args.app,available_apps[self.args.app]['maxversion']['version']))
             try:
                 self.docker_conn.images.remove('kaboxer/%s'%(self.args.app,))
             except:
@@ -899,9 +953,10 @@ Categories={{ p.categories }}
                 self.docker_conn.images.prune(filters={'dangling': True})
 
     def list_apps(self, get_remotes=False, restrict=None):
-        installed_apps = {}
+        current_apps = {}
         registry_apps = {}
         tarball_apps = {}
+        available_apps = {}
 
         if restrict is not None:
             restrict = [ re.sub('=.*', '', i) for i in restrict ]
@@ -919,15 +974,29 @@ Categories={{ p.categories }}
                         try:
                             appconfig = self.load_config(aid)
                             imagename = self.get_image_name(aid)
-                            image = self.find_image(imagename)
-                            installed_apps[aid] = {
-                                'version': self.get_meta_file(image,'version').strip(),
-                                'packaging-revision-from-image': self.get_meta_file(image,'packaging-revision').strip(),
-                                'packaging-revision-from-yaml': y['packaging']['revision'],
-                            }
-
+                            for image in self.docker_conn.images.list():
+                                for tag in image.tags:
+                                    (i,ver) = tag.rsplit(':',1)
+                                    if i != imagename:
+                                        continue
+                                    curver = self.get_meta_file(image,'version').strip()
+                                    item = {
+                                        'version': curver,
+                                        'packaging-revision-from-image': self.get_meta_file(image,'packaging-revision').strip(),
+                                        'packaging-revision-from-yaml': y['packaging']['revision'],
+                                    }
+                                    if ver == 'current':
+                                        current_apps[aid] = item
+                                    if aid not in available_apps:
+                                        available_apps[aid] = {}
+                                    available_apps[aid][ver] = item
+                                    if 'maxversion' not in available_apps[aid] \
+                                       or packaging_version.parse(available_apps[aid]['maxversion']['version']) <= packaging_version.parse(curver):
+                                        available_apps[aid]['maxversion'] = item
                         except Exception as e:
+                            print(e)
                             pass
+
                         try:
                             registry_apps[aid] = {
                                 'url': y['container']['origin']['registry']['url'],
@@ -983,7 +1052,7 @@ Categories={{ p.categories }}
                     if packaging_version.parse(tag) > packaging_version.parse(curmax):
                         curmax = tag
                 registry_apps[aid]['maxversion'] = curmax
-        return (installed_apps, registry_apps, tarball_apps)
+        return (current_apps, registry_apps, tarball_apps, available_apps)
 
     def cmd_list(self):
         show_installed = self.args.installed
@@ -995,32 +1064,36 @@ Categories={{ p.categories }}
             show_upgradeable = True
         if not show_available and not show_upgradeable:
             show_installed = True
-        installed_apps, registry_apps, tarball_apps = self.list_apps(get_remotes=(show_available or show_upgradeable))
+        current_apps, registry_apps, tarball_apps, available_apps = self.list_apps(get_remotes=(show_available or show_upgradeable))
         data_rows = []
         app_data = {}
         if show_installed:
-            for aid in installed_apps:
+            for aid in current_apps:
                 if aid not in app_data: app_data[aid] = {'app': aid}
-                app_data[aid]['installed'] = installed_apps[aid]['version']
-                app_data[aid]['pacrev-yaml'] = installed_apps[aid]['packaging-revision-from-yaml']
-                app_data[aid]['pacrev-image'] = installed_apps[aid]['packaging-revision-from-image']
+                app_data[aid]['installed'] = current_apps[aid]['version']
+                app_data[aid]['pacrev-yaml'] = current_apps[aid]['packaging-revision-from-yaml']
+                app_data[aid]['pacrev-image'] = current_apps[aid]['packaging-revision-from-image']
         if show_available:
             for aid in registry_apps:
                 for tag in registry_apps[aid]['versions']:
                     if aid not in app_data: app_data[aid] = {'app': aid}
                     app_data[aid]['available'] = tag
+            for aid in available_apps:
+                if aid not in app_data: app_data[aid] = {'app': aid}
+                if 'available' not in app_data[aid] or packaging_version.parse(available_apps[aid]['maxversion']['version']) > packaging_version.parse(app_data[aid]['available']):
+                    app_data[aid]['available'] = available_apps[aid]['maxversion']['version']
 
         if show_upgradeable:
-            for aid in installed_apps:
+            for aid in current_apps:
                 if aid not in app_data: app_data[aid] = {'app': aid}
-                app_data[aid]['installed'] = installed_apps[aid]['version']
-                app_data[aid]['pacrev-yaml'] = installed_apps[aid]['packaging-revision-from-yaml']
-                app_data[aid]['pacrev-image'] = installed_apps[aid]['packaging-revision-from-image']
+                app_data[aid]['installed'] = current_apps[aid]['version']
+                app_data[aid]['pacrev-yaml'] = current_apps[aid]['packaging-revision-from-yaml']
+                app_data[aid]['pacrev-image'] = current_apps[aid]['packaging-revision-from-image']
                 if aid in registry_apps:
-                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(installed_apps[aid]['version']):
+                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(current_apps[aid]['version']):
                         app_data[aid]['available'] = registry_apps[aid]['maxversion']
                 elif aid in tarball_apps:
-                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(installed_apps[aid]['version']):
+                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(current_apps[aid]['version']):
                         app_data[aid]['available'] = tarball_apps[aid]['version']
 
         app_data_fields = {
