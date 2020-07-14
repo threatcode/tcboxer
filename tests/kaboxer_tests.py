@@ -191,6 +191,11 @@ class TestKaboxerLocally(TestKaboxerCommon):
                          "Docker image still present after kaboxer purge")
         self.run_and_check_command("kaboxer run %s" % (self.app_name,))
 
+    def test_run_freshly_built_image(self):
+        self.build()
+        self.run_command_check_stdout_matches("kaboxer -vv run %s" % (self.app_name,),
+                                      "Hi there")
+
     def test_run_after_purge(self):
         self.test_build_and_save()
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))

@@ -841,7 +841,7 @@ Categories={{ p.categories }}
             else:
                 maxavail = ''
                 try:
-                    if maxavail == '' or packaging_version.parse(available_apps[app]['maxversion']) > packaging_version.parse(maxavail):
+                    if maxavail == '' or packaging_version.parse(available_apps[app]['maxversion']['version']) > packaging_version.parse(maxavail):
                         maxavail = available_apps[app]['maxversion']['version']
                 except KeyError:
                     pass
@@ -876,7 +876,7 @@ Categories={{ p.categories }}
             config = self.load_config(app)
             try:
                 try:
-                    if packaging_version.parse(available_apps[app]['maxversion']) == packaging_version.parse(target_version):
+                    if packaging_version.parse(available_apps[app]['maxversion']['version']) == packaging_version.parse(target_version):
                         image = self.find_image(full_image_name)
                         image.tag(current_image_name)
                         self.do_upgrade_scripts(app, previous_version, target_version)
