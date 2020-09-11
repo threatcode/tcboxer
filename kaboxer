@@ -18,73 +18,100 @@ import jinja2
 import prompt_toolkit
 import tempfile
 import pathlib
-import packaging.version as packaging_version
 import logging
 import requests
 import json
 import tabulate
+from packaging.version import parse as parse_version
 
 
 class Kaboxer:
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
+        self.parser.add_argument('--verbose', '-v', action='count', default=0,
+                                 help='increase verbosity')
 
-        subparsers = self.parser.add_subparsers(title='subcommands', help='action to perform', dest='action', required=True)
+        subparsers = self.parser.add_subparsers(
+            title='subcommands', help='action to perform', dest='action',
+            required=True)
 
         parser_run = subparsers.add_parser('run', help='run containerized app')
         parser_run.add_argument('app')
         parser_run.add_argument("--component", help='component to run')
-        parser_run.add_argument("--reuse-container", action="store_true", help='run in existing container')
-        parser_run.add_argument("--detach", help='run in the background', action="store_true")
-        parser_run.add_argument("--prompt-before-detach", action="store_true", help='display message before detaching')
+        parser_run.add_argument("--reuse-container", action="store_true",
+                                help='run in existing container')
+        parser_run.add_argument("--detach", help='run in the background',
+                                action="store_true")
+        parser_run.add_argument("--prompt-before-detach", action="store_true",
+                                help='display message before detaching')
         parser_run.add_argument("--version", help='version to run')
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.cmd_run)
 
-        parser_stop = subparsers.add_parser('stop', help='stop running containerized app')
+        parser_stop = subparsers.add_parser(
+            'stop', help='stop running containerized app')
         parser_stop.add_argument('app')
         parser_stop.add_argument("--component", help='component to stop')
         parser_stop.set_defaults(func=self.cmd_stop)
 
-        parser_get_meta_file = subparsers.add_parser('get-meta-file', help='get installed meta-file of containerized app')
+        parser_get_meta_file = subparsers.add_parser(
+            'get-meta-file',
+            help='get installed meta-file of containerized app')
         parser_get_meta_file.add_argument('app')
         parser_get_meta_file.add_argument('file')
         parser_get_meta_file.set_defaults(func=self.cmd_get_meta_file)
 
-        parser_get_upstream_version = subparsers.add_parser('get-upstream-version', help='get installed upstram version of containerized app')
+        parser_get_upstream_version = subparsers.add_parser(
+            'get-upstream-version',
+            help='get installed upstram version of containerized app')
         parser_get_upstream_version.add_argument('app')
-        parser_get_upstream_version.set_defaults(func=self.cmd_get_upstream_version)
+        parser_get_upstream_version.set_defaults(
+            func=self.cmd_get_upstream_version)
 
-        parser_prepare = subparsers.add_parser('prepare', help='prepare container(s)')
+        parser_prepare = subparsers.add_parser('prepare',
+                                               help='prepare container(s)')
         parser_prepare.add_argument('app', nargs='+')
         parser_prepare.set_defaults(func=self.cmd_prepare)
 
-        parser_upgrade = subparsers.add_parser('upgrade', help='upgrade container(s)')
+        parser_upgrade = subparsers.add_parser('upgrade',
+                                               help='upgrade container(s)')
         parser_upgrade.add_argument('app', nargs='+')
         parser_upgrade.set_defaults(func=self.cmd_upgrade)
 
         parser_list = subparsers.add_parser('list', help='list containers')
-        parser_list.add_argument("--installed", action="store_true", help='list installed containers')
-        parser_list.add_argument("--available", action="store_true", help='list available containers')
-        parser_list.add_argument("--upgradeable", action="store_true", help='list upgradeable containers')
-        parser_list.add_argument("--all", action="store_true", help='list all versions of containers')
-        parser_list.add_argument("--skip-headers", action="store_true", help='do not display column headers')
+        parser_list.add_argument("--installed", action="store_true",
+                                 help='list installed containers')
+        parser_list.add_argument("--available", action="store_true",
+                                 help='list available containers')
+        parser_list.add_argument("--upgradeable", action="store_true",
+                                 help='list upgradeable containers')
+        parser_list.add_argument("--all", action="store_true",
+                                 help='list all versions of containers')
+        parser_list.add_argument("--skip-headers", action="store_true",
+                                 help='do not display column headers')
         parser_list.set_defaults(func=self.cmd_list)
 
         parser_build = subparsers.add_parser('build', help='build image')
-        parser_build.add_argument("--save", action="store_true", help='save container image after build')
-        parser_build.add_argument("--push", action="store_true", help='push container image to registry after build')
+        parser_build.add_argument("--save", action="store_true",
+                                  help='save container image after build')
+        parser_build.add_argument(
+            "--push", action="store_true",
+            help='push container image to registry after build')
         parser_build.add_argument("--version", help='app version')
-        parser_build.add_argument("--ignore-version", action="store_true", help='ignore version checks')
+        parser_build.add_argument("--ignore-version", action="store_true",
+                                  help='ignore version checks')
         parser_build.add_argument('app', nargs='?')
         parser_build.add_argument('path', nargs='?')
         parser_build.set_defaults(func=self.cmd_build)
 
         parser_install = subparsers.add_parser('install', help='install image')
-        parser_install.add_argument("--tarball", action="store_true", help='install tarball')
-        parser_install.add_argument("--destdir", help='build-time destination dir', default='')
-        parser_install.add_argument("--prefix", help='prefix for the installation path', default='/usr/local')
+        parser_install.add_argument("--tarball", action="store_true",
+                                    help='install tarball')
+        parser_install.add_argument(
+            "--destdir", help='build-time destination dir', default='')
+        parser_install.add_argument(
+            "--prefix", help='prefix for the installation path',
+            default='/usr/local')
         parser_install.add_argument('app', nargs='?')
         parser_install.add_argument('path', nargs='?')
         parser_install.set_defaults(func=self.cmd_install)
@@ -98,7 +125,8 @@ class Kaboxer:
         parser_pull.add_argument('app')
         parser_pull.set_defaults(func=self.cmd_pull)
 
-        parser_push = subparsers.add_parser('push', help='push image to registry')
+        parser_push = subparsers.add_parser('push',
+                                            help='push image to registry')
         parser_push.add_argument('app')
         parser_push.add_argument("--version", help='version to push')
         parser_push.set_defaults(func=self.cmd_push)
@@ -115,19 +143,18 @@ class Kaboxer:
 
         parser_purge = subparsers.add_parser('purge', help='purge image')
         parser_purge.add_argument('app')
-        parser_purge.add_argument("--prune", action="store_true", help='prune unused images')
+        parser_purge.add_argument("--prune", action="store_true",
+                                  help='prune unused images')
         parser_purge.set_defaults(func=self.cmd_purge)
 
         self.args = self.parser.parse_args()
 
-        loglevels = {0: 'ERROR',
-                     1: 'INFO',
-                     2: 'DEBUG',
-                     }
-        try:
-            ll = loglevels[self.args.verbose]
-        except KeyError:
-            ll = 'DEBUG'
+        loglevels = {
+            0: 'ERROR',
+            1: 'INFO',
+            2: 'DEBUG',
+        }
+        ll = loglevels.get(self.args.verbose, 'DEBUG')
         ll = getattr(logging, ll)
         self.logger = logging.Logger('kbxbuilder')
         self.logger.setLevel(ll)
@@ -140,7 +167,9 @@ class Kaboxer:
         except:
             groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
             if 'docker' in groups:
-                self.logger.error("No access to Docker even though you're a member of the docker group, is docker.service running?")
+                self.logger.error("No access to Docker even though you're a "
+                                  "member of the docker group, is "
+                                  "docker.service running?")
                 sys.exit(1)
             else:
                 if 'kaboxer' in groups:
@@ -149,7 +178,8 @@ class Kaboxer:
                     sys.stderr.flush()
                     os.execv('/usr/bin/sudo', nc)
                 else:
-                    self.logger.error("No access to Docker, are you a member of group docker or kaboxer?")
+                    self.logger.error("No access to Docker, are you a member "
+                                      "of group docker or kaboxer?")
                     sys.exit(1)
 
         self.config_paths = [
@@ -204,13 +234,16 @@ class Kaboxer:
         except KeyError:
             pass
 
-        if not self.component_config['run_as_root'] and not self.args.reuse_container:
+        if not self.component_config['run_as_root'] and \
+                not self.args.reuse_container:
             opts2 = opts.copy()
             opts2['detach'] = False
             opts2['tty'] = True
             precmds = [
                 ['addgroup', '--debug', '--gid', str(self.gid), self.gname],
-                ['adduser', '--debug', '--uid', str(self.uid), '--gid', str(self.gid), '--home', self.home_in, '--gecos', self.gecos, '--disabled-password', self.uname],
+                ['adduser', '--debug', '--uid', str(self.uid), '--gid',
+                 str(self.gid), '--home', self.home_in, '--gecos', self.gecos,
+                 '--disabled-password', self.uname],
             ]
             container = self.docker_conn.containers.create(image, **opts2)
             opts['entrypoint'] = container.attrs['Config']['Entrypoint']
@@ -236,13 +269,15 @@ class Kaboxer:
             self.create_xauth()
             opts['environment']['DISPLAY'] = os.getenv('DISPLAY')
             opts['environment']['XAUTHORITY'] = self.xauth_in
-            opts['mounts'].append(docker.types.Mount(self.xauth_in, self.xauth_out, type='bind'))
+            opts['mounts'].append(docker.types.Mount(
+                self.xauth_in, self.xauth_out, type='bind'))
         elif run_mode == 'headless':
             opts['name'] = self.args.app
         else:
             self.logger.error("Unknown run mode")
             sys.exit(1)
-        if run_mode == 'gui' or ('allow_x11' in self.component_config and self.component_config['allow_x11']):
+        if run_mode == 'gui' or ('allow_x11' in self.component_config and
+                                 self.component_config['allow_x11']):
             xsock = '/tmp/.X11-unix'
             opts['mounts'].append(docker.types.Mount(xsock, xsock, type='bind'))
 
@@ -280,13 +315,16 @@ class Kaboxer:
                 container.put_archive('/', bio.getvalue())
             ex_with_env = ['env']
             for e in opts['environment']:
-                ex_with_env.append("%s=%s" % (e, shlex.quote(opts['environment'][e])))
+                ex_with_env.append(
+                    "%s=%s" % (e, shlex.quote(opts['environment'][e])))
             ex_with_env.extend(executable)
             executable = ex_with_env
-            dockerpty.exec_command(self.docker_conn.api, container.id, executable)
+            dockerpty.exec_command(self.docker_conn.api, container.id,
+                                   executable)
         else:
             opts['auto_remove'] = True
-            container = self.docker_conn.containers.create(image, executable, **opts)
+            container = self.docker_conn.containers.create(image, executable,
+                                                           **opts)
             for e in extranets:
                 self.create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api, container.id)
@@ -304,7 +342,6 @@ class Kaboxer:
         app = self.args.app
         self.read_config(app)
         run_mode = self.component_config['run_mode']
-        image = 'kaboxer/' + app
         if run_mode == 'headless':
             containers = self.docker_conn.containers.list(filters={'name': app})
             container = containers[0]
@@ -320,8 +357,10 @@ class Kaboxer:
             sys.exit(1)
 
     def get_meta_file(self, image, filename):
-        with tempfile.NamedTemporaryFile(mode='w+t', prefix="getmetafile") as tmp:
-            self.extract_file_from_image(image, os.path.join('/kaboxer/', filename), tmp.name)
+        with tempfile.NamedTemporaryFile(mode='w+t',
+                                         prefix="getmetafile") as tmp:
+            self.extract_file_from_image(
+                image, os.path.join('/kaboxer/', filename), tmp.name)
             v = str(open(tmp.name).read())
             return v
 
@@ -367,19 +406,21 @@ class Kaboxer:
         return parsed_configs
 
     def do_version_checks(self, v, config):
-        parsed_v = packaging_version.parse(v)
+        parsed_v = parse_version(v)
         try:
             minv = str(config['packaging']['min_upstream_version'])
-            parsed_minv = packaging_version.parse(minv)
+            parsed_minv = parse_version(minv)
             if parsed_v < parsed_minv:
-                raise Exception("Unsupported upstream version %s < %s" % (v, minv))
+                raise Exception(
+                    "Unsupported upstream version %s < %s" % (v, minv))
         except KeyError:
             pass
         try:
             maxv = str(config['packaging']['max_upstream_version'])
-            parsed_maxv = packaging_version.parse(maxv)
+            parsed_maxv = parse_version(maxv)
             if parsed_v > parsed_maxv:
-                raise Exception("Unsupported upstream version %s > %s" % (v, maxv))
+                raise Exception(
+                    "Unsupported upstream version %s > %s" % (v, maxv))
         except KeyError:
             pass
 
@@ -393,7 +434,8 @@ class Kaboxer:
             self.logger.info("Building %s" % (app,))
             parsed_config = parsed_configs[app]
             try:
-                df = os.path.join(path, parsed_config['build']['docker']['file'])
+                df = os.path.join(path,
+                                  parsed_config['build']['docker']['file'])
             except:
                 df = os.path.join(path, 'Dockerfile')
             buildargs = {}
@@ -410,7 +452,8 @@ class Kaboxer:
                 pull=True, quiet=False, buildargs=buildargs)
             with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
                 try:
-                    self.extract_file_from_image(image, '/kaboxer/version', tmp.name)
+                    self.extract_file_from_image(image, '/kaboxer/version',
+                                                 tmp.name)
                     saved_version = open(tmp.name).readline().strip()
                     if not self.args.ignore_version:
                         try:
@@ -424,20 +467,25 @@ class Kaboxer:
                         saved_version = self.args.version
                         tmp.write(self.args.version)
                     else:
-                        self.logger.error("Unable to determine version (use --version?)")
+                        self.logger.error(
+                            "Unable to determine version (use --version?)")
                         self.docker_conn.images.remove(image=image.id)
                         sys.exit(1)
                 tmp.flush()
-                image = self.inject_file_into_image(image, tmp.name, '/kaboxer/version')
+                image = self.inject_file_into_image(image, tmp.name,
+                                                    '/kaboxer/version')
             with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
                 tmp.write(str(parsed_config['packaging']['revision']) + "\n")
                 tmp.flush()
-                image = self.inject_file_into_image(image, tmp.name, '/kaboxer/packaging-revision')
+                image = self.inject_file_into_image(
+                    image, tmp.name, '/kaboxer/packaging-revision')
             with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
                 tmp.write(yaml.dump(sys.argv))
                 tmp.flush()
-                image = self.inject_file_into_image(image, tmp.name, '/kaboxer/kaboxer-build-cmd')
-                image = self.inject_file_into_image(image, df, '/kaboxer/Dockerfile')
+                image = self.inject_file_into_image(
+                    image, tmp.name, '/kaboxer/kaboxer-build-cmd')
+                image = self.inject_file_into_image(
+                    image, df, '/kaboxer/Dockerfile')
             with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
                 savedbuildargs = {
                     'rm': True,
@@ -448,14 +496,16 @@ class Kaboxer:
                 }
                 tmp.write(yaml.dump(savedbuildargs))
                 tmp.flush()
-                image = self.inject_file_into_image(image, tmp.name, '/kaboxer/docker-build-parameters')
+                image = self.inject_file_into_image(
+                    image, tmp.name, '/kaboxer/docker-build-parameters')
                 tagname = 'kaboxer/%s:%s' % (app, str(saved_version))
                 image.tag(tagname)
                 tagname = 'kaboxer/%s:latest' % (app,)
                 if not self.find_image(tagname):
                     image.tag(tagname)
             if self.args.save:
-                tarball = os.path.join(path, parsed_config['application']['id'] + '.tar')
+                tarball = os.path.join(
+                    path, parsed_config['application']['id'] + '.tar')
                 self.save_image_to_file(image, tarball)
             if self.args.push:
                 self.push([saved_version])
@@ -473,7 +523,7 @@ class Kaboxer:
             if len(versions) == 0:
                 if self.args.version:
                     try:
-                        self.do_version_checks(self.args.version, parsed_config)
+                        self.do_version_checks(self.args.version, parsed_configs)
                         versions = [self.args.version]
                     except Exception as e:
                         self.logger.error(str(e))
@@ -494,10 +544,11 @@ class Kaboxer:
                 if 'registry' not in parsed_config['container']['origin']:
                     self.logger.error("No registry defined for %s" % (app,))
                     sys.exit(1)
-                registry = parsed_config['container']['origin']['registry']['url']
+                registry_data = parsed_config['container']['origin']['registry']
+                registry = registry_data['url']
                 registry = re.sub('^https?://', '', registry)
                 try:
-                    imagename = parsed_config['container']['origin']['registry']['image']
+                    imagename = registry_data['image']
                 except KeyError:
                     imagename = parsed_config['application']['id']
                 tagname = "kaboxer/%s:%s" % (imagename, version)
@@ -506,7 +557,8 @@ class Kaboxer:
                     self.logger.error("No %s image found" % (tagname,))
                     sys.exit(1)
                 with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-                    self.extract_file_from_image(image.id, '/kaboxer/version', tmp.name)
+                    self.extract_file_from_image(
+                        image.id, '/kaboxer/version', tmp.name)
                     saved_version = open(tmp.name).readline().strip()
                 remotename = '%s/%s' % (registry, imagename)
                 tagname = '%s:%s' % (remotename, saved_version)
@@ -548,21 +600,32 @@ Categories={{ p.categories }}
                 # One .desktop file for starting
                 params['name'] = "Start %s" % (component_name,)
                 params['terminal'] = 'true'
-                params['exec'] = "kaboxer run --detach --prompt-before-detach %s --component %s %s" % (params['reuse_container'], params['component'], params['appid'])
-                ofname = 'kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component)
+                params['exec'] = (
+                    "kaboxer run --detach --prompt-before-detach %s "
+                    "--component %s %s" %
+                    (params['reuse_container'], params['component'],
+                     params['appid']))
+                ofname = 'kaboxer-%s-%s-start.desktop' % (
+                    parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
                 # One .desktop file for stopping
                 params['name'] = "Stop %s" % (component_name,)
                 params['terminal'] = 'false'
-                params['exec'] = "kaboxer stop %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
-                ofname = 'kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component)
+                params['exec'] = "kaboxer stop %s--component %s %s" % (
+                    params['reuse_container'], params['component'],
+                    params['appid'])
+                ofname = 'kaboxer-%s-%s-stop.desktop' % (
+                    parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
             else:
                 params['name'] = component_name
-                ofname = 'kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component)
-                params['exec'] = "kaboxer run %s--component %s %s" % (params['reuse_container'], params['component'], params['appid'])
+                ofname = 'kaboxer-%s-%s.desktop' % (
+                    parsed_config['application']['id'], component)
+                params['exec'] = "kaboxer run %s--component %s %s" % (
+                    params['reuse_container'], params['component'],
+                    params['appid'])
                 if parsed_config['components'][component]['run_mode'] == 'cli':
                     params['terminal'] = 'true'
                 else:
@@ -581,10 +644,13 @@ Categories={{ p.categories }}
             self.logger.info("Cleaning %s" % (app,))
             parsed_config = parsed_configs[app]
             app = parsed_config['application']['id']
-            tarball = os.path.join(path, parsed_config['application']['id'] + '.tar')
-            if os.path.commonpath([path, tarball]) == path and os.path.isfile(tarball):
+            tarball = os.path.join(path,
+                                   parsed_config['application']['id'] + '.tar')
+            if os.path.commonpath([path, tarball]) == path and \
+                    os.path.isfile(tarball):
                 os.unlink(tarball)
-            generateddesktopfiles = self._list_desktop_files(parsed_config, generated_only=True)
+            generateddesktopfiles = self._list_desktop_files(
+                parsed_config, generated_only=True)
             for d in generateddesktopfiles:
                 if os.path.isfile(d):
                     os.unlink(d)
@@ -593,7 +659,8 @@ Categories={{ p.categories }}
         if self.args.destdir == '':
             builddestpath = path
         else:
-            builddestpath = os.path.join(self.args.destdir, os.path.relpath(path, '/'))
+            builddestpath = os.path.join(self.args.destdir,
+                                         os.path.relpath(path, '/'))
         self.logger.info("Installing %s to %s" % (f, builddestpath))
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f, builddestpath)
@@ -605,12 +672,15 @@ Categories={{ p.categories }}
                 return []
         except:
             desktopfiles = []
-            for component in parsed_config['components']:
-                if parsed_config['components'][component]['run_mode'] == 'headless':
-                    desktopfiles.append('kaboxer-%s-%s-start.desktop' % (parsed_config['application']['id'], component))
-                    desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (parsed_config['application']['id'], component))
+            for component, data in parsed_config['components'].items():
+                if data['run_mode'] == 'headless':
+                    desktopfiles.append('kaboxer-%s-%s-start.desktop' % (
+                        parsed_config['application']['id'], component))
+                    desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (
+                        parsed_config['application']['id'], component))
                 else:
-                    desktopfiles.append('kaboxer-%s-%s.desktop' % (parsed_config['application']['id'], component))
+                    desktopfiles.append('kaboxer-%s-%s.desktop' % (
+                        parsed_config['application']['id'], component))
         return desktopfiles
 
     def cmd_install(self):
@@ -638,36 +708,47 @@ Categories={{ p.categories }}
                 tf = os.path.join(td, app + '.kaboxer.yaml')
                 if self.args.tarball:
                     try:
-                        del(filtered_config_file['container']['origin']['registry'])
+                        origin = filtered_config_file['container']['origin']
+                        del(origin['registry'])
                     except:
                         pass
                     if 'origin' not in filtered_config_file['container']:
                         filtered_config_file['container']['origin'] = {}
-                    filtered_config_file['container']['origin']['tarball'] = os.path.join(main_destpath, app + '.tar')
+                    filtered_config_file['container']['origin']['tarball'] = (
+                        os.path.join(main_destpath, app + '.tar'))
                 with open(tf, 'w') as y:
                     y.write(yaml.dump(filtered_config_file))
                 self.install_to_path(tf, main_destpath)
             # Install desktop file(s)
             desktopfiles = self._list_desktop_files(parsed_config)
             for d in desktopfiles:
-                self.install_to_path(os.path.join(path, d), os.path.join(self.args.prefix, 'share', 'applications'))
+                self.install_to_path(
+                    os.path.join(path, d),
+                    os.path.join(self.args.prefix, 'share', 'applications'))
             # Install icon file(s)
             try:
                 iconfile = parsed_config['install']['icon']
                 (_, ife) = os.path.splitext(os.path.basename(iconfile))
                 with tempfile.TemporaryDirectory() as td:
-                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
+                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
+                        parsed_config['application']['id'], ife))
                     shutil.copy(iconfile, renamed_icon)
-                    self.install_to_path(renamed_icon, os.path.join(self.args.prefix, 'share', 'icons'))
+                    self.install_to_path(renamed_icon, os.path.join(
+                        self.args.prefix, 'share', 'icons'))
             except KeyError:
                 pass
             try:
                 iconfile = parsed_config['install']['extract-icon']
                 (_, ife) = os.path.splitext(os.path.basename(iconfile))
                 with tempfile.TemporaryDirectory() as td:
-                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (parsed_config['application']['id'], ife))
-                    self.extract_file_from_image('kaboxer/' + parsed_config['application']['id'], iconfile, renamed_icon)
-                    self.install_to_path(renamed_icon, os.path.join(self.args.prefix, 'share', 'icons'))
+                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
+                        parsed_config['application']['id'], ife))
+                    self.extract_file_from_image(
+                        'kaboxer/' + parsed_config['application']['id'],
+                        iconfile, renamed_icon)
+                    self.install_to_path(
+                        renamed_icon,
+                        os.path.join(self.args.prefix, 'share', 'icons'))
             except KeyError:
                 pass
 
@@ -705,7 +786,8 @@ Categories={{ p.categories }}
 
     def get_meta_file_from_tarball(self, tarball, filename):
         with tempfile.NamedTemporaryFile(mode='w+t', prefix="getmetafile") as tmp:
-            self.extract_file_from_tarball(tarball, os.path.join('/kaboxer/', filename), tmp.name)
+            self.extract_file_from_tarball(
+                tarball, os.path.join('/kaboxer/', filename), tmp.name)
             v = str(open(tmp.name).read())
             return v
 
@@ -771,7 +853,7 @@ Categories={{ p.categories }}
                 if tag[:len(name)] == name and tag[len(name)] == ':':
                     ver = tag[len(name) + 1:]
                     candidates[tag] = {'image': image,
-                                       'version': packaging_version.parse(ver)}
+                                       'version': parse_version(ver)}
         if len(candidates):
             versions = [candidates[x]['version'] for x in candidates.keys()]
             maxver = sorted(versions)[-1]
@@ -806,7 +888,8 @@ Categories={{ p.categories }}
         self.read_config(app)
         if oldver is None or oldver == newver:
             return
-        self.logger.info("Running upgrade scripts for %s (%s -> %s)" % (app, oldver, newver))
+        self.logger.info("Running upgrade scripts for %s (%s -> %s)" % (
+            app, oldver, newver))
         image_name = self.get_image_name(app)
         with tempfile.TemporaryDirectory() as td:
             s = td
@@ -814,18 +897,22 @@ Categories={{ p.categories }}
             opts = {'mounts': [docker.types.Mount(t, s, type='bind')]}
             opts = self.parse_component_config(opts)
             full_image_name = '%s:%s' % (image_name, oldver)
-            container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
+            container = self.docker_conn.containers.create(
+                full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
             dockerpty.start(self.docker_conn.api, container.id)
             container.stop()
             container.remove()
             full_image_name = '%s:%s' % (image_name, newver)
-            container = self.docker_conn.containers.create(full_image_name, ['/kaboxer/scripts/post-upgrade', oldver], **opts)
+            container = self.docker_conn.containers.create(
+                full_image_name, ['/kaboxer/scripts/post-upgrade', oldver],
+                **opts)
             dockerpty.start(self.docker_conn.api, container.id)
             container.stop()
             container.remove()
 
     def prepare_or_upgrade(self, apps, upgrade=False):
-        current_apps, registry_apps, tarball_apps, available_apps = self.list_apps(get_remotes=True, restrict=apps)
+        current_apps, registry_apps, tarball_apps, available_apps = \
+            self.list_apps(get_remotes=True, restrict=apps)
         for app in apps:
             self.logger.info("Preparing %s" % (app,))
             previous_version = None
@@ -835,7 +922,9 @@ Categories={{ p.categories }}
                 target_version = m.group(2)
                 if app in current_apps:
                     previous_version = current_apps[app]['version']
-                    if packaging_version.parse(target_version) != packaging_version.parse(previous_version) and not upgrade:
+                    if parse_version(target_version) != \
+                            parse_version(previous_version) and \
+                            not upgrade:
                         self.logger.exception(
                             "%s is at version %s, can't run %s=%s",
                             app, previous_version, app, target_version)
@@ -843,17 +932,19 @@ Categories={{ p.categories }}
             else:
                 maxavail = ''
                 try:
-                    if maxavail == '' or packaging_version.parse(available_apps[app]['maxversion']['version']) > packaging_version.parse(maxavail):
-                        maxavail = available_apps[app]['maxversion']['version']
+                    maxavail = available_apps[app]['maxversion']['version']
                 except KeyError:
                     pass
                 try:
-                    if maxavail == '' or packaging_version.parse(tarball_apps[app]['version']) > packaging_version.parse(maxavail):
+                    tarball_ver = parse_version(tarball_apps[app]['version'])
+                    if maxavail == '' or  tarball_ver > parse_version(maxavail):
                         maxavail = tarball_apps[app]['version']
                 except KeyError:
                     pass
                 try:
-                    if maxavail == '' or packaging_version.parse(registry_apps[app]['maxversion']) > packaging_version.parse(maxavail):
+                    registry_ver = parse_version(
+                        registry_apps[app]['maxversion'])
+                    if maxavail == '' or registry_ver > parse_version(maxavail):
                         maxavail = registry_apps[app]['maxversion']
                 except KeyError:
                     pass
@@ -866,9 +957,9 @@ Categories={{ p.categories }}
                 if upgrade:
                     target_version = maxavail
                 self.read_config(app)
-            if previous_version \
-               and upgrade \
-               and packaging_version.parse(target_version) <= packaging_version.parse(previous_version):
+            if previous_version and upgrade and \
+                    parse_version(target_version) <= \
+                    parse_version(previous_version):
                 target_version = previous_version
             image_name = self.get_image_name(app)
             full_image_name = '%s:%s' % (image_name, target_version)
@@ -878,10 +969,13 @@ Categories={{ p.categories }}
             config = self.load_config(app)
             try:
                 try:
-                    if packaging_version.parse(available_apps[app]['maxversion']['version']) == packaging_version.parse(target_version):
+                    max_avail_version = parse_version(
+                        available_apps[app]['maxversion']['version'])
+                    if max_avail_version == parse_version(target_version):
                         image = self.find_image(full_image_name)
                         image.tag(current_image_name)
-                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        self.do_upgrade_scripts(app, previous_version,
+                                                target_version)
                         return
                 except:
                     pass
@@ -890,12 +984,16 @@ Categories={{ p.categories }}
                     if found_image:
                         found_image.tag(current_image_name)
                     else:
-                        self.logger.info("Pulling %s image from registry" % (full_image_name,))
+                        self.logger.info("Pulling %s image from registry" % (
+                            full_image_name,))
                         try:
-                            image = self.docker_conn.images.pull(full_image_name)
+                            image = self.docker_conn.images.pull(
+                                full_image_name)
                             if target_version == 'latest':
-                                pulled_version = self.get_meta_file(image, 'version').strip()
-                                versioned_image_name = '%s:%s' % (image_name, pulled_version)
+                                pulled_version = self.get_meta_file(
+                                    image, 'version').strip()
+                                versioned_image_name = '%s:%s' % (
+                                    image_name, pulled_version)
                                 if not self.find_image(versioned_image_name):
                                     image.tag(versioned_image_name)
                             image.tag(current_image_name)
@@ -904,7 +1002,8 @@ Categories={{ p.categories }}
                                 "Could not pull %s, wrong URL?",
                                 full_image_name)
                             sys.exit(1)
-                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        self.do_upgrade_scripts(app, previous_version,
+                                                target_version)
                     return
                 if 'tarball' in config['container']['origin']:
                     paths = [
@@ -913,12 +1012,15 @@ Categories={{ p.categories }}
                         '/usr/share/kaboxer',
                     ]
                     for p in paths:
-                        tarfile = os.path.join(p, config['container']['origin']['tarball'])
+                        tarfile = os.path.join(
+                            p, config['container']['origin']['tarball'])
                         if os.path.isfile(tarfile):
                             self.logger.info("Loading image from " + tarfile)
-                            image = self.load_image(tarfile, app, target_version)
+                            image = self.load_image(tarfile, app,
+                                                    target_version)
                             image.tag(current_image_name)
-                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        self.do_upgrade_scripts(app, previous_version,
+                                                target_version)
                         return
             except KeyError:
                 pass
@@ -929,11 +1031,13 @@ Categories={{ p.categories }}
                     '/usr/share/kaboxer',
                 ]
                 for p in paths:
-                    tarfile = os.path.join(p, self.config['application']['id'] + '.tar')
+                    tarfile = os.path.join(
+                        p, self.config['application']['id'] + '.tar')
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from " + tarfile)
                         self.load_image(tarfile, app, target_version)
-                        self.do_upgrade_scripts(app, previous_version, target_version)
+                        self.do_upgrade_scripts(app, previous_version,
+                                                target_version)
                         return
             self.logger.error("Cannot prepare image")
             sys.exit(1)
@@ -944,9 +1048,12 @@ Categories={{ p.categories }}
     def cmd_purge(self):
         current_apps, _, _, available_apps = self.list_apps()
         if self.args.app in current_apps:
-            self.docker_conn.images.remove('kaboxer/%s:current' % (self.args.app,))
+            self.docker_conn.images.remove('kaboxer/%s:current' %
+                                           (self.args.app,))
         if self.args.app in available_apps:
-            self.docker_conn.images.remove('kaboxer/%s:%s' % (self.args.app, available_apps[self.args.app]['maxversion']['version']))
+            self.docker_conn.images.remove('kaboxer/%s:%s' % (
+                self.args.app,
+                available_apps[self.args.app]['maxversion']['version']))
             try:
                 self.docker_conn.images.remove('kaboxer/%s' % (self.args.app,))
             except:
@@ -981,19 +1088,29 @@ Categories={{ p.categories }}
                                     (i, ver) = tag.rsplit(':', 1)
                                     if i != imagename:
                                         continue
-                                    curver = self.get_meta_file(image, 'version').strip()
+                                    curver = self.get_meta_file(
+                                        image, 'version').strip()
                                     item = {
                                         'version': curver,
-                                        'packaging-revision-from-image': self.get_meta_file(image, 'packaging-revision').strip(),
-                                        'packaging-revision-from-yaml': y['packaging']['revision'],
+                                        'packaging-revision-from-image':
+                                        self.get_meta_file(
+                                            image, 'packaging-revision'
+                                        ).strip(),
+                                        'packaging-revision-from-yaml':
+                                        y['packaging']['revision'],
                                     }
                                     if ver == 'current':
                                         current_apps[aid] = item
                                     if aid not in available_apps:
                                         available_apps[aid] = {}
                                     available_apps[aid][ver] = item
-                                    if 'maxversion' not in available_apps[aid] \
-                                       or packaging_version.parse(available_apps[aid]['maxversion']['version']) <= packaging_version.parse(curver):
+                                    _maxversion = available_apps[aid].get(
+                                        'maxversion')
+                                    if _maxversion:
+                                        max_avail_version = parse_version(
+                                            _maxversion['version'])
+                                    if not _maxversion or max_avail_version <= \
+                                            parse_version(curver):
                                         available_apps[aid]['maxversion'] = item
                         except Exception as e:
                             print(e)
@@ -1001,19 +1118,27 @@ Categories={{ p.categories }}
 
                         try:
                             registry_apps[aid] = {
-                                'url': y['container']['origin']['registry']['url'],
-                                'image': y['container']['origin']['registry']['image'],
-                                'packaging-revision-from-yaml': y['packaging']['revision'],
+                                'url':
+                                y['container']['origin']['registry']['url'],
+                                'image':
+                                y['container']['origin']['registry']['image'],
+                                'packaging-revision-from-yaml':
+                                y['packaging']['revision'],
                             }
                         except:
                             pass
                         try:
-                            tb = y['container']['origin']['tarball']
+                            _tarball = y['container']['origin']['tarball']
+                            _ver = self.get_meta_file_from_tarball(
+                                _tarball, 'version').strip()
+                            _pkg_rev_img = self.get_meta_file_from_tarball(
+                                _tarball, 'packaging-revision').strip()
+                            _pkg_rev_yaml = y['packaging']['revision']
                             tarball_apps[aid] = {
-                                'tarball': tb,
-                                'version': self.get_meta_file_from_tarball(tb, 'version').strip(),
-                                'packaging-revision-from-image': self.get_meta_file_from_tarball(tb, 'packaging-revision').strip(),
-                                'packaging-revision-from-yaml': y['packaging']['revision'],
+                                'tarball': _tarball,
+                                'version': _ver,
+                                'packaging-revision-from-image': _pkg_rev_img,
+                                'packaging-revision-from-yaml': _pkg_rev_yaml,
                             }
                         except:
                             pass
@@ -1051,7 +1176,7 @@ Categories={{ p.categories }}
                         registry_apps[aid]['versions'].append(r)
                 curmax = registry_apps[aid]['versions'][0]
                 for tag in registry_apps[aid]['versions']:
-                    if packaging_version.parse(tag) > packaging_version.parse(curmax):
+                    if parse_version(tag) > parse_version(curmax):
                         curmax = tag
                 registry_apps[aid]['maxversion'] = curmax
         return (current_apps, registry_apps, tarball_apps, available_apps)
@@ -1066,7 +1191,8 @@ Categories={{ p.categories }}
             show_upgradeable = True
         if not show_available and not show_upgradeable:
             show_installed = True
-        current_apps, registry_apps, tarball_apps, available_apps = self.list_apps(get_remotes=(show_available or show_upgradeable))
+        current_apps, registry_apps, tarball_apps, available_apps = \
+            self.list_apps(get_remotes=(show_available or show_upgradeable))
         data_rows = []
         app_data = {}
         if show_installed:
@@ -1074,8 +1200,10 @@ Categories={{ p.categories }}
                 if aid not in app_data:
                     app_data[aid] = {'app': aid}
                 app_data[aid]['installed'] = current_apps[aid]['version']
-                app_data[aid]['pacrev-yaml'] = current_apps[aid]['packaging-revision-from-yaml']
-                app_data[aid]['pacrev-image'] = current_apps[aid]['packaging-revision-from-image']
+                app_data[aid]['pacrev-yaml'] = (
+                    current_apps[aid]['packaging-revision-from-yaml'])
+                app_data[aid]['pacrev-image'] = (
+                    current_apps[aid]['packaging-revision-from-image'])
         if show_available:
             for aid in registry_apps:
                 for tag in registry_apps[aid]['versions']:
@@ -1085,22 +1213,32 @@ Categories={{ p.categories }}
             for aid in available_apps:
                 if aid not in app_data:
                     app_data[aid] = {'app': aid}
-                if 'available' not in app_data[aid] or packaging_version.parse(available_apps[aid]['maxversion']['version']) > packaging_version.parse(app_data[aid]['available']):
-                    app_data[aid]['available'] = available_apps[aid]['maxversion']['version']
+                max_avail_version = parse_version(
+                    available_apps[aid]['maxversion']['version'])
+                if 'available' not in app_data[aid] or max_avail_version > \
+                        parse_version(app_data[aid]['available']):
+                    app_data[aid]['available'] = (
+                        available_apps[aid]['maxversion']['version'])
 
         if show_upgradeable:
             for aid in current_apps:
                 if aid not in app_data:
                     app_data[aid] = {'app': aid}
                 app_data[aid]['installed'] = current_apps[aid]['version']
-                app_data[aid]['pacrev-yaml'] = current_apps[aid]['packaging-revision-from-yaml']
-                app_data[aid]['pacrev-image'] = current_apps[aid]['packaging-revision-from-image']
+                app_data[aid]['pacrev-yaml'] = (
+                    current_apps[aid]['packaging-revision-from-yaml'])
+                app_data[aid]['pacrev-image'] = (
+                    current_apps[aid]['packaging-revision-from-image'])
                 if aid in registry_apps:
-                    if packaging_version.parse(registry_apps[aid]['maxversion']) > packaging_version.parse(current_apps[aid]['version']):
-                        app_data[aid]['available'] = registry_apps[aid]['maxversion']
+                    if parse_version(registry_apps[aid]['maxversion']) > \
+                            parse_version(current_apps[aid]['version']):
+                        app_data[aid]['available'] = (
+                            registry_apps[aid]['maxversion'])
                 elif aid in tarball_apps:
-                    if packaging_version.parse(tarball_apps[aid]['version']) > packaging_version.parse(current_apps[aid]['version']):
-                        app_data[aid]['available'] = tarball_apps[aid]['version']
+                    if parse_version(tarball_apps[aid]['version']) > \
+                            parse_version(current_apps[aid]['version']):
+                        app_data[aid]['available'] = (
+                            tarball_apps[aid]['version'])
 
         app_data_fields = {
             "app": "App",
@@ -1237,16 +1375,19 @@ Categories={{ p.categories }}
 
     def create_xauth(self):
         if os.getenv('DISPLAY') is None:
-            self.logger.error("No DISPLAY set, are you running in a graphical session?")
+            self.logger.error(
+                "No DISPLAY set, are you running in a graphical session?")
             sys.exit(1)
         self.xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
         self.xauth_in = os.path.join(self.home_in, '.docker.xauth')
-        f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')], stdout=subprocess.PIPE).stdout
-        g = subprocess.Popen(['xauth', '-f', self.xauth_out, 'nmerge', '-'], stdin=subprocess.PIPE).stdin
+        f = subprocess.Popen(['xauth', 'nlist', os.getenv('DISPLAY')],
+                             stdout=subprocess.PIPE).stdout
+        g = subprocess.Popen(['xauth', '-f', self.xauth_out, 'nmerge', '-'],
+                             stdin=subprocess.PIPE).stdin
         for l in f:
-            l = str(l, 'utf-8')
-            l.strip()
-            ll = re.sub('^[^ ]*', 'ffff', l) + "\n"
+            line = str(l, 'utf-8')
+            line.strip()
+            ll = re.sub('^[^ ]*', 'ffff', line) + "\n"
             g.write(bytes(ll, 'utf-8'))
         g.close()
         f.close()
