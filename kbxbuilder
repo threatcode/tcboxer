@@ -12,6 +12,7 @@ import logging
 import smtplib
 import time
 
+
 class Kbxbuilder:
     def __init__(self):
         self.parser = argparse.ArgumentParser()
@@ -59,7 +60,7 @@ class Kbxbuilder:
                 if isinstance(item, dict):
                     replace_needed = walk(item, replace_needed)
                 else:
-                    if re.search('\{\{',item):
+                    if re.search('\{\{', item):
                         replace_needed = True
                         t = jinja2.Template(item)
                         node[key] = t.render(config=self.config)
@@ -90,7 +91,7 @@ class Kbxbuilder:
         os.makedirs(self.config['builder']['datadir'], exist_ok=True)
         self.statusfile = os.path.join(self.config['builder']['datadir'], 'status.yaml')
         try:
-            self.logger.debug ("Loading status file " + f)
+            self.logger.debug("Loading status file " + f)
             self.status = yaml.safe_load(open(self.statusfile))
         except:
             self.status = {}
@@ -100,12 +101,12 @@ class Kbxbuilder:
             try:
                 self.apps = yaml.safe_load(open(f))
                 self.apps_file = f
-                self.logger.info ("Loading apps file " + f)
+                self.logger.info("Loading apps file " + f)
                 break
             except:
                 pass
 
-    def add_status(self,app,tag,revid,status):
+    def add_status(self, app, tag, revid, status):
         if app not in self.status:
             self.status[app] = {}
         t = time.time()
@@ -119,7 +120,7 @@ class Kbxbuilder:
             self.status[app]['last_success'] = item.copy()
         else:
             self.status[app]['last_failure'] = item.copy()
-        self.logger.debug ("Saving status file")
+        self.logger.debug("Saving status file")
         with open(self.statusfile, 'w') as f:
             f.write(yaml.dump(self.status))
 
@@ -130,9 +131,10 @@ class Kbxbuilder:
     def build_one(self, app, force=True):
         os.makedirs(self.config['builder']['buildlogsdir'], exist_ok=True)
         if app not in self.subloggers:
-            logfile = os.path.join(self.config['builder']['buildlogsdir'], app+'.log')
+            logfile = os.path.join(self.config['builder']['buildlogsdir'], app + '.log')
             self.subloggers[app] = logging.FileHandler(logfile)
             self.subloggers[app].setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
             def flt(x):
                 try:
                     return x.app == app
@@ -143,7 +145,7 @@ class Kbxbuilder:
         try:
             buildmode = self.apps[app]['buildmode']
         except:
-            self.logger.error("Cannot find how to build "+app, extra={'app':app})
+            self.logger.error("Cannot find how to build " + app, extra={'app': app})
             sys.exit(1)
 
         os.makedirs(self.config['builder']['workdir'], exist_ok=True)
@@ -152,22 +154,22 @@ class Kbxbuilder:
             branch = self.apps[app]['branch']
         except KeyError:
             branch = 'master'
-        self.logger.debug("Checking out Git repository at "+checkoutdir, extra={'app':app})
+        self.logger.debug("Checking out Git repository at " + checkoutdir, extra={'app': app})
         if os.path.isdir(checkoutdir):
             repo = git.Repo(checkoutdir)
             origin = repo.remotes['origin']
             if origin.url != self.apps[app]['git_url']:
-                self.logger.debug("Switching remote URL", extra={'app':app})
-                git.remote.Remote.remove(repo,'origin')
-                git.remote.Remote.add(repo,'origin',self.apps[app]['git_url'])
+                self.logger.debug("Switching remote URL", extra={'app': app})
+                git.remote.Remote.remove(repo, 'origin')
+                git.remote.Remote.add(repo, 'origin', self.apps[app]['git_url'])
                 origin = repo.remotes['origin']
             else:
-                self.logger.debug("Remote already on the correct URL", extra={'app':app})
+                self.logger.debug("Remote already on the correct URL", extra={'app': app})
             origin.fetch('--prune')
         else:
             repo = git.Repo.clone_from(self.apps[app]['git_url'], checkoutdir)
         try:
-            repo.git.checkout('remotes/origin/'+branch)
+            repo.git.checkout('remotes/origin/' + branch)
         except:
             repo.git.checkout(branch)
 
@@ -176,7 +178,7 @@ class Kbxbuilder:
         if not force:
             try:
                 if self.status[app]['last_success']['revid'] == revid:
-                    self.logger.info("Build of %s not needed", app, extra={'app':app})
+                    self.logger.info("Build of %s not needed", app, extra={'app': app})
                     return
             except KeyError:
                 pass
@@ -186,26 +188,26 @@ class Kbxbuilder:
         else:
             appdir = checkoutdir
         appdir = os.path.abspath(appdir)
-        self.logger.info("Building app %s at revid %s", app, revid, extra={'app':app})
+        self.logger.info("Building app %s at revid %s", app, revid, extra={'app': app})
         if buildmode == 'kaboxer':
             cmd = "kaboxer build %s" % (app,)
-            self.logger.debug("Building kaboxer image: " + cmd, extra={'app':app})
+            self.logger.debug("Building kaboxer image: " + cmd, extra={'app': app})
             if subprocess.run(cmd, cwd=appdir, shell=True).returncode == 0:
-                self.add_status(app,branch,revid,'success')
+                self.add_status(app, branch, revid, 'success')
                 if self.apps[app]['push']:
                     for i in self.config['on_success']:
                         if i['action'] == 'push_to_registry':
                             cmd = "kaboxer push %s" % (app,)
-                            self.logger.debug("Pushing to registry: " + cmd, extra={'app':app})
+                            self.logger.debug("Pushing to registry: " + cmd, extra={'app': app})
                             if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
-                                self.logger.error("Error when running " + cmd, extra={'app':app})
+                                self.logger.error("Error when running " + cmd, extra={'app': app})
                 for i in self.config['on_success']:
                     if i['action'] == 'execute_command':
                         t = jinja2.Template(i['command'])
                         cmd = t.render(config=self.config, app=app)
-                        self.logger.debug("Running command: " + cmd, extra={'app':app})
+                        self.logger.debug("Running command: " + cmd, extra={'app': app})
                         if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
-                            self.logger.error("Error when running " + cmd, extra={'app':app})
+                            self.logger.error("Error when running " + cmd, extra={'app': app})
                     if i['action'] == 'send_mail':
                         s = smtplib.SMTP('localhost')
                         with open(logfile) as f:
@@ -215,15 +217,15 @@ class Kbxbuilder:
                         msg['To'] = i['to']
                         s.sendmail(msg['From'], [msg['To']], msg.as_string())
             else:
-                self.add_status(app,branch,revid,'failure')
-                self.logger.error("Error when running " + cmd, extra={'app':app})
+                self.add_status(app, branch, revid, 'failure')
+                self.logger.error("Error when running " + cmd, extra={'app': app})
                 for i in self.config['on_failure']:
                     if i['action'] == 'execute_command':
                         t = jinja2.Template(i['command'])
                         cmd = t.render(config=self.config, app=app)
-                        self.logger.debug("Running command: " + cmd, extra={'app':app})
+                        self.logger.debug("Running command: " + cmd, extra={'app': app})
                         if subprocess.run(cmd, cwd=appdir, shell=True).returncode != 0:
-                            self.logger.error("Error when running " + cmd, extra={'app':app})
+                            self.logger.error("Error when running " + cmd, extra={'app': app})
                     if i['action'] == 'send_mail':
                         s = smtplib.SMTP('localhost')
                         with open(logfile) as f:
@@ -234,16 +236,16 @@ class Kbxbuilder:
                         s.sendmail(msg['From'], [msg['To']], msg.as_string())
 
     def cmd_build_one(self):
-        self.logger.info("Building "+self.args.app)
+        self.logger.info("Building " + self.args.app)
         self.build_one(self.args.app, force=True)
-        self.logger.info("Built "+self.args.app)
+        self.logger.info("Built " + self.args.app)
 
     def cmd_build_all(self):
         self.logger.info("Building all apps")
         for app in self.apps:
-            self.logger.info("Building "+app)
+            self.logger.info("Building " + app)
             self.build_one(app, force=True)
-            self.logger.info("Built "+app)
+            self.logger.info("Built " + app)
         self.logger.info("Built all apps")
 
     def cmd_build_as_needed(self):
@@ -251,6 +253,7 @@ class Kbxbuilder:
         for app in self.apps:
             self.build_one(app, force=False)
         self.logger.info("Built all needed apps")
+
 
 kbxbuilder = Kbxbuilder()
 kbxbuilder.go()
