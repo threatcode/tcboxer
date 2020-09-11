@@ -13,7 +13,7 @@ use Debian::Debhelper::Dh_Lib qw(%dh dpkg_architecture_value sourcepackage compa
 use parent qw(Debian::Debhelper::Buildsystem);
 
 sub DESCRIPTION {
-	"Kaboxer"
+    "Kaboxer"
 }
 
 sub new {
@@ -38,16 +38,23 @@ sub check_auto_buildable {
 
 sub build {
     my $this=shift;
+    my @kbx_options = ();
+    if ($ENV{'DH_KABOXER_BUILD_TARBALL'}) {
+	push @kbx_options, "--save";
+    }
 
-    $this->doit_in_sourcedir("kaboxer", "--verbose", "build", "--save", @_);
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "build", @kbx_options, @_);
 }
 
 sub install {
     my $this=shift;
     my $destdir=shift;
-
+    my @kbx_options = ("--destdir", "$destdir", "--prefix", "/usr");
+    if ($ENV{'DH_KABOXER_BUILD_TARBALL'}) {
+	push @kbx_options, "--tarball";
+    }
     install_dir("$destdir/usr/share/kaboxer");
-    $this->doit_in_sourcedir("kaboxer", "--verbose", "install", "--destdir", "$destdir", "--prefix", "/usr", "--tarball", @_);
+    $this->doit_in_sourcedir("kaboxer", "--verbose", "install", @kbx_options, @_);
 }
 
 sub clean {
@@ -56,4 +63,4 @@ sub clean {
     $this->doit_in_sourcedir("kaboxer", "--verbose", "clean", @_);
 }
 
-1
+1;
