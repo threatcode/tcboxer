@@ -1,8 +1,45 @@
-kaboxer (0.6) unstable; urgency=medium
+kaboxer (0.6) kali-dev; urgency=medium
 
+  [ Roland Mas ]
   * dh_kaboxer: decorrelate kaboxer apps from binary packages.
+  * Removed debugging message
+  * Only clean generated *.desktop files (fixes #29)
+  * Don't fetch info about unrelated apps in kaboxer prepare (fixes #30)
+  * Fix "kaboxer upgrade foo=1.1"
+  * Gracefully handle URL errors in registries
+  * Handle API-less registries (registry.hub.docker.com) (fixes #28)
+  * Tag image downloaded as 'latest' with its actual version (fixes #31)
+  * Remove debugging output
+  * Simplify and fix dh_kaboxer injections (fixes #34)
+  * Properly handle --prompt-before-detach (fixes #33)
+  * Implement kaboxer stop --component (fixes #32)
+  * Remove temporary container on error (fixes #35)
+  * Fix calculated component name and testsuite
+  * Implement kaboxer get-upstream-version (fixes #36)
+  * Use proper API to get list of images on a registry (fixes #39)
+  * Display packaging revisions in kaboxer list
+  * Implement kaboxer list --skip-headers for scriptability (fixes #37)
+  * Use the "current" tag rather than "latest" (fixes #38)
+  * Fix running of freshly-built image (fixes #43)
 
- -- Roland Mas <roland.mas@gnurandal.com>  Thu, 04 Jun 2020 13:16:31 +0200
+  [ Raphaël Hertzog ]
+  * Follow best practices for Dockerfiles
+  * Use debhelper compat 13 in kbx-hello sample
+  * Let dh_auto_* invocations forward supplementary parameters to the kaboxer
+    command line
+  * Display exception details and URL that we failed to pull
+  * Use only the first line of the description in the Comment field
+  * Fix pyflakes error reporting usage of unknown function
+  * Use --prompt-before-detach instead of --prompt_before_detach
+  * Add a missing space in the kaboxer run command line
+  * Install extracted icon in kbx-hello-allinone
+  * Do not bail out when description or categories are missing
+  * Use registry.hub.docker.com as registry to have a realistic sample
+  * Fix most Python coding style issues
+  * Wrap long lines to 80 characters
+  * dh-kaboxer: don't build the tarball by default
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Fri, 11 Sep 2020 17:39:42 +0200
 
 kaboxer (0.5.1) unstable; urgency=medium
 
