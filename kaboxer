@@ -170,6 +170,7 @@ class Kaboxer:
                 self.logger.error("No access to Docker even though you're a "
                                   "member of the docker group, is "
                                   "docker.service running?")
+                self.show_exception_in_debug_mode()
                 sys.exit(1)
             else:
                 if 'kaboxer' in groups:
@@ -180,6 +181,7 @@ class Kaboxer:
                 else:
                     self.logger.error("No access to Docker, are you a member "
                                       "of group docker or kaboxer?")
+                    self.show_exception_in_debug_mode()
                     sys.exit(1)
 
         self.config_paths = [
@@ -188,6 +190,10 @@ class Kaboxer:
             '/usr/local/share/kaboxer',
             '/usr/share/kaboxer',
         ]
+
+    def show_exception_in_debug_mode(self):
+        if self.args.verbose >= 2:
+            self.logger.exception("The following exception was caught")
 
     def go(self):
         self.args.func()
