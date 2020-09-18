@@ -1,3 +1,11 @@
+kaboxer (0.6.1) kali-dev; urgency=medium
+
+  * Display details of connection exception in debug mode
+  * Refactor the code querying the remote docker registry over HTTP
+  * Fallback to latest tag when we can't identify a version to retrieve
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Fri, 18 Sep 2020 19:04:30 +0200
+
 kaboxer (0.6) kali-dev; urgency=medium
 
   [ Roland Mas ]
