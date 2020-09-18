@@ -1164,27 +1164,37 @@ Categories={{ p.categories }}
                 u2 = 'v2/%s/%s/tags' % (p, i)
                 u2 = re.sub('//', '/', u2)
                 registry_apps[aid]['versions'] = []
-                try:
-                    fullurl = "%s/%s" % (h, u2)
-                    req = requests.get(fullurl)
-                    results = req.json()['results']
-                    registry_apps[aid]['versions'] = []
+                fullurl = "%s/%s" % (h, u2)
+                self.logger.debug("Querying registry on official API URL: %s",
+                                  fullurl)
+                req = requests.get(fullurl)
+                if req.ok:
+                    results = req.json().get('results', [])
                     for r in results:
                         registry_apps[aid]['versions'].append(r['name'])
-                except:
+                else:
+                    self.logger.debug(
+                        "HTTP request failed with status_code = %d",
+                        req.status_code)
                     fullurl = "%s/%s/list" % (h, u2)
-                    try:
-                        req = requests.get(fullurl)
-                        results = req.json()['tags']
-                    except:
-                        continue
-                    for r in results:
-                        registry_apps[aid]['versions'].append(r)
-                curmax = registry_apps[aid]['versions'][0]
-                for tag in registry_apps[aid]['versions']:
-                    if parse_version(tag) > parse_version(curmax):
-                        curmax = tag
-                registry_apps[aid]['maxversion'] = curmax
+                    self.logger.debug("Querying registry on alternate URL: %s",
+                                      fullurl)
+                    req = requests.get(fullurl)
+                    if req.ok:
+                        results = req.json().get('tags', [])
+                        for r in results:
+                            registry_apps[aid]['versions'].append(r)
+                    else:
+                        self.logger.debug(
+                            "HTTP request failed with status_code = %d",
+                            req.status_code)
+
+                curmax = max(registry_apps[aid]['versions'], default=None,
+                             key=lambda x: parse_version(x))
+                if curmax:
+                    self.logger.debug("Maximal version for image %s is %s",
+                                      aid, curmax)
+                    registry_apps[aid]['maxversion'] = curmax
         return (current_apps, registry_apps, tarball_apps, available_apps)
 
     def cmd_list(self):
