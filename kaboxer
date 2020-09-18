@@ -963,10 +963,16 @@ Categories={{ p.categories }}
                 if upgrade:
                     target_version = maxavail
                 self.read_config(app)
+
             if previous_version and upgrade and \
                     parse_version(target_version) <= \
                     parse_version(previous_version):
                 target_version = previous_version
+
+            if not target_version:
+                # We could not find any version info, let's use the latest tag
+                target_version = 'latest'
+
             image_name = self.get_image_name(app)
             full_image_name = '%s:%s' % (image_name, target_version)
             current_image_name = '%s:%s' % (image_name, 'current')
