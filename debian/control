@@ -3,7 +3,7 @@ Section: devel
 Priority: optional
 Maintainer: Kali Developers <devel@kali.org>
 Uploaders: Roland Mas <lolando@debian.org>, Raphaël Hertzog <raphael@offensive-security.com>
-Build-Depends: debhelper-compat (= 12), python3, dh-python
+Build-Depends: debhelper-compat (= 12), python3, dh-python, pandoc
 Standards-Version: 4.5.0
 Homepage: https://gitlab.com/kalilinux/tools/kaboxer
 Vcs-Git: https://gitlab.com/kalilinux/tools/kaboxer.git
