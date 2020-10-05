@@ -50,9 +50,6 @@ itself:
   named *default*; if none is found, it falls back to the first listed
   component.
 
-* *shared* (boolean): whether the components of the app run in a
-  shared container or in separate containers. TODO: remove
-
 * *type* (string): the isolation technology used for the app. Only
   "docker" supported for now.
 

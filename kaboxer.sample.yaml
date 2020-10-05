@@ -29,8 +29,6 @@ container:
         tarball: /usr/share/kaboxer/foo.tar.xz
     # Whether the container can display windows on the desktop
     allow_x11: false
-    # Whether the components share the same container
-    shared: false
     # Default component to execute
     default_component: default
     # Define the network configuration

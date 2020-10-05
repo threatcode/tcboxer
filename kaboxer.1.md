@@ -149,12 +149,6 @@ generated \*.desktop files). If *APP* is omitted, cleans all apps
 corresponding to \*.kaboxer.yaml files found in path *PATH* (current
 directory if omitted).
 
-# KABOXER PULL
-
-**kaboxer** pull *APP*...
-
-Alias for **kaboxer** build. Should not be used. TODO: remove
-
 # KABOXER PUSH
 
 **kaboxer** push [**--version** *VERSION*] *APP*

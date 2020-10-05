@@ -121,10 +121,6 @@ class Kaboxer:
         parser_clean.add_argument('path', nargs='?')
         parser_clean.set_defaults(func=self.cmd_clean)
 
-        parser_pull = subparsers.add_parser('pull', help='fetch image')
-        parser_pull.add_argument('app')
-        parser_pull.set_defaults(func=self.cmd_pull)
-
         parser_push = subparsers.add_parser('push',
                                             help='push image to registry')
         parser_push.add_argument('app')
@@ -1053,9 +1049,6 @@ Categories={{ p.categories }}
                         return
             self.logger.error("Cannot prepare image")
             sys.exit(1)
-
-    def cmd_pull(self):
-        self.cmd_build()
 
     def cmd_purge(self):
         current_apps, _, _, available_apps = self.list_apps()
