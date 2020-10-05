@@ -153,7 +153,7 @@ directory if omitted).
 
 **kaboxer** pull *APP*...
 
-Alias for **kaboxer** build. Should not be used.
+Alias for **kaboxer** build. Should not be used. TODO: remove
 
 # KABOXER PUSH
 
