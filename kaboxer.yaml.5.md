@@ -74,6 +74,8 @@ Since only Docker is supported, the only relevant subsection is
 
 * *file*: the name of the Dockerfile to use
 
+* *parameters*: extra parameters passed to the Docker build
+
 # PACKAGING SECTION
 
 * *revision* (version number): a version number for the Kaboxer
@@ -123,6 +125,9 @@ Each component has its own subsection identified by a component name.
 
 * *start_message* (string): a message to be displayed before
   detaching, if relevant.
+
+* *stop_message* (string): a message to be displayed after the service
+  has stopped.
 
 * *executable* (string): the command line to run within the
   container to start the component.

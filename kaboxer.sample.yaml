@@ -63,10 +63,11 @@ components:
         stop_message: "Thank you for trying out. Have a nice day!"
 # Configuration tweaking the behaviour of "kaboxer build"
 build:
-    # Those parameters are passed downwards to the Dockerfile
-    # via docker build --build-arg=arg=value
-    parameters:
-        arg1: value1
+    docker:
+        # Those parameters are passed downwards to the Dockerfile
+        # via docker build --build-arg=arg=value
+        parameters:
+            arg1: value1
 # Configuration tweaking the behaviour of "kaboxer install"
 install:
     # It must be an absolute path, we assume it points to a scalable or

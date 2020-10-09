@@ -440,7 +440,10 @@ class Kaboxer:
                                   parsed_config['build']['docker']['file'])
             except:
                 df = os.path.join(path, 'Dockerfile')
-            buildargs = {}
+            try:
+                buildargs = parsed_config['build']['docker']['parameters']
+            except:
+                buildargs = {}
             if self.args.version:
                 if not self.args.ignore_version:
                     try:
