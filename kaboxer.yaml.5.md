@@ -118,6 +118,9 @@ Each component has its own subsection identified by a component name.
   run in the same container, this option needs to be present in the
   first component that will be started.
 
+* *run_as_root* (boolean): whether the executable is run as root in
+  the container or as a non-privileged user.
+
 * *reuse container* (boolean): whether the component is run in its
   own container or shares an already active container.
 
@@ -139,6 +142,10 @@ Each component has its own subsection identified by a component name.
   a mount, and is represented by a hash with keys *source* and
   *target*, where *source* is a path on the host side and *target* is
   a path on the container side.
+
+* *publish_ports* (list): a list of ports that are published, so that
+  an application that listens to TCP connections can be accessed from
+  outside the container.
 
 * *extra_opts* (string): extra options to be passed as command line
   arguments when starting the application in the container.
