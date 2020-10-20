@@ -20,4 +20,4 @@ components:
       - kbx-hello
     mounts:
       - source: /var/lib/kbx-hello
-        target: /var/lib/kbx-hello
+        target: /data

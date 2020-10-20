@@ -37,7 +37,7 @@ container:
     # Shared mounts
     mounts:
         - source: /var/lib/kbx-hello
-          target: /var/lib/kbx-hello
+          target: /data
 # Components define what we can "execute" within the container
 # Simple applications will only have one. When you have multiple
 # components, you must define whether the components will be run
