@@ -1,11 +1,10 @@
 variables:
-  KABOXER_BUILD_STAGE: 'build'
   KABOXER_DOCKER_IMAGE: 'kalilinux/kali-rolling'
   KABOXER_BUILD_DIRECTORY: '.'
   KABOXER_APPLICATIONS: ''
 
 build-docker-image:
-  stage: $KABOXER_BUILD_STAGE
+  stage: build
   image: $KABOXER_DOCKER_IMAGE
   variables:
     DOCKER_HOST: tcp://docker:2375
