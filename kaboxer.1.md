@@ -22,7 +22,7 @@
 
 **kaboxer** list [**--installed**] [**--available**] [**--upgradeable**] [**--all**] [**--skip-headers**]
 
-**kaboxer** build [**--save**] [**--push**] [**--version** *VERSION*] [**--ignore-version**] [*APP*] [*PATH*]
+**kaboxer** build [**--skip-image-build**] [**--save**] [**--push**] [**--version** *VERSION*] [**--ignore-version**] [*APP*] [*PATH*]
 
 **kaboxer** install [**--tarball**] [**--destdir** *DESTDIR*] [**--prefix** *PREFIX*] [*APP*] [*PATH*]
 
@@ -117,7 +117,7 @@ scriptability.
 
 # KABOXER BUILD
 
-**kaboxer** build [**--save**] [**--push**] [**--version** *VERSION*] [**--ignore-version**] [*APP*] [*PATH*]
+**kaboxer** build [**--skip-image-build**] [**--save**] [**--push**] [**--version** *VERSION*] [**--ignore-version**] [*APP*] [*PATH*]
 
 Builds **kaboxer** images for applications. Unless an application
 *APP* is specified, builds all applications found in directory *PATH*
@@ -125,8 +125,9 @@ Builds **kaboxer** images for applications. Unless an application
 the image as a tarball. With **--push**, pushes the image to its
 configured registry. With **--version** *VERSION*, passes a version
 number to the build process to build an image for a specific
-version. With **--ignore-version**, ignore version checks embedded in
-the *.kaboxer.yaml file.
+version. With **--ignore-version**, ignores version checks embedded in
+the \*.kaboxer.yaml file. With **--skip-image-build**, only builds
+the desktop files and does not try to build the container image.
 
 # KABOXER INSTALL
 

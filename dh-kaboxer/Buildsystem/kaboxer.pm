@@ -41,7 +41,7 @@ sub build {
     my @kbx_options = ();
 
     if ($this->{build_strategy} eq 'external') {
-	return;
+	push @kbx_options, "--skip-image-build";
     } elsif ($this->{build_strategy} eq 'tarball') {
 	push @kbx_options, "--save";
     }

@@ -92,6 +92,8 @@ class Kaboxer:
         parser_list.set_defaults(func=self.cmd_list)
 
         parser_build = subparsers.add_parser('build', help='build image')
+        parser_build.add_argument("--skip-image-build", action="store_true",
+                                  help='do not build the container image')
         parser_build.add_argument("--save", action="store_true",
                                   help='save container image after build')
         parser_build.add_argument(
@@ -424,7 +426,8 @@ class Kaboxer:
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
-            self.build_image(parsed_config)
+            if not self.args.skip_image_build:
+                self.build_image(parsed_config)
             self.build_desktop_files(parsed_config)
 
     def build_image(self, parsed_config):
