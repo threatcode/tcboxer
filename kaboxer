@@ -421,94 +421,102 @@ class Kaboxer:
             pass
 
     def cmd_build(self):
-        path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Building %s" % (app,))
             parsed_config = parsed_configs[app]
+            self.build_image(parsed_config)
+            self.build_desktop_files(parsed_config)
+
+    def build_image(self, parsed_config):
+        path = self.args.path
+        app = parsed_config['application']['id']
+        self.logger.info("Building container image for %s" % (app,))
+        try:
+            df = os.path.join(path, parsed_config['build']['docker']['file'])
+        except:
+            df = os.path.join(path, 'Dockerfile')
+        try:
+            buildargs = parsed_config['build']['docker']['parameters']
+        except:
+            buildargs = {}
+        if self.args.version:
+            if not self.args.ignore_version:
+                try:
+                    self.do_version_checks(self.args.version, parsed_config)
+                except Exception as e:
+                    self.logger.error(str(e))
+                    sys.exit(1)
+            buildargs['KBX_APP_VERSION'] = self.args.version
+        (image, _) = self.docker_conn.images.build(
+            path=path, dockerfile=df, rm=True, forcerm=True, nocache=True,
+            pull=True, quiet=False, buildargs=buildargs)
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
             try:
-                df = os.path.join(path,
-                                  parsed_config['build']['docker']['file'])
-            except:
-                df = os.path.join(path, 'Dockerfile')
-            try:
-                buildargs = parsed_config['build']['docker']['parameters']
-            except:
-                buildargs = {}
-            if self.args.version:
+                self.extract_file_from_image(image, '/kaboxer/version',
+                                                tmp.name)
+                saved_version = open(tmp.name).readline().strip()
                 if not self.args.ignore_version:
                     try:
-                        self.do_version_checks(self.args.version, parsed_config)
+                        self.do_version_checks(saved_version, parsed_config)
                     except Exception as e:
+                        self.docker_conn.images.remove(image=image.id)
                         self.logger.error(str(e))
                         sys.exit(1)
-                buildargs['KBX_APP_VERSION'] = self.args.version
-            (image, _) = self.docker_conn.images.build(
-                path=path, dockerfile=df, rm=True, forcerm=True, nocache=True,
-                pull=True, quiet=False, buildargs=buildargs)
-            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-                try:
-                    self.extract_file_from_image(image, '/kaboxer/version',
-                                                 tmp.name)
-                    saved_version = open(tmp.name).readline().strip()
-                    if not self.args.ignore_version:
-                        try:
-                            self.do_version_checks(saved_version, parsed_config)
-                        except Exception as e:
-                            self.docker_conn.images.remove(image=image.id)
-                            self.logger.error(str(e))
-                            sys.exit(1)
-                except Exception as e:
-                    if self.args.version:
-                        saved_version = self.args.version
-                        tmp.write(self.args.version)
-                    else:
-                        self.logger.error(
-                            "Unable to determine version (use --version?)")
-                        self.docker_conn.images.remove(image=image.id)
-                        sys.exit(1)
-                tmp.flush()
-                image = self.inject_file_into_image(image, tmp.name,
-                                                    '/kaboxer/version')
-            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-                tmp.write(str(parsed_config['packaging']['revision']) + "\n")
-                tmp.flush()
-                image = self.inject_file_into_image(
-                    image, tmp.name, '/kaboxer/packaging-revision')
-            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-                tmp.write(yaml.dump(sys.argv))
-                tmp.flush()
-                image = self.inject_file_into_image(
-                    image, tmp.name, '/kaboxer/kaboxer-build-cmd')
-                image = self.inject_file_into_image(
-                    image, df, '/kaboxer/Dockerfile')
-            with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
-                savedbuildargs = {
-                    'rm': True,
-                    'forcerm': True,
-                    'path': path,
-                    'dockerfile': df,
-                    'buildargs': buildargs
-                }
-                tmp.write(yaml.dump(savedbuildargs))
-                tmp.flush()
-                image = self.inject_file_into_image(
-                    image, tmp.name, '/kaboxer/docker-build-parameters')
-                tagname = 'kaboxer/%s:%s' % (app, str(saved_version))
+            except Exception as e:
+                if self.args.version:
+                    saved_version = self.args.version
+                    tmp.write(self.args.version)
+                else:
+                    self.logger.error(
+                        "Unable to determine version (use --version?)")
+                    self.docker_conn.images.remove(image=image.id)
+                    sys.exit(1)
+            tmp.flush()
+            image = self.inject_file_into_image(image, tmp.name,
+                                                '/kaboxer/version')
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+            tmp.write(str(parsed_config['packaging']['revision']) + "\n")
+            tmp.flush()
+            image = self.inject_file_into_image(
+                image, tmp.name, '/kaboxer/packaging-revision')
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+            tmp.write(yaml.dump(sys.argv))
+            tmp.flush()
+            image = self.inject_file_into_image(
+                image, tmp.name, '/kaboxer/kaboxer-build-cmd')
+            image = self.inject_file_into_image(
+                image, df, '/kaboxer/Dockerfile')
+        with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
+            savedbuildargs = {
+                'rm': True,
+                'forcerm': True,
+                'path': path,
+                'dockerfile': df,
+                'buildargs': buildargs
+            }
+            tmp.write(yaml.dump(savedbuildargs))
+            tmp.flush()
+            image = self.inject_file_into_image(
+                image, tmp.name, '/kaboxer/docker-build-parameters')
+            tagname = 'kaboxer/%s:%s' % (app, str(saved_version))
+            image.tag(tagname)
+            tagname = 'kaboxer/%s:latest' % (app,)
+            if not self.find_image(tagname):
                 image.tag(tagname)
-                tagname = 'kaboxer/%s:latest' % (app,)
-                if not self.find_image(tagname):
-                    image.tag(tagname)
-            if self.args.save:
-                tarball = os.path.join(
-                    path, parsed_config['application']['id'] + '.tar')
-                self.save_image_to_file(image, tarball)
-            if self.args.push:
-                self.push([saved_version])
-            try:
-                parsed_config['install']['desktop-files']
-            except:
-                self.gen_desktop_files(parsed_config)
+        if self.args.save:
+            tarball = os.path.join(
+                path, parsed_config['application']['id'] + '.tar')
+            self.save_image_to_file(image, tarball)
+        if self.args.push:
+            self.push([saved_version])
+
+    def build_desktop_files(self, parsed_config):
+        app = parsed_config['application']['id']
+        self.logger.info("Building desktop files for %s" % (app,))
+        try:
+            parsed_config['install']['desktop-files']
+        except:
+            self.gen_desktop_files(parsed_config)
 
     def cmd_push(self):
         self.push()
