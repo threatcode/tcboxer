@@ -10,3 +10,6 @@ all: $(MANPAGES)
 
 %.5: %.5.md Makefile
 	pandoc $< -f markdown-smart -s -t man > $@
+
+clean:
+	rm -f $(MANPAGES)
