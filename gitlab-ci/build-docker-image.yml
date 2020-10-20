@@ -1,0 +1,37 @@
+variables:
+  KABOXER_BUILD_STAGE: 'build'
+  KABOXER_DOCKER_IMAGE: 'kalilinux/kali-rolling'
+  KABOXER_BUILD_DIRECTORY: '.'
+  KABOXER_APPLICATIONS: ''
+
+build-docker-image:
+  stage: $KABOXER_BUILD_STAGE
+  image: $KABOXER_DOCKER_IMAGE
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  services:
+    - docker:dind
+  before_script:
+    - apt-get -y update
+    - apt-get -y install docker.io kaboxer curl dpkg-dev
+    - dpkg-source --before-build .  # Apply patches if needed
+    - docker login -u $CI_REGISTRY_USER -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - echo "DOCKER_HOST=$DOCKER_HOST"
+    - echo "DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR"
+    - ls -al $DOCKER_TLS_CERTDIR || true
+    - ls -al / || true
+    - cat /etc/hosts || true
+    - docker info || true
+    #- curl https://gitlab.com/kalilinux/tools/kaboxer/-/raw/debug-ci/kaboxer >/usr/bin/kaboxer
+    #- chmod 755 /usr/bin/kaboxer
+  script:
+    - cd $KABOXER_BUILD_DIRECTORY && kaboxer --verbose --verbose build
+    - |
+        for KABOXER_APP_ID in $KABOXER_APPLICATIONS
+        do
+          for tag in $(docker images --filter="reference=kaboxer/$KABOXER_APP_ID" --format "{{.Tag}}")
+          do
+            docker image tag kaboxer/$KABOXER_APP_ID:$tag $CI_REGISTRY_IMAGE/kaboxer/$KABOXER_APP_ID:$tag
+            docker push $CI_REGISTRY_IMAGE/kaboxer/$KABOXER_APP_ID:$tag
+          done
+        done
