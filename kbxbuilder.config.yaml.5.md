@@ -4,7 +4,7 @@
 
 # NAME
 
-*kbxbuilder.config.yaml* – Configuration file for **kbxbuilder**
+*kbxbuilder.config.yaml* - Configuration file for **kbxbuilder**
 
 # SYNOPSIS
 

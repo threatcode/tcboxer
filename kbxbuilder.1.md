@@ -4,7 +4,7 @@
 
 # NAME
 
-**kbxbuilder** – builder for Kaboxer images
+**kbxbuilder** - builder for Kaboxer images
 
 # SYNOPSIS
 

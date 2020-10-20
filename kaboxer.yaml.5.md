@@ -4,7 +4,7 @@
 
 # NAME
 
-*kaboxer.yaml* – Configuration file for **kaboxer**
+*kaboxer.yaml* - Configuration file for **kaboxer**
 
 # SYNOPSIS
 

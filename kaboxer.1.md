@@ -4,7 +4,7 @@
 
 # NAME
 
-**kaboxer** – Kali Application boxes
+**kaboxer** - Manage Kali Applications in containers
 
 # SYNOPSIS
 
