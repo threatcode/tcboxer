@@ -101,7 +101,7 @@ class Kaboxer:
         parser_build.add_argument("--ignore-version", action="store_true",
                                   help='ignore version checks')
         parser_build.add_argument('app', nargs='?')
-        parser_build.add_argument('path', nargs='?')
+        parser_build.add_argument('path', nargs='?', default=os.getcwd())
         parser_build.set_defaults(func=self.cmd_build)
 
         parser_install = subparsers.add_parser('install', help='install image')
@@ -113,12 +113,12 @@ class Kaboxer:
             "--prefix", help='prefix for the installation path',
             default='/usr/local')
         parser_install.add_argument('app', nargs='?')
-        parser_install.add_argument('path', nargs='?')
+        parser_install.add_argument('path', nargs='?', default=os.getcwd())
         parser_install.set_defaults(func=self.cmd_install)
 
         parser_clean = subparsers.add_parser('clean', help='clean directory')
         parser_clean.add_argument('app', nargs='?')
-        parser_clean.add_argument('path', nargs='?')
+        parser_clean.add_argument('path', nargs='?', default=os.getcwd())
         parser_clean.set_defaults(func=self.cmd_clean)
 
         parser_push = subparsers.add_parser('push',
@@ -377,13 +377,7 @@ class Kaboxer:
         print(self.get_meta_file(image, 'version'))
 
     def find_config_for_build_apps(self):
-        try:
-            if self.args.path is None:
-                path = os.getcwd()
-            else:
-                path = self.args.path
-        except:
-            path = os.getcwd()
+        path = self.args.path
         yamlfiles = []
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         parsed_configs = {}
@@ -427,10 +421,7 @@ class Kaboxer:
             pass
 
     def cmd_build(self):
-        if self.args.path is None:
-            path = os.getcwd()
-        else:
-            path = self.args.path
+        path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
             self.logger.info("Building %s" % (app,))
@@ -639,11 +630,7 @@ Categories={{ p.categories }}
                     outfile.write(t.render(p=params))
 
     def cmd_clean(self):
-        if self.args.path is None:
-            path = os.getcwd()
-        else:
-            path = self.args.path
-        path = os.path.realpath(path)
+        path = os.path.realpath(self.args.path)
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
             self.logger.info("Cleaning %s" % (app,))
@@ -690,10 +677,7 @@ Categories={{ p.categories }}
 
     def cmd_install(self):
         main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
-        if self.args.path is None:
-            path = os.getcwd()
-        else:
-            path = self.args.path
+        path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
             self.logger.info("Installing %s" % (app,))
