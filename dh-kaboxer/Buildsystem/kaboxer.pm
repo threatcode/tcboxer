@@ -19,8 +19,8 @@ sub DESCRIPTION {
 sub new {
     my $class = shift;
     my $this = $class->SUPER::new(@_);
-    #$this->prefer_out_of_source_building();
     $this->{build_artifact_prefix}='kaboxerbuild-';
+    $this->{build_strategy} = $ENV{'DH_KABOXER_BUILD_STRATEGY'} // "external";
     return $this;
 }
 
@@ -39,7 +39,10 @@ sub check_auto_buildable {
 sub build {
     my $this=shift;
     my @kbx_options = ();
-    if ($ENV{'DH_KABOXER_BUILD_TARBALL'}) {
+
+    if ($this->{build_strategy} eq 'external') {
+	return;
+    } elsif ($this->{build_strategy} eq 'tarball') {
 	push @kbx_options, "--save";
     }
 
@@ -50,7 +53,7 @@ sub install {
     my $this=shift;
     my $destdir=shift;
     my @kbx_options = ("--destdir", "$destdir", "--prefix", "/usr");
-    if ($ENV{'DH_KABOXER_BUILD_TARBALL'}) {
+    if ($this->{build_strategy} eq 'tarball') {
 	push @kbx_options, "--tarball";
     }
     install_dir("$destdir/usr/share/kaboxer");
