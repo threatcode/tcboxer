@@ -8,7 +8,7 @@
 
 # SYNOPSIS
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-detach**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-detach**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
 
 **kaboxer** stop [**--component** *COMPONENT*] *APP*
 
@@ -54,7 +54,7 @@ their own arguments and options.
 
 # KABOXER RUN
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-detach**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-detach**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
 
 The run mode is how you actually run a kaboxed application *APP*. In
 case several components exist for this app, use
