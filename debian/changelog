@@ -1,9 +1,21 @@
-kaboxer (0.6.2) UNRELEASED; urgency=medium
+kaboxer (0.6.2) kali-dev; urgency=medium
 
+  [ Roland Mas ]
   * Added kaboxer(1), kaboxer.yaml(5), kbxbuilder(1),
     kbxbuilder.config.yaml(5) and kbxbuilder.apps.yaml(5) man pages.
+  * Add "make clean" to remove generated manpages
+  * Use /data rather than /var/lib/kbx-hello inside the container
+  * Document run_as_root and publish_ports
 
- -- Roland Mas <roland.mas@gnurandal.com>  Wed, 14 Oct 2020 17:24:16 +0200
+  [ Raphaël Hertzog ]
+  * Implement DH_KABOXER_BUILD_STRATEGY
+  * Add manual pages to the binary package
+  * Fix whatis entry in manual pages
+  * Define the default value of the path argument at the argument parsing level
+  * Implement "kaboxer build --skip-image-build" and use that in dh-kaboxer
+  * Add some common gitlab-ci rules to build a docker image for a kaboxer app
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Thu, 22 Oct 2020 18:09:54 +0200
 
 kaboxer (0.6.1) kali-dev; urgency=medium
 
