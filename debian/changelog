@@ -1,3 +1,9 @@
+kaboxer (0.6.3) kali-dev; urgency=medium
+
+  * Don't fail at startup if we don't have docker access
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Thu, 22 Oct 2020 22:29:31 +0200
+
 kaboxer (0.6.2) kali-dev; urgency=medium
 
   [ Roland Mas ]
