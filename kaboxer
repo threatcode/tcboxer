@@ -159,35 +159,55 @@ class Kaboxer:
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
 
-        try:
-            self.docker_conn = docker.from_env()
-            self.docker_conn.containers.list()
-        except:
-            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
-            if 'docker' in groups:
-                self.logger.error("No access to Docker even though you're a "
-                                  "member of the docker group, is "
-                                  "docker.service running?")
-                self.show_exception_in_debug_mode()
-                sys.exit(1)
-            else:
-                if 'kaboxer' in groups:
-                    nc = ['sudo', '-g', 'docker'] + sys.argv
-                    sys.stdout.flush()
-                    sys.stderr.flush()
-                    os.execv('/usr/bin/sudo', nc)
-                else:
-                    self.logger.error("No access to Docker, are you a member "
-                                      "of group docker or kaboxer?")
-                    self.show_exception_in_debug_mode()
-                    sys.exit(1)
-
         self.config_paths = [
             '.',
             '/etc/kaboxer',
             '/usr/local/share/kaboxer',
             '/usr/share/kaboxer',
         ]
+
+        self.setup_docker()
+        if not self.docker_is_working():
+            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
+            if 'kaboxer' in groups and 'docker' not in groups:
+                # Try to elevate the privileges to docker group if we can
+                nc = ['sudo', '-g', 'docker'] + sys.argv
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.execv('/usr/bin/sudo', nc)
+            # Force a new test on first real access if any
+            delattr(self, '_docker_conn')
+
+    def setup_docker(self):
+        self._docker_conn = docker.from_env()
+        return self._docker_conn
+
+    def docker_is_working(self):
+        try:
+            self._docker_conn.containers.list()
+            return True
+        except:
+            self.show_exception_in_debug_mode()
+            return False
+
+    @property
+    def docker_conn(self):
+        if hasattr(self, '_docker_conn'):
+            return self._docker_conn
+
+        self.setup_docker()
+        if self.docker_is_working():
+            return self._docker_conn
+        else:
+            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
+            if 'docker' in groups:
+                self.logger.error("No access to Docker even though you're a "
+                                  "member of the docker group, is "
+                                  "docker.service running?")
+            else:
+                self.logger.error("No access to Docker, are you a member "
+                                  "of group docker or kaboxer?")
+            sys.exit(1)
 
     def show_exception_in_debug_mode(self):
         if self.args.verbose >= 2:
