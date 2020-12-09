@@ -112,10 +112,12 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.build()
 
     def test_log_levels(self):
-        self.run_command_check_stderr_matches("kaboxer -v build",
-                                                   "Building %s" % (self.app_name,))
-        self.run_command_check_stderr_doesnt_match("kaboxer build",
-                                                   "Building %s" % (self.app_name,))
+        self.run_command_check_stderr_matches(
+            "kaboxer -v build",
+            "Building container image for %s" % (self.app_name,))
+        self.run_command_check_stderr_doesnt_match(
+            "kaboxer build",
+            "Building container image for %s" % (self.app_name,))
 
     def test_build_and_save(self):
         self.run_and_check_command("kaboxer build --save")
