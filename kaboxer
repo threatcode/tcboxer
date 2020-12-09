@@ -756,20 +756,22 @@ Categories={{ p.categories }}
             # Update it first if we ship the tarball
             with tempfile.TemporaryDirectory() as td:
                 filtered_config_file = parsed_config.copy()
-                del(filtered_config_file['_config_file'])
                 tf = os.path.join(td, app + '.kaboxer.yaml')
                 if self.args.tarball:
-                    try:
-                        origin = filtered_config_file['container']['origin']
-                        del(origin['registry'])
-                    except:
-                        pass
-                    if 'origin' not in filtered_config_file['container']:
-                        filtered_config_file['container']['origin'] = {}
-                    filtered_config_file['container']['origin']['tarball'] = (
-                        os.path.join(main_destpath, app + '.tar'))
-                with open(tf, 'w') as y:
-                    y.write(yaml.dump(filtered_config_file))
+                    # Rewrite the YAML file with the tarball data
+                    del(filtered_config_file['_config_file'])
+                    origin_data = {
+                        'tarball': os.path.join(main_destpath, app + '.tar'),
+                    }
+                    if 'container' not in filtered_config_file:
+                        filtered_config_file['container'] = {}
+                    filtered_config_file['container']['origin'] = origin_data
+                    with open(tf, 'w') as y:
+                        y.write(yaml.dump(filtered_config_file))
+                else:
+                    # Copy over the unmodified file
+                    shutil.copy(parsed_config['_config_file'], tf)
+
                 self.install_to_path(tf, main_destpath)
             # Install desktop file(s)
             desktopfiles = self._list_desktop_files(parsed_config)
