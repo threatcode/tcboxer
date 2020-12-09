@@ -8,9 +8,9 @@
 
 # SYNOPSIS
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-detach**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
 
-**kaboxer** stop [**--component** *COMPONENT*] *APP*
+**kaboxer** stop [**--component** *COMPONENT*] [**--prompt-before-exit**] *APP*
 
 **kaboxer** get-meta-file *APP* *FILE*
 
@@ -54,7 +54,7 @@ their own arguments and options.
 
 # KABOXER RUN
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-detach**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
 
 The run mode is how you actually run a kaboxed application *APP*. In
 case several components exist for this app, use
@@ -62,20 +62,22 @@ case several components exist for this app, use
 components are intended to run in the same container (rather than in
 different but communicating containers), use **--reuse-container**. If
 the component is meant to run in the background as a daemon, use
-**--detach** flag, possibly with the **--prompt-before-detach** flag
-(which can be used to display relevant information before going to
-background). In case several versions of the app are installed, the
-**--version** *VERSION* option can be used to select which one to
-actually run. The *EXECUTABLE* parameter can be used to pass extra
-arguments to the application.
+**--detach** flag, possibly with the **--prompt-before-exit** flag
+(which waits a user confirmation before exiting, so that the user has the
+time to read any message displayed or so that applications started in the
+after\_run hook are not immediately closed). In case several versions of
+the app are installed, the **--version** *VERSION* option can be used to
+select which one to actually run. The *EXECUTABLE* parameter can be used
+to pass extra arguments to the application.
 
 # KABOXER STOP
 
-**kaboxer** stop [**--component** *COMPONENT*] *APP*
+**kaboxer** stop [**--component** *COMPONENT*] [**--prompt-before-exit**] *APP*
 
 Stops a running container for application *APP*. Specify
 **--component** *COMPONENT* if the app is multi-component to select
-which one to stope
+which one to stop. Use **--prompt-before-exit** to wait a user
+confirmation before exiting.
 
 # KABOXER GET-META-FILE
 

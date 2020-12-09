@@ -43,8 +43,8 @@ class Kaboxer:
                                 help='run in existing container')
         parser_run.add_argument("--detach", help='run in the background',
                                 action="store_true")
-        parser_run.add_argument("--prompt-before-detach", action="store_true",
-                                help='display message before detaching')
+        parser_run.add_argument("--prompt-before-exit", action="store_true",
+                                help='wait user confirmation before exit')
         parser_run.add_argument("--version", help='version to run')
         parser_run.add_argument('executable', nargs='*')
         parser_run.set_defaults(func=self.cmd_run)
@@ -53,6 +53,8 @@ class Kaboxer:
             'stop', help='stop running containerized app')
         parser_stop.add_argument('app')
         parser_stop.add_argument("--component", help='component to stop')
+        parser_stop.add_argument("--prompt-before-exit", action="store_true",
+                                 help='wait user confirmation before exit')
         parser_stop.set_defaults(func=self.cmd_stop)
 
         parser_get_meta_file = subparsers.add_parser(
@@ -388,13 +390,13 @@ class Kaboxer:
 
         self.run_hook_script('after_run')
 
-        component_name = self.component_config['name']
-        start_message = self.component_config.get(
-            'start_message', '%s started' % (component_name, ))
         if self.args.detach:
+            component_name = self.component_config['name']
+            start_message = self.component_config.get(
+                'start_message', '%s started' % (component_name, ))
             print(start_message)
-            if self.args.prompt_before_detach:
-                prompt_toolkit.prompt("Press ENTER to exit")
+        if self.args.prompt_before_exit:
+            prompt_toolkit.prompt("Press ENTER to exit")
 
     def cmd_stop(self):
         app = self.args.app
@@ -410,8 +412,10 @@ class Kaboxer:
                 stop_message = "%s stopped" % (component_name, )
             self.run_hook_script('before_stop')
             container.stop()
-            print(stop_message)
             self.run_hook_script('after_stop')
+            print(stop_message)
+            if self.args.prompt_before_exit:
+                prompt_toolkit.prompt("Press ENTER to exit")
         else:
             self.logger.error("Can't stop a non-headless component")
             sys.exit(1)
@@ -664,7 +668,7 @@ Categories={{ p.categories }}
                 params['name'] = "Start %s" % (component_name,)
                 params['terminal'] = 'true'
                 params['exec'] = (
-                    "kaboxer run --detach --prompt-before-detach %s "
+                    "kaboxer run --detach --prompt-before-exit %s"
                     "--component %s %s" %
                     (params['reuse_container'], params['component'],
                      params['appid']))
@@ -674,10 +678,12 @@ Categories={{ p.categories }}
                     outfile.write(t.render(p=params))
                 # One .desktop file for stopping
                 params['name'] = "Stop %s" % (component_name,)
-                params['terminal'] = 'false'
-                params['exec'] = "kaboxer stop %s--component %s %s" % (
-                    params['reuse_container'], params['component'],
-                    params['appid'])
+                params['terminal'] = 'true'
+                params['exec'] = (
+                    "kaboxer stop --prompt-before-exit %s"
+                    "--component %s %s" %
+                    (params['reuse_container'], params['component'],
+                     params['appid']))
                 ofname = 'kaboxer-%s-%s-stop.desktop' % (
                     parsed_config['application']['id'], component)
                 with open(ofname, 'w') as outfile:
