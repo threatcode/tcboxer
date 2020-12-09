@@ -3,6 +3,7 @@
 import argparse
 import yaml
 import os
+import stat
 import sys
 import re
 import grp
@@ -216,6 +217,36 @@ class Kaboxer:
     def go(self):
         self.args.func()
 
+    def run_hook_script(self, event, stop_on_failure=False):
+        key = event + '_script'
+
+        if key not in self.component_config:
+            return
+        script_content = self.component_config[key]
+        if len(script_content) == 0:
+            return
+
+        if script_content.startswith('#!'):
+            tmp_script = tempfile.NamedTemporaryFile(
+                delete=False, prefix='kaboxer-hook-script')
+            tmp_script.write(script_content.encode('utf8'))
+            tmp_script.close()
+            os.chmod(tmp_script.name, stat.S_IRWXU | stat.S_IRGRP |
+                     stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+            result = subprocess.run([tmp_script.name])
+            os.unlink(tmp_script.name)
+        else:
+            result = subprocess.run([script_content], shell=True)
+
+        if result.returncode != 0:
+            message = "%s hook script failed with returncode %d" % (
+                event, result.returncode)
+            if stop_on_failure:
+                self.logger.error(message)
+                sys.exit(1)
+            else:
+                self.logger.warning(message)
+
     def cmd_run(self):
         app = self.args.app
         if self.args.version:
@@ -231,6 +262,8 @@ class Kaboxer:
         image = '%s:%s' % (image_name, tag_name)
 
         self.logger.debug("Image " + image)
+
+        self.run_hook_script('before_run', stop_on_failure=True)
 
         if self.args.reuse_container:
             containers = self.docker_conn.containers.list(filters={'name': app})
@@ -362,6 +395,8 @@ class Kaboxer:
                 if self.args.prompt_before_detach:
                     prompt_toolkit.prompt("Press ENTER to exit")
 
+        self.run_hook_script('after_run')
+
     def cmd_stop(self):
         app = self.args.app
         self.read_config(app)
@@ -374,8 +409,10 @@ class Kaboxer:
                 stop_message = self.component_config['stop_message']
             except:
                 stop_message = "%s stopped" % (component_name, )
+            self.run_hook_script('before_stop')
             container.stop()
             print(stop_message)
+            self.run_hook_script('after_stop')
         else:
             self.logger.error("Can't stop a non-headless component")
             sys.exit(1)

@@ -61,6 +61,20 @@ components:
         start_message: "See your message at http://localhost:8000"
         # Displayed on the terminal after service has stopped
         stop_message: "Thank you for trying out. Have a nice day!"
+        # Hook scripts
+        before_run_script: |
+          #!/bin/sh
+          echo "Executed before application starts"
+        after_run_script: |
+          #!/bin/sh
+          echo "Executed after application has run"
+          echo "Or after headless application has started"
+        before_stop_script: |
+          #!/bin/sh
+          echo "Executed before headless application is stopped"
+        after_stop_script: |
+          #!/bin/sh
+          echo "Executed after headless application is stopped"
 # Configuration tweaking the behaviour of "kaboxer build"
 build:
     docker:
