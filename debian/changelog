@@ -1,3 +1,9 @@
+kaboxer (0.6.4) UNRELEASED; urgency=medium
+
+  * Add support for hook scripts
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Wed, 09 Dec 2020 15:51:16 +0100
+
 kaboxer (0.6.3) kali-dev; urgency=medium
 
   * Don't fail at startup if we don't have docker access
