@@ -385,17 +385,16 @@ class Kaboxer:
             for e in extranets:
                 self.create_network(e).connect(container)
             dockerpty.start(self.docker_conn.api, container.id)
-            component_name = self.component_config['name']
-            try:
-                start_message = self.component_config['start_message']
-            except:
-                start_message = "%s started" % (component_name, )
-            if self.args.detach:
-                print(start_message)
-                if self.args.prompt_before_detach:
-                    prompt_toolkit.prompt("Press ENTER to exit")
 
         self.run_hook_script('after_run')
+
+        component_name = self.component_config['name']
+        start_message = self.component_config.get(
+            'start_message', '%s started' % (component_name, ))
+        if self.args.detach:
+            print(start_message)
+            if self.args.prompt_before_detach:
+                prompt_toolkit.prompt("Press ENTER to exit")
 
     def cmd_stop(self):
         app = self.args.app
