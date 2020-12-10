@@ -1,8 +1,32 @@
-kaboxer (0.6.4) UNRELEASED; urgency=medium
+kaboxer (0.7.0) kali-dev; urgency=medium
 
   * Add support for hook scripts
+  * Move exit prompt after after_run hook
+  * Replace --prompt-before-detach by --prompt-before-exit
+  * Do not rewrite the YAML file when we don't ship a tarball
+  * Ensure kaboxer push also updates the "latest" tag when needed
+  * Fix most Python coding style issues in the testsuite
+  * Document the {before,after}_{run,stop}_script config keys
+  * Drop useless dependencies on confget and python3-distutils
+  * Make kaboxer/kbxbuilder importable as a library
+  * Switch kaboxer into a full-blown Python project
+  * Move dh-kaboxer back to debian packaging
+  * Move manual pages into a sub-directory
+  * Extend the Python metadata
+  * Move Python modules to build dependencies
+  * Drop unused /etc/kaboxer directory
+  * Fix copyright file to mention Offensive Security
+  * Add unit tests framework and basic tox configuration
+  * More style cleanup to please flake8
+  * Enable tests with tox in debian/rules
+  * Avoid direct usage of dpkg-parsechangelog
+  * Add ${perl:Depends} for dh_kaboxer
+  * Provide a longer description in debian/control
+  * Switch to debhelper compat level 13
+  * Bump Standards-Version to 4.5.1
+  * Add logging to help in debugging
 
- -- Raphaël Hertzog <raphael@offensive-security.com>  Wed, 09 Dec 2020 15:51:16 +0100
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Thu, 10 Dec 2020 22:36:16 +0100
 
 kaboxer (0.6.3) kali-dev; urgency=medium
 
