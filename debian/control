@@ -20,7 +20,7 @@ Build-Depends:
  python3-tabulate,
  python3-yaml,
  tox,
-Standards-Version: 4.5.0
+Standards-Version: 4.5.1
 Homepage: https://gitlab.com/kalilinux/tools/kaboxer
 Vcs-Git: https://gitlab.com/kalilinux/tools/kaboxer.git
 Vcs-Browser: https://gitlab.com/kalilinux/tools/kaboxer
