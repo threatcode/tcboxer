@@ -18,11 +18,9 @@ Vcs-Browser: https://gitlab.com/kalilinux/tools/kaboxer
 Package: kaboxer
 Architecture: all
 Depends:
- confget,
  docker.io,
  libfile-copy-recursive-perl,
  libyaml-libyaml-perl,
- python3-distutils,
  python3-docker,
  python3-dockerpty,
  python3-git,
