@@ -1,7 +1,11 @@
 #!/usr/bin/make -f
 
 %:
-	dh $@ --with python3
+	dh $@ --with python3 --buildsystem=pybuild
+
+execute_before_dh_auto_configure:
+	# Ensure we have the correct version in the Python metadata
+	dpkg-parsechangelog -SVersion >VERSION
 
 override_dh_compress:
 	dh_compress -X kbx-hello

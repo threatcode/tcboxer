@@ -1,9 +1,0 @@
-dh-kaboxer/Buildsystem/kaboxer.pm /usr/share/perl5/Debian/Debhelper/Buildsystem
-dh-kaboxer/Sequence/kaboxer.pm /usr/share/perl5/Debian/Debhelper/Sequence
-dh-kaboxer/dh_kaboxer /usr/bin
-dh-kaboxer/postinst-kaboxer /usr/share/debhelper/autoscripts
-dh-kaboxer/postrm-kaboxer /usr/share/debhelper/autoscripts
-kaboxer /usr/bin
-kbx-hello /usr/share/doc/kaboxer/examples
-kbxbuilder /usr/bin
-sudoers.d/kaboxer /etc/sudoers.d
