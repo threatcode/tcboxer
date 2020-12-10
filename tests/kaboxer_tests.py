@@ -67,7 +67,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output when running %s"%(cmd,)
-        self.assertTrue(re.search(expected,o.stdout,re.MULTILINE),unexpected_msg + " (%s doesn't match %s)" % (o.stdout, expected))
+        self.assertTrue(re.search(expected,o.stdout,re.MULTILINE),unexpected_msg + " (%s doesn't match %s)\nSTDERR=%s" % (o.stdout, expected, o.stderr))
 
     def run_command_check_stdout_doesnt_match(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
@@ -76,7 +76,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.assertEqual(o.returncode,0,fail_msg)
         if unexpected_msg is None:
             unexpected_msg = "Unexpected output when running %s"%(cmd,)
-        self.assertFalse(re.search(expected,o.stdout,re.MULTILINE),unexpected_msg + " (%s matches %s)" % (o.stdout, expected))
+        self.assertFalse(re.search(expected,o.stdout,re.MULTILINE),unexpected_msg + " (%s matches %s)\nSTDERR=%s" % (o.stdout, expected, o.stderr))
 
     def run_command_check_stderr_matches(self,cmd,expected,fail_msg=None,unexpected_msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True, capture_output=True, text=True)
@@ -389,6 +389,7 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
 class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
     def test_build_with_push_and_fetch(self):
         self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_and_check_command("kaboxer push kbx-demo")
         self.remove_images()
         if self.is_image_present():
             self.run_command("docker image rm %s" % (self.app_name,))
@@ -420,7 +421,7 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
     def test_list_registry(self):
         self.run_and_check_command("kaboxer build --push kbx-demo")
         self.remove_images()
-        self.run_command_check_stdout_matches("kaboxer list --available",
+        self.run_command_check_stdout_matches("kaboxer -v -v list --available",
                                               "kbx-demo\s+[-a-z]+\s+1.0",
                                               unexpected_msg="Image not available in registry")
         self.assertFalse(self.is_image_present(),
