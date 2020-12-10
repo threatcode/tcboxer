@@ -1084,7 +1084,7 @@ Categories={{ p.categories }}
             current_image_name = '%s:%s' % (image_name, 'current')
             if previous_version == target_version:
                 self.logger.debug('Stopping because previous==target (%s==%s)',
-                                   previous_version, target_version)
+                                  previous_version, target_version)
                 return
             config = self.load_config(app)
             try:
@@ -1092,7 +1092,7 @@ Categories={{ p.categories }}
                     max_avail_version = parse_version(
                         available_apps[app]['maxversion']['version'])
                     self.logger.debug('max_avail_version = %s',
-                                       max_avail_version)
+                                      max_avail_version)
                     if max_avail_version == parse_version(target_version):
                         image = self.find_image(full_image_name)
                         image.tag(current_image_name)
