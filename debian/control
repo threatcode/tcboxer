@@ -6,7 +6,7 @@ Uploaders:
  Roland Mas <lolando@debian.org>,
  Raphaël Hertzog <raphael@offensive-security.com>
 Build-Depends:
- debhelper-compat (= 12),
+ debhelper-compat (= 13),
  dh-python,
  pandoc,
  python3,
