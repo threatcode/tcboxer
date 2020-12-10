@@ -8,14 +8,14 @@ from setuptools import setup
 class MyBuild(build):
     def run(self):
         # Build manual pages
-        os.system("make")
+        os.system("make -C man")
         super().run()
 
 
 class MyClean(clean):
     def run(self):
         # Clean manual pages
-        os.system("make clean")
+        os.system("make -C man clean")
         super().run()
 
 
