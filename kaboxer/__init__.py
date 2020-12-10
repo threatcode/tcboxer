@@ -1045,20 +1045,20 @@ Categories={{ p.categories }}
                 try:
                     maxavail = available_apps[app]['maxversion']['version']
                 except KeyError:
-                    pass
+                    self.logger.debug("No version in local repository")
                 try:
                     tarball_ver = parse_version(tarball_apps[app]['version'])
                     if maxavail == '' or tarball_ver > parse_version(maxavail):
                         maxavail = tarball_apps[app]['version']
                 except KeyError:
-                    pass
+                    self.logger.debug("No version found in tarball")
                 try:
                     registry_ver = parse_version(
                         registry_apps[app]['maxversion'])
                     if maxavail == '' or registry_ver > parse_version(maxavail):
                         maxavail = registry_apps[app]['maxversion']
                 except KeyError:
-                    pass
+                    self.logger.debug("No version found in remote registry")
 
                 if app in current_apps:
                     previous_version = current_apps[app]['version']
@@ -1076,18 +1076,23 @@ Categories={{ p.categories }}
 
             if not target_version:
                 # We could not find any version info, let's use the latest tag
+                self.logger.debug("No target version identified, use latest")
                 target_version = 'latest'
 
             image_name = self.get_image_name(app)
             full_image_name = '%s:%s' % (image_name, target_version)
             current_image_name = '%s:%s' % (image_name, 'current')
             if previous_version == target_version:
+                self.logger.debug('Stopping because previous==target (%s==%s)',
+                                   previous_version, target_version)
                 return
             config = self.load_config(app)
             try:
                 try:
                     max_avail_version = parse_version(
                         available_apps[app]['maxversion']['version'])
+                    self.logger.debug('max_avail_version = %s',
+                                       max_avail_version)
                     if max_avail_version == parse_version(target_version):
                         image = self.find_image(full_image_name)
                         image.tag(current_image_name)
@@ -1097,8 +1102,10 @@ Categories={{ p.categories }}
                 except Exception:
                     self.show_exception_in_debug_mode()
                 if 'registry' in config['container']['origin']:
+                    self.logger.debug("Trying to find image in registry")
                     found_image = self.find_image(full_image_name)
                     if found_image:
+                        self.logger.debug("Found in local registry")
                         found_image.tag(current_image_name)
                     else:
                         image = self.docker_pull(full_image_name,
