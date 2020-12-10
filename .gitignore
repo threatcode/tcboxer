@@ -1,6 +1,9 @@
-/kaboxer.1
-/kaboxer.yaml.5
-/kbxbuilder.1
-/kbxbuilder.config.yaml.5
-/kbxbuilder.apps.yaml.5
+man/kaboxer.1
+man/kaboxer.yaml.5
+man/kbxbuilder.1
+man/kbxbuilder.config.yaml.5
+man/kbxbuilder.apps.yaml.5
 .ropeproject/
+__pycache__/
+.tox/
+kaboxer.egg-info/

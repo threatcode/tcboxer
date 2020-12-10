@@ -1,4 +1,3 @@
-Test-Command: systemctl start docker;python3 -m unittest tests.kaboxer_tests.TestKaboxerLocally 2>&1
-Restrictions: needs-root
-Depends:
- kaboxer
+Test-Command: systemctl start docker;python3 -m unittest tests.kaboxer_tests.TestKaboxerLocally
+Restrictions: needs-root, allow-stderr
+Depends: kaboxer

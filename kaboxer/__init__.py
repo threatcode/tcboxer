@@ -28,7 +28,7 @@ from packaging.version import parse as parse_version
 
 class Kaboxer:
     def __init__(self):
-        self.parser = argparse.ArgumentParser()
+        self.parser = argparse.ArgumentParser(prog='kaboxer')
         self.parser.add_argument('--verbose', '-v', action='count', default=0,
                                  help='increase verbosity')
 
@@ -149,8 +149,14 @@ class Kaboxer:
                                   help='prune unused images')
         parser_purge.set_defaults(func=self.cmd_purge)
 
-        self.args = self.parser.parse_args()
+        self.config_paths = [
+            '.',
+            '/etc/kaboxer',
+            '/usr/local/share/kaboxer',
+            '/usr/share/kaboxer',
+        ]
 
+    def setup_logging(self):
         loglevels = {
             0: 'ERROR',
             1: 'INFO',
@@ -163,25 +169,6 @@ class Kaboxer:
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
 
-        self.config_paths = [
-            '.',
-            '/etc/kaboxer',
-            '/usr/local/share/kaboxer',
-            '/usr/share/kaboxer',
-        ]
-
-        self.setup_docker()
-        if not self.docker_is_working():
-            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
-            if 'kaboxer' in groups and 'docker' not in groups:
-                # Try to elevate the privileges to docker group if we can
-                nc = ['sudo', '-g', 'docker'] + sys.argv
-                sys.stdout.flush()
-                sys.stderr.flush()
-                os.execv('/usr/bin/sudo', nc)
-            # Force a new test on first real access if any
-            delattr(self, '_docker_conn')
-
     def setup_docker(self):
         self._docker_conn = docker.from_env()
         return self._docker_conn
@@ -191,7 +178,6 @@ class Kaboxer:
             self._docker_conn.containers.list()
             return True
         except Exception:
-            self.show_exception_in_debug_mode()
             return False
 
     @property
@@ -218,6 +204,20 @@ class Kaboxer:
             self.logger.exception("The following exception was caught")
 
     def go(self):
+        self.args = self.parser.parse_args()
+        self.setup_logging()
+        self.setup_docker()
+        if not self.docker_is_working():
+            groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
+            if 'kaboxer' in groups and 'docker' not in groups:
+                # Try to elevate the privileges to docker group if we can
+                nc = ['sudo', '-g', 'docker'] + sys.argv
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.execv('/usr/bin/sudo', nc)
+            # Force a new test on first real access if any
+            delattr(self, '_docker_conn')
+
         self.args.func()
 
     def run_hook_script(self, event, stop_on_failure=False):
