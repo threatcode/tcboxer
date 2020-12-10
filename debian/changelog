@@ -1,3 +1,10 @@
+kaboxer (0.7.1) kali-dev; urgency=medium
+
+  * Fix missed flake8 error
+  * Do not run flake8 tests during build
+
+ -- Raphaël Hertzog <raphael@offensive-security.com>  Thu, 10 Dec 2020 22:52:09 +0100
+
 kaboxer (0.7.0) kali-dev; urgency=medium
 
   * Add support for hook scripts
