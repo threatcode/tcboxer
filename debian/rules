@@ -11,7 +11,7 @@ execute_before_dh_auto_configure:
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	tox
+	tox $(shell tox -l | grep unit-tests | sed -e 's/^/-e /' | tr '\n' ' ')
 endif
 
 override_dh_compress:
