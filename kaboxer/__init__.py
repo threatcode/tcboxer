@@ -1,29 +1,37 @@
 #! /usr/bin/python3
 
 import argparse
-import yaml
-import os
-import stat
-import sys
-import re
+import glob
 import grp
-import subprocess
+import io
+import json
+import logging
+import os
+import pathlib
+import re
 import shlex
 import shutil
-import io
+import stat
+import subprocess
+import sys
 import tarfile
-import glob
-import docker
-import dockerpty
-import jinja2
-import prompt_toolkit
 import tempfile
-import pathlib
-import logging
-import requests
-import json
-import tabulate
+
+import docker
+
+import dockerpty
+
+import jinja2
+
 from packaging.version import parse as parse_version
+
+import prompt_toolkit
+
+import requests
+
+import tabulate
+
+import yaml
 
 
 class Kaboxer:
@@ -263,7 +271,7 @@ class Kaboxer:
         image_name = self.get_image_name(app)
         image = '%s:%s' % (image_name, tag_name)
 
-        self.logger.debug("Image " + image)
+        self.logger.debug("Running image %s", image)
 
         self.run_hook_script('before_run', stop_on_failure=True)
 
@@ -487,7 +495,7 @@ class Kaboxer:
     def build_image(self, parsed_config):
         path = self.args.path
         app = parsed_config['application']['id']
-        self.logger.info("Building container image for %s" % (app,))
+        self.logger.info("Building container image for %s", app)
         try:
             df = os.path.join(path, parsed_config['build']['docker']['file'])
         except KeyError:
@@ -501,7 +509,8 @@ class Kaboxer:
                 try:
                     self.do_version_checks(self.args.version, parsed_config)
                 except Exception as e:
-                    self.logger.error(str(e))
+                    message = str(e)
+                    self.logger.error(message)
                     sys.exit(1)
             buildargs['KBX_APP_VERSION'] = self.args.version
         (image, _) = self.docker_conn.images.build(
@@ -516,8 +525,9 @@ class Kaboxer:
                     try:
                         self.do_version_checks(saved_version, parsed_config)
                     except Exception as e:
+                        message = str(e)
                         self.docker_conn.images.remove(image=image.id)
-                        self.logger.error(str(e))
+                        self.logger.error(message)
                         sys.exit(1)
             except Exception:
                 if self.args.version:
@@ -570,7 +580,7 @@ class Kaboxer:
     def build_desktop_files(self, parsed_config):
         app = parsed_config['application']['id']
         if 'desktop-files' not in parsed_config.get('install', {}):
-            self.logger.info("Building desktop files for %s" % (app,))
+            self.logger.info("Building desktop files for %s", app)
             self.gen_desktop_files(parsed_config)
 
     def extract_version_from_image(self, image):
@@ -590,7 +600,7 @@ class Kaboxer:
             # Build the remote name of the image
             parsed_config = parsed_configs[app]
             if 'registry' not in parsed_config['container']['origin']:
-                self.logger.error("No registry defined for %s" % (app,))
+                self.logger.error("No registry defined for %s", app)
                 sys.exit(1)
             registry_data = parsed_config['container']['origin']['registry']
             registry = registry_data['url']
@@ -614,7 +624,8 @@ class Kaboxer:
                                                parsed_configs)
                         versions = [self.args.version]
                     except Exception as e:
-                        self.logger.error(str(e))
+                        message = str(e)
+                        self.logger.error(message)
                         sys.exit(1)
                 else:
                     for image in self.docker_conn.images.list():
@@ -730,7 +741,7 @@ Categories={{ p.categories }}
         path = os.path.realpath(self.args.path)
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Cleaning %s" % (app,))
+            self.logger.info("Cleaning %s", app)
             parsed_config = parsed_configs[app]
             app = parsed_config['application']['id']
             tarball = os.path.join(path,
@@ -750,7 +761,7 @@ Categories={{ p.categories }}
         else:
             builddestpath = os.path.join(self.args.destdir,
                                          os.path.relpath(path, '/'))
-        self.logger.info("Installing %s to %s" % (f, builddestpath))
+        self.logger.info("Installing %s to %s", f, builddestpath)
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f, builddestpath)
 
@@ -777,7 +788,7 @@ Categories={{ p.categories }}
         path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Installing %s" % (app,))
+            self.logger.info("Installing %s", app)
             parsed_config = parsed_configs[app]
             # Install image tarball
             if self.args.tarball:
@@ -929,7 +940,7 @@ Categories={{ p.categories }}
 
     def cmd_load(self):
         v = self.get_meta_file_from_tarball(self.args.file, 'version').strip()
-        self.logger.info("Loading %s at version %s" % (self.args.app, v))
+        self.logger.info("Loading %s at version %s", self.args.app, v)
         self.load_image(self.args.file, self.args.app, v)
 
     def find_image(self, name):
@@ -977,8 +988,8 @@ Categories={{ p.categories }}
         self.read_config(app)
         if oldver is None or oldver == newver:
             return
-        self.logger.info("Running upgrade scripts for %s (%s -> %s)" % (
-            app, oldver, newver))
+        self.logger.info("Running upgrade scripts for %s (%s -> %s)",
+                         app, oldver, newver)
         image_name = self.get_image_name(app)
         with tempfile.TemporaryDirectory() as td:
             s = td
@@ -1000,7 +1011,7 @@ Categories={{ p.categories }}
             container.remove()
 
     def docker_pull(self, full_image_name, stop_on_error=False):
-        self.logger.info("Pulling %s image from registry" % full_image_name)
+        self.logger.info("Pulling %s image from registry", full_image_name)
         try:
             image = self.docker_conn.images.pull(full_image_name)
             return image
@@ -1014,7 +1025,7 @@ Categories={{ p.categories }}
         current_apps, registry_apps, tarball_apps, available_apps = \
             self.list_apps(get_remotes=True, restrict=apps)
         for app in apps:
-            self.logger.info("Preparing %s" % (app,))
+            self.logger.info("Preparing %s", app)
             previous_version = None
             m = re.search('([^=]+)=([^=]+)$', app)
             if m:
@@ -1113,7 +1124,7 @@ Categories={{ p.categories }}
                         tarfile = os.path.join(
                             p, config['container']['origin']['tarball'])
                         if os.path.isfile(tarfile):
-                            self.logger.info("Loading image from " + tarfile)
+                            self.logger.info("Loading image from %s", tarfile)
                             image = self.load_image(tarfile, app,
                                                     target_version)
                             image.tag(current_image_name)
@@ -1132,7 +1143,7 @@ Categories={{ p.categories }}
                     tarfile = os.path.join(
                         p, self.config['application']['id'] + '.tar')
                     if os.path.isfile(tarfile):
-                        self.logger.info("Loading image from " + tarfile)
+                        self.logger.info("Loading image from %s", tarfile)
                         self.load_image(tarfile, app, target_version)
                         self.do_upgrade_scripts(app, previous_version,
                                                 target_version)
@@ -1398,7 +1409,7 @@ Categories={{ p.categories }}
                     except Exception:
                         self.logger.warning("Failed to parse %s as YAML",
                                             config_file, exc_info=1)
-        self.logger.error("Could not find appropriate config file for " + app)
+        self.logger.error("Could not find appropriate config file for %s", app)
         sys.exit(1)
 
     def read_config(self, app):
@@ -1490,8 +1501,8 @@ Categories={{ p.categories }}
                              stdout=subprocess.PIPE).stdout
         g = subprocess.Popen(['xauth', '-f', self.xauth_out, 'nmerge', '-'],
                              stdin=subprocess.PIPE).stdin
-        for l in f:
-            line = str(l, 'utf-8')
+        for line in f:
+            line = str(line, 'utf-8')
             line.strip()
             ll = re.sub('^[^ ]*', 'ffff', line) + "\n"
             g.write(bytes(ll, 'utf-8'))

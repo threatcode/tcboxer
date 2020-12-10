@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 import os
-from distutils.command.clean import clean
 from distutils.command.build import build
+from distutils.command.clean import clean
+
 from setuptools import setup
 
 

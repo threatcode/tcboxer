@@ -1,13 +1,14 @@
 #! /usr/bin/python3
 
-import unittest
-import tempfile
-import shutil
 import os
-import subprocess
 import random
-import string
 import re
+import shutil
+import string
+import subprocess
+import tempfile
+import unittest
+
 import yaml
 
 unittest.TestLoader.sortTestMethodsUsing = None
