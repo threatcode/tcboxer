@@ -1,5 +1,5 @@
 % KABOXER.YAML(5)
-% Roland Mas
+% Roland Mas, Raphael Hertzog
 % 2019-2020
 
 # NAME
@@ -149,3 +149,17 @@ Each component has its own subsection identified by a component name.
 
 * *extra_opts* (string): extra options to be passed as command line
   arguments when starting the application in the container.
+
+* *before_run_script*, *after_run_script*, *before_stop_script*,
+  *after_stop_script* (strings): a script to be executed at various
+  points of the process leading to the application execution. The value
+  can be either a single-line value to be executed as a shell command
+  line, or a multi-line value with a shebang on its first line that will
+  be executed as a script (executed out of a temporary file).
+  *before_run_script* can be used to prepare the host system before
+  the execution of the application. *after_run_script* is a bit ambiguous,
+  for cli/gui applications, it will run after the application has
+  completed but for headless applications, it will run after the
+  application has been started in the background (if --detach has been
+  passed). *before_stop_script* and *after_stop_script* are only
+  relevant for headless applications.
