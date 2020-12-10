@@ -287,5 +287,10 @@ class Kbxbuilder:
         self.logger.info("Built all needed apps")
 
 
-kbxbuilder = Kbxbuilder()
-kbxbuilder.go()
+def main():
+    kbxbuilder = Kbxbuilder()
+    kbxbuilder.go()
+
+
+if __name__ == '__main__':
+    main()

@@ -1499,5 +1499,10 @@ Categories={{ p.categories }}
         f.close()
 
 
-kaboxer = Kaboxer()
-kaboxer.go()
+def main():
+    kaboxer = Kaboxer()
+    kaboxer.go()
+
+
+if __name__ == '__main__':
+    main()
