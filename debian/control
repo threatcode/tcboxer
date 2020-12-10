@@ -33,6 +33,7 @@ Depends:
  libyaml-libyaml-perl,
  sudo,
  ${misc:Depends},
- ${python3:Depends}
+ ${python3:Depends},
+ ${perl:Depends},
 Description: Kali Application Boxer
  A framework for deploying applications to run in containers
