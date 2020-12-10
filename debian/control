@@ -35,5 +35,17 @@ Depends:
  ${misc:Depends},
  ${python3:Depends},
  ${perl:Depends},
-Description: Kali Application Boxer
- A framework for deploying applications to run in containers
+Description: Framework to manage applications in containers
+ Built for Kali Linux (and other Debian-based) systems, Kaboxer is a framework
+ providing seamless integrations between applications shipped in containers and
+ the host system.
+ .
+ It allows shipping applications that are hard to package properly or that need
+ to run in isolation from the rest of the system.
+ .
+ The "kaboxer" command line tool can be used to:
+ .
+  - build container images
+  - retrieve container images
+  - run applications out of those containers
+  - integrate those applications in the host system
