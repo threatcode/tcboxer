@@ -9,7 +9,7 @@ gen_token() {
 prompt="fetch | save <value> | delete ? "
 
 cat > $tf <<EOF
-spawn kaboxer run kbx-hello-cli
+spawn kaboxer run hello-cli
 expect "$prompt"
 send -- "delete\r"
 expect "$prompt"
@@ -21,7 +21,7 @@ expect $tf
 # Test saving token and fetching it again in one run
 token1=$(gen_token)
 cat > $tf <<EOF
-spawn kaboxer run kbx-hello-cli
+spawn kaboxer run hello-cli
 expect "$prompt"
 send -- "save $token1\r"
 expect "$prompt"
@@ -36,7 +36,7 @@ expect $tf
 # Test saving token and fetching it again in a different run
 token2=$(gen_token)
 cat > $tf <<EOF
-spawn kaboxer run kbx-hello-cli
+spawn kaboxer run hello-cli
 expect "$prompt"
 send -- "save $token2\r"
 expect "$prompt"
@@ -46,7 +46,7 @@ EOF
 expect $tf
 
 cat > $tf <<EOF
-spawn kaboxer run kbx-hello-cli
+spawn kaboxer run hello-cli
 expect "$prompt"
 send -- "fetch\r"
 expect "$token2"

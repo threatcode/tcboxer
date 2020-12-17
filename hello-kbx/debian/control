@@ -1,11 +1,11 @@
-Source: kbx-hello
+Source: hello-kbx
 Section: devel
 Priority: optional
 Maintainer: Roland Mas <lolando@debian.org>
 Build-Depends: debhelper-compat (= 13), kaboxer (>= 0.3)
 Standards-Version: 3.9.8
 
-Package: kbx-hello-server
+Package: hello-server-kbx
 Architecture: all
 Depends: ${misc:Depends}
 Description: Demonstrator for kaboxer (server part)
@@ -16,7 +16,7 @@ Description: Demonstrator for kaboxer (server part)
  .
  This package contains the server part.
 
-Package: kbx-hello-cli
+Package: hello-cli-kbx
 Architecture: all
 Depends: ${misc:Depends}, sudo
 Description: Demonstrator for kaboxer (CLI part)
@@ -27,7 +27,7 @@ Description: Demonstrator for kaboxer (CLI part)
  .
  This package contains the command-line client.
 
-Package: kbx-hello-gui
+Package: hello-gui-kbx
 Architecture: all
 Depends: ${misc:Depends}, sudo
 Description: Demonstrator for kaboxer (GUI part)
@@ -38,7 +38,7 @@ Description: Demonstrator for kaboxer (GUI part)
  .
  This package contains the graphical client.
 
-Package: kbx-hello-allinone
+Package: hello-allinone-kbx
 Architecture: all
 Depends: ${misc:Depends}
 Description: Demonstrator for kaboxer (all in one container)

@@ -8,12 +8,12 @@ gen_token() {
 }
 prompt="fetch | save <value> | delete ? "
 
-kaboxer stop kbx-hello-allinone 2>&1 || true
-kaboxer run --detach kbx-hello-allinone 2>&1 | grep -q "kbx-hello server started"
+kaboxer stop hello-allinone 2>&1 || true
+kaboxer run --detach hello-allinone 2>&1 | grep -q "hello server started"
 sleep 15
 
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+spawn kaboxer run --reuse-container --component cli hello-allinone
 expect "$prompt"
 send -- "delete\r"
 expect "$prompt"
@@ -25,7 +25,7 @@ expect $tf
 # Test saving token and fetching it again in one run
 token1=$(gen_token)
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+spawn kaboxer run --reuse-container --component cli hello-allinone
 expect "$prompt"
 send -- "save $token1\r"
 expect "$prompt"
@@ -40,7 +40,7 @@ expect $tf
 # Test saving token and fetching it again in a different run
 token2=$(gen_token)
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+spawn kaboxer run --reuse-container --component cli hello-allinone
 expect "$prompt"
 send -- "save $token2\r"
 expect "$prompt"
@@ -50,7 +50,7 @@ EOF
 expect $tf
 
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli kbx-hello-allinone
+spawn kaboxer run --reuse-container --component cli hello-allinone
 expect "$prompt"
 send -- "fetch\r"
 expect "$token2"
@@ -60,6 +60,6 @@ expect eof
 EOF
 expect $tf
 
-kaboxer stop kbx-hello-allinone | grep -q "Hello World app for kaboxer (all-in-one container, server component) stopped"
+kaboxer stop hello-allinone | grep -q "Hello World app for kaboxer (all-in-one container, server component) stopped"
 
 rm $tf

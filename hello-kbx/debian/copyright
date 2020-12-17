@@ -1,9 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: kbx-hello
+Upstream-Name: hello-kbx
 Source: https://gitlab.com/kalilinux/tools/kaboxer
 
 Files: *
 Copyright: 2019 Roland Mas <lolando@debian.org>
+           2019-2020 Offensive Security
 License: GPL-2+
  This package is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

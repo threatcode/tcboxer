@@ -4,4 +4,4 @@ RUN apt-get update && apt-get install -y \
     python3-prompt-toolkit
 ARG KBX_APP_VERSION=0.5
 RUN mkdir /kaboxer ; echo $KBX_APP_VERSION > /kaboxer/version
-COPY ./kbx-hello /kbx-hello
+COPY ./hello /usr/bin/hello

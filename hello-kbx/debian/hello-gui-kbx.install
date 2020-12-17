@@ -1,0 +1,2 @@
+debian/tmp/usr/share/kaboxer/hello-gui* /usr/share/kaboxer/
+debian/tmp/usr/share/applications/kaboxer-hello-gui* /usr/share/applications/

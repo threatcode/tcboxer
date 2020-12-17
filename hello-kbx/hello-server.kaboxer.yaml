@@ -1,23 +1,23 @@
 application:
-    id: kbx-hello-server
+    id: hello-server
     name: Hello World for Kaboxer (server)
     description: >
-        kbx-hello is the hello-world application demonstrator for Kaboxer
+        hello-kbx is the hello-world application demonstrator for Kaboxer
     categories: Utilities;Development
 container:
   type: docker
 build:
   docker:
-    file: kbx-hello-server.Dockerfile
+    file: hello-server.Dockerfile
 packaging:
   revision: 1
 components:
   default:
     run_mode: headless
     run_as_root: true
-    executable: /kbx-hello server
+    executable: /usr/bin/hello server
     networks:
-      - kbx-hello
+      - hello-kbx
     mounts:
-      - source: /var/lib/kbx-hello
+      - source: /var/lib/hello
         target: /data

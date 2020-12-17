@@ -1,27 +1,27 @@
 application:
-    id: kbx-hello-cli
+    id: hello-cli
     name: Hello World for Kaboxer (CLI)
     description: >
-        kbx-hello is the hello-world application demonstrator for Kaboxer
+        hello-kbx is the hello-world application demonstrator for Kaboxer
     categories: Utilities;Development
 container:
   type: docker
 build:
   docker:
-    file: kbx-hello-cli.Dockerfile
+    file: hello-cli.Dockerfile
 packaging:
   revision: 1
 install:
   desktop-files:
-    - kbx-hello-cli.desktop
+    - hello-cli.desktop
 components:
   default:
     run_mode: cli
     run_as_root: true
-    executable: /kbx-hello cli
+    executable: /usr/bin/hello cli
     networks:
-      - kbx-hello
+      - hello-kbx
     mounts:
-      - source: /var/lib/kbx-hello
+      - source: /var/lib/hello
         target: /data
-    extra_opts: --host kbx-hello-server
+    extra_opts: --host hello-server

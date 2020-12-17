@@ -1,0 +1,5 @@
+Tests: test-service test-cli
+Depends: hello-server-kbx, hello-cli-kbx, expect
+
+Tests: test-allinone
+Depends: hello-allinone-kbx, expect
