@@ -294,8 +294,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "Tarfile present after install (%s)" % installed_tarfile)
         self.run_and_check_command(
             "kaboxer install --tarball --destdir %s --prefix %s" %
-            os.path.join(self.fixdir, 'target'),
-            '/usr')
+            (os.path.join(self.fixdir, 'target'), '/usr'))
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Default tarfile present after install to non-default dir (%s)" %
