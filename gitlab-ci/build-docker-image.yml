@@ -24,6 +24,7 @@ build-docker-image:
     #- curl https://gitlab.com/kalilinux/tools/kaboxer/-/raw/debug-ci/kaboxer >/usr/bin/kaboxer
     #- chmod 755 /usr/bin/kaboxer
   script:
+    - set -e
     - cd $KABOXER_BUILD_DIRECTORY && kaboxer --verbose --verbose build
     - |
         for KABOXER_APP_ID in $KABOXER_APPLICATIONS
