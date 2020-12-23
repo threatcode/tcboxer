@@ -1517,6 +1517,36 @@ Categories={{ p.categories }}
         f.close()
 
 
+class KaboxerAppConfig:
+    def __init__(self, config=None, filename=None):
+        if config is not None:
+            self.config = config
+            self.filename = None
+        elif filename is not None:
+            self.load(filename)
+        else:
+            raise ValueError("KaboxerAppConfig.__init__() lacks configuration")
+
+    def __getitem__(self, key):
+        return self.config[key]
+
+    def __contains__(self, key):
+        return key in self.config
+
+    @property
+    def app_id(self):
+        return self.config.get('application', {}).get('id', None)
+
+    def load(self, path):
+        with open(path) as f:
+            self.config = yaml.safe_load(f)
+        self.filename = path
+
+    def save(self, path):
+        with open(path, 'w') as f:
+            f.write(yaml.dump(self.config))
+
+
 def main():
     kaboxer = Kaboxer()
     kaboxer.go()
