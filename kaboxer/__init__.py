@@ -1536,6 +1536,24 @@ class KaboxerAppConfig:
     def app_id(self):
         return self.config.get('application', {}).get('id', None)
 
+    def get(self, key_path):
+        """
+        Retrieves a deeply-nested value with a convenient syntax
+        where `key_path` is a colon-separated list of keys to traverse
+        in the configuration dictionaries.
+
+        `app_config.get('a:b:c')` is equivalent to `app_config[a][b][c]`
+        but it doesn't fail on a non-existing entry, instead it will just
+        return None.
+        """
+        to_traverse = self.config
+        for key in key_path.split(':'):
+            if key in to_traverse:
+                to_traverse = to_traverse[key]
+            else:
+                return None
+        return to_traverse
+
     def load(self, path):
         with open(path) as f:
             self.config = yaml.safe_load(f)
@@ -1544,6 +1562,24 @@ class KaboxerAppConfig:
     def save(self, path):
         with open(path, 'w') as f:
             f.write(yaml.dump(self.config))
+
+
+class DockerBackend:
+    def get_local_image_name(self, app_config):
+        return 'kaboxer/%s' % app_config.app_id
+
+    def get_remote_image_name(self, app_config):
+        registry_data = app_config.get('container:origin:registry')
+        if registry_data is None:
+            return None
+
+        registry = registry_data.get('url')
+        if not registry:
+            return None
+
+        registry = re.sub('^https?://', '', registry)
+        image = registry_data.get('image', app_config.app_id)
+        return "%s/%s" % (registry, image)
 
 
 def main():

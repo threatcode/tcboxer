@@ -443,6 +443,13 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "kaboxer list --installed",
             r"^%s\s+-\s+1.0\s" % self.app_name)
 
+    def test_list_local_with_remote_registry_configured(self):
+        # Non-regression test where the code was using only the remote image
+        # name and where kaboxer build + run would not find the local image
+        self.run_and_check_command("kaboxer build kbx-demo")
+        self.run_command_check_stdout_matches(
+            "kaboxer list --all --skip-headers", r"kbx-demo")
+
     def test_local_upgrades(self):
         self.run_and_check_command("kaboxer build --save --version 1.1")
         os.rename(os.path.join(self.fixdir, self.app_name + ".tar"),

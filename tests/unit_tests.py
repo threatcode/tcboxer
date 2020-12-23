@@ -4,12 +4,12 @@ import os
 import tempfile
 import unittest
 
-import kaboxer
+from kaboxer import DockerBackend, Kaboxer, KaboxerAppConfig
 
 
 class TestKaboxerApplication(unittest.TestCase):
     def setUp(self):
-        self.obj = kaboxer.Kaboxer()
+        self.obj = Kaboxer()
 
     def test_command_line_parser(self):
         subcommands = (
@@ -48,7 +48,7 @@ class TestKaboxerAppConfig(unittest.TestCase):
     def get_app_config(self, config=None):
         if config is None:
             config = self.sample_config
-        return kaboxer.KaboxerAppConfig(config=config)
+        return KaboxerAppConfig(config=config)
 
     def get_temp_app_config_file(self):
         f = tempfile.NamedTemporaryFile(prefix='kbx-tests-', suffix='.yml',
@@ -73,11 +73,11 @@ class TestKaboxerAppConfig(unittest.TestCase):
 
     def test_init_with_filename(self):
         filename = self.get_temp_app_config_file()
-        self.obj = kaboxer.KaboxerAppConfig(filename=filename)
+        self.obj = KaboxerAppConfig(filename=filename)
 
     def test_init_without_parameters(self):
         with self.assertRaises(ValueError):
-            self.obj = kaboxer.KaboxerAppConfig()
+            self.obj = KaboxerAppConfig()
 
     def test_special_method_getitem(self):
         # We want to be able to access the configuration directly
@@ -91,6 +91,12 @@ class TestKaboxerAppConfig(unittest.TestCase):
 
     def test_app_id_attribute(self):
         self.assertEqual(self.obj.app_id, 'sample')
+
+    def test_get_existing_key(self):
+        self.assertEqual(self.obj.get('application:id'), 'sample')
+
+    def test_get_non_existing_key(self):
+        self.assertIsNone(self.obj.get('application:bad:key'))
 
     def test_load_from_file(self):
         filename = self.get_temp_app_config_file()
@@ -109,8 +115,50 @@ class TestKaboxerAppConfig(unittest.TestCase):
 
         # Ensure we have the new configuration
         self.assertTrue(os.path.exists(filename))
-        new = kaboxer.KaboxerAppConfig(filename=filename)
+        new = KaboxerAppConfig(filename=filename)
         self.assertEqual(new.app_id, 'kbx-test-save')
+
+
+class TestDockerBackend(unittest.TestCase):
+    def setUp(self):
+        self.obj = DockerBackend()
+        self.config = {
+            'application': {
+                'id': 'kbx-docker-test'
+            },
+            'container': {
+                'type': 'docker',
+                'origin': {},
+            }
+        }
+        self.app_config = KaboxerAppConfig(config=self.config)
+
+    def set_origin_registry(self, url, image=None):
+        data = {'url': url}
+        if image:
+            data['image'] = image
+        self.config['container']['origin']['registry'] = data
+
+    def test_get_local_image_name(self):
+        self.assertEqual(self.obj.get_local_image_name(self.app_config),
+                         'kaboxer/kbx-docker-test')
+
+    def test_get_remote_image_name_no_registry_data(self):
+        self.set_origin_registry(None)
+        self.assertIsNone(self.obj.get_remote_image_name(self.app_config))
+
+    def test_get_remote_image_name_invalid_registry_data(self):
+        self.assertIsNone(self.obj.get_remote_image_name(self.app_config))
+
+    def test_get_remote_image_name_with_default_image_name(self):
+        self.set_origin_registry('https://foo.bar.com/registry')
+        self.assertEqual(self.obj.get_remote_image_name(self.app_config),
+                         'foo.bar.com/registry/kbx-docker-test')
+
+    def test_get_remote_image_name_with_explicit_image_name(self):
+        self.set_origin_registry('https://foo.bar.com/registry', 'myname')
+        self.assertEqual(self.obj.get_remote_image_name(self.app_config),
+                         'foo.bar.com/registry/myname')
 
 
 if __name__ == '__main__':
