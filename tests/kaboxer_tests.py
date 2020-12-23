@@ -8,6 +8,7 @@ import string
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 import yaml
 
@@ -722,4 +723,7 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
 
 
 if __name__ == '__main__':
+    if 'USE_SYSTEM_WIDE_KABOXER' not in os.environ:
+        binpath = Path(__file__).parent / Path('bin')
+        os.environ['PATH'] = '%s:%s' % (binpath.absolute(), os.environ['PATH'])
     unittest.main()

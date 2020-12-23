@@ -1,0 +1,11 @@
+#!/usr/bin/python3
+
+import pathlib
+import sys
+
+libdir = pathlib.Path(__file__).parent.parent.parent.absolute()
+sys.path.insert(0, str(libdir))
+
+import kaboxer  # noqa
+
+kaboxer.main()
