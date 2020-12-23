@@ -164,6 +164,8 @@ class Kaboxer:
             '/usr/share/kaboxer',
         ]
 
+        self.backend = DockerBackend()
+
     def setup_logging(self):
         loglevels = {
             0: 'ERROR',
@@ -268,7 +270,7 @@ class Kaboxer:
             current_apps, _, _, _ = self.list_apps()
             tag_name = current_apps[app]['version']
         self.read_config(app)
-        image_name = self.get_image_name(app)
+        image_name = self.backend.get_local_image_name(self.config)
         image = '%s:%s' % (image_name, tag_name)
 
         self.logger.debug("Running image %s", image)
@@ -451,7 +453,7 @@ class Kaboxer:
                 yamlfiles.append(f)
         for f in yamlfiles:
             y = KaboxerAppConfig(filename=f)
-            app = y.get('application', {}).get('id')
+            app = y.app_id
             if app is None:
                 continue
             if self.args.app and self.args.app != app:
@@ -959,23 +961,7 @@ Categories={{ p.categories }}
             for c in candidates:
                 if candidates[c]['version'] == maxver:
                     return candidates[c]['image']
-        return False
-
-    def get_image_name(self, app, config=None):
-        if config is None:
-            config = self.load_config(app)
-        try:
-            if 'registry' in config['container']['origin']:
-                registry = config['container']['origin']['registry']['url']
-                registry = re.sub('^https?://', '', registry)
-                try:
-                    image = config['container']['origin']['registry']['image']
-                except KeyError:
-                    image = config['application']['id']
-                return "%s/%s" % (registry, image)
-        except KeyError:
-            pass
-        return "kaboxer/%s" % (config['application']['id'],)
+        return None
 
     def cmd_prepare(self):
         self.prepare_or_upgrade(self.args.app)
@@ -989,7 +975,7 @@ Categories={{ p.categories }}
             return
         self.logger.info("Running upgrade scripts for %s (%s -> %s)",
                          app, oldver, newver)
-        image_name = self.get_image_name(app)
+        image_name = self.backend.get_local_image_name(self.config)
         with tempfile.TemporaryDirectory() as td:
             s = td
             t = '/kaboxer/upgrade-data'
@@ -1078,68 +1064,83 @@ Categories={{ p.categories }}
                 self.logger.debug("No target version identified, use latest")
                 target_version = 'latest'
 
-            image_name = self.get_image_name(app)
-            full_image_name = '%s:%s' % (image_name, target_version)
-            current_image_name = '%s:%s' % (image_name, 'current')
+            config = self.load_config(app)
+            # XXX: come back here after list_apps
+            local_image_name = self.backend.get_local_image_name(config)
+            remote_image_name = self.backend.get_remote_image_name(config)
+            full_local_image_name = '%s:%s' % (local_image_name, target_version)
+            full_remote_image_name = '%s:%s' % (remote_image_name,
+                                                target_version)
+            current_image_name = '%s:%s' % (local_image_name, 'current')
             if previous_version == target_version:
                 self.logger.debug('Stopping because previous==target (%s==%s)',
                                   previous_version, target_version)
                 return
-            config = self.load_config(app)
-            try:
-                try:
-                    max_avail_version = parse_version(
-                        available_apps[app]['maxversion']['version'])
-                    self.logger.debug('max_avail_version = %s',
-                                      max_avail_version)
-                    if max_avail_version == parse_version(target_version):
-                        image = self.find_image(full_image_name)
+
+            if 'maxversion' in available_apps.get(app, {}):
+                max_avail_version = parse_version(
+                    available_apps[app]['maxversion']['version'])
+                self.logger.debug('Trying to find %s image for version %s',
+                                  app, max_avail_version)
+                if max_avail_version == parse_version(target_version):
+                    image = self.find_image(full_local_image_name)
+                    if not image and remote_image_name:
+                        image = self.find_image(full_remote_image_name)
+                    if image:
                         image.tag(current_image_name)
-                        self.do_upgrade_scripts(app, previous_version,
-                                                target_version)
-                        return
-                except Exception:
-                    self.show_exception_in_debug_mode()
-                if 'registry' in config['container']['origin']:
-                    self.logger.debug("Trying to find image in registry")
-                    found_image = self.find_image(full_image_name)
-                    if found_image:
-                        self.logger.debug("Found in local registry")
-                        found_image.tag(current_image_name)
                     else:
-                        image = self.docker_pull(full_image_name,
-                                                 stop_on_error=True)
-                        if target_version == 'latest':
-                            pulled_version = self.get_meta_file(
-                                image, 'version').strip()
-                            versioned_image_name = '%s:%s' % (
-                                image_name, pulled_version)
-                            if not self.find_image(versioned_image_name):
-                                image.tag(versioned_image_name)
-                        image.tag(current_image_name)
-                        self.do_upgrade_scripts(app, previous_version,
-                                                target_version)
+                        self.logger.error(
+                            'Could not find %s image for version %s', app,
+                            max_avail_version)
+                    self.do_upgrade_scripts(app, previous_version,
+                                            target_version)
                     return
-                if 'tarball' in config['container']['origin']:
-                    paths = [
-                        '.',
-                        '/usr/local/share/kaboxer',
-                        '/usr/share/kaboxer',
-                    ]
-                    for p in paths:
-                        tarfile = os.path.join(
-                            p, config['container']['origin']['tarball'])
-                        if os.path.isfile(tarfile):
-                            self.logger.info("Loading image from %s", tarfile)
-                            image = self.load_image(tarfile, app,
-                                                    target_version)
-                            image.tag(current_image_name)
-                        self.do_upgrade_scripts(app, previous_version,
+
+            if config.get('container:origin:registry'):
+                self.logger.debug("Trying to find image in registry")
+                found_image = self.find_image(full_remote_image_name)
+                if found_image:
+                    self.logger.debug("Found in local registry")
+                    found_image.tag(current_image_name)
+                else:
+                    image = self.docker_pull(full_remote_image_name,
+                                             stop_on_error=True)
+                    pulled_version = self.get_meta_file(image,
+                                                        'version').strip()
+                    if target_version == 'latest':
+                        versioned_image_name = '%s:%s' % (
+                            remote_image_name, pulled_version)
+                        if not self.find_image(versioned_image_name):
+                            image.tag(versioned_image_name)
+                    # Make remote image available in the local namespace
+                    versioned_image_name = '%s:%s' % (
+                        local_image_name, pulled_version)
+                    if not self.find_image(versioned_image_name):
+                        image.tag(versioned_image_name)
+                    image.tag(current_image_name)
+                    self.do_upgrade_scripts(app, previous_version,
+                                            target_version)
+                return
+
+            tarball = config.get('container:origin:tarball')
+            if tarball:
+                paths = [
+                    '.',
+                    '/usr/local/share/kaboxer',
+                    '/usr/share/kaboxer',
+                ]
+                for p in paths:
+                    tarfile = os.path.join(p, tarball)
+                    if os.path.isfile(tarfile):
+                        self.logger.info("Loading image from %s", tarfile)
+                        image = self.load_image(tarfile, app,
                                                 target_version)
-                        return
-            except KeyError:
-                pass
-            if not self.find_image(full_image_name):
+                        image.tag(current_image_name)
+                    self.do_upgrade_scripts(app, previous_version,
+                                            target_version)
+                    return
+
+            if not self.find_image(full_local_image_name):
                 paths = [
                     '.',
                     '/usr/local/share/kaboxer',
@@ -1154,6 +1155,7 @@ Categories={{ p.categories }}
                         self.do_upgrade_scripts(app, previous_version,
                                                 target_version)
                         return
+
             self.logger.error("Cannot prepare image")
             sys.exit(1)
 
@@ -1182,80 +1184,85 @@ Categories={{ p.categories }}
         if restrict is not None:
             restrict = [re.sub('=.*', '', i) for i in restrict]
 
+        self.logger.debug('Finding kaboxer applications')
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         for p in self.config_paths:
             # XXX: factorize logic to find yaml files in a given dir
             for g in globs:
                 for f in glob.glob(os.path.join(p, g)):
+                    if not os.path.exists(f):
+                        continue
+                    self.logger.debug('Analyzing %s', f)
+                    app_config = KaboxerAppConfig(filename=f)
+                    aid = app_config.app_id
+                    if restrict is not None and aid not in restrict:
+                        continue
                     try:
-                        y = yaml.safe_load(open(f))
-                        aid = y['application']['id']
-                        if restrict is not None and aid not in restrict:
-                            continue
-                        try:
-                            imagename = self.get_image_name(aid)
-                            # XXX: factorize logic to find the right image
-                            for image in self.docker_conn.images.list():
-                                for tag in image.tags:
-                                    (i, ver) = tag.rsplit(':', 1)
-                                    if i != imagename:
-                                        continue
-                                    curver = self.get_meta_file(
-                                        image, 'version').strip()
-                                    item = {
-                                        'version': curver,
-                                        'packaging-revision-from-image':
-                                        self.get_meta_file(
-                                            image, 'packaging-revision'
-                                        ).strip(),
-                                        'packaging-revision-from-yaml':
-                                        y['packaging']['revision'],
-                                    }
-                                    if ver == 'current':
-                                        current_apps[aid] = item
-                                    if aid not in available_apps:
-                                        available_apps[aid] = {}
-                                    available_apps[aid][ver] = item
-                                    _maxversion = available_apps[aid].get(
-                                        'maxversion')
-                                    if _maxversion:
-                                        max_avail_version = parse_version(
-                                            _maxversion['version'])
-                                    if not _maxversion or max_avail_version <= \
-                                            parse_version(curver):
-                                        available_apps[aid]['maxversion'] = item
-                        except Exception as e:
-                            print(e)
-                            pass
-
-                        try:
-                            registry_apps[aid] = {
-                                'url':
-                                y['container']['origin']['registry']['url'],
-                                'image':
-                                y['container']['origin']['registry']['image'],
-                                'packaging-revision-from-yaml':
-                                y['packaging']['revision'],
-                            }
-                        except KeyError:
-                            pass
-                        try:
-                            _tarball = y['container']['origin']['tarball']
-                            _ver = self.get_meta_file_from_tarball(
-                                _tarball, 'version').strip()
-                            _pkg_rev_img = self.get_meta_file_from_tarball(
-                                _tarball, 'packaging-revision').strip()
-                            _pkg_rev_yaml = y['packaging']['revision']
-                            tarball_apps[aid] = {
-                                'tarball': _tarball,
-                                'version': _ver,
-                                'packaging-revision-from-image': _pkg_rev_img,
-                                'packaging-revision-from-yaml': _pkg_rev_yaml,
-                            }
-                        except Exception:
-                            pass
-                    except Exception:
+                        imagenames = (
+                            self.backend.get_local_image_name(app_config),
+                            self.backend.get_remote_image_name(app_config),
+                        )
+                        self.logger.debug(
+                            'Looking for local docker image in %s',
+                            imagenames)
+                        # XXX: factorize logic to find the right image
+                        for image in self.docker_conn.images.list():
+                            for tag in image.tags:
+                                (imagename, ver) = tag.rsplit(':', 1)
+                                if imagename not in imagenames:
+                                    continue
+                                curver = self.get_meta_file(
+                                    image, 'version').strip()
+                                item = {
+                                    'version': curver,
+                                    'packaging-revision-from-image':
+                                    self.get_meta_file(
+                                        image, 'packaging-revision'
+                                    ).strip(),
+                                    'packaging-revision-from-yaml':
+                                    app_config.get('packaging:revision'),
+                                    'image': imagename,
+                                }
+                                if ver == 'current':
+                                    current_apps[aid] = item
+                                if aid not in available_apps:
+                                    available_apps[aid] = {}
+                                available_apps[aid][ver] = item
+                                _maxversion = available_apps[aid].get(
+                                    'maxversion')
+                                if _maxversion:
+                                    max_avail_version = parse_version(
+                                        _maxversion['version'])
+                                if not _maxversion or max_avail_version <= \
+                                        parse_version(curver):
+                                    available_apps[aid]['maxversion'] = item
+                    except Exception as e:
+                        print(e)
                         pass
+
+                    registry_data = app_config.get(
+                        'container:origin:registry')
+                    if registry_data and 'url' in registry_data:
+                        registry_apps[aid] = {
+                            'url': registry_data['url'],
+                            'image': registry_data.get('image', aid),
+                            'packaging-revision-from-yaml':
+                            app_config.get('packaging:revision'),
+                        }
+
+                    _tarball = app_config.get('container:origin:tarball')
+                    if _tarball and os.path.exists(_tarball):
+                        _ver = self.get_meta_file_from_tarball(
+                            _tarball, 'version').strip()
+                        _pkg_rev_img = self.get_meta_file_from_tarball(
+                            _tarball, 'packaging-revision').strip()
+                        _pkg_rev_yaml = app_config.get('packaging:revision')
+                        tarball_apps[aid] = {
+                            'tarball': _tarball,
+                            'version': _ver,
+                            'packaging-revision-from-image': _pkg_rev_img,
+                            'packaging-revision-from-yaml': _pkg_rev_yaml,
+                        }
 
         if get_remotes:
             for aid in registry_apps:

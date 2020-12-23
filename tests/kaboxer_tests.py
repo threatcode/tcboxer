@@ -407,7 +407,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "kaboxer get-meta-file %s version" % self.app_name, "1.1")
         self.run_command("docker image rm %s:latest" % self.image_name,
                          ignore_output=True)
-        self.run_and_check_command_fails("kaboxer build --version 2.0")
+        self.run_and_check_command_fails("kaboxer build %s --version 2.0"
+                                         % self.app_name)
         self.run_and_check_command(
             "kaboxer build --version 2.0 --ignore-version")
         self.run_command("docker image rm %s:latest" % self.image_name,
@@ -416,7 +417,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
                          ignore_output=True)
         self.run_command("sed -i -e s/1.0/1.5/ %s" %
                          (os.path.join(self.fixdir, 'Dockerfile'),))
-        self.run_and_check_command_fails("kaboxer build")
+        self.run_and_check_command_fails("kaboxer build %s" % self.app_name)
         self.assertFalse(self.is_image_present(),
                          "Docker image present after failed build")
         self.run_and_check_command("kaboxer build --ignore-version")
@@ -449,7 +450,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
         # name and where kaboxer build + run would not find the local image
         self.run_and_check_command("kaboxer build kbx-demo")
         self.run_command_check_stdout_matches(
-            "kaboxer list --all --skip-headers", r"kbx-demo")
+            "kaboxer -vv list --available --installed --skip-headers",
+            r"kbx-demo")
 
     def test_local_upgrades(self):
         self.run_and_check_command("kaboxer build --save --version 1.1")
@@ -536,11 +538,13 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.assertFalse(
             self.is_image_present(),
             msg="Image %s present at beginning of test" % self.app_name)
-        self.run_and_check_command("kaboxer prepare kbx-demo")
+        self.run_command("docker image ls")
+        self.run_and_check_command("kaboxer -vv prepare kbx-demo")
         self.run_command_check_stdout_matches(
             "docker image ls", self.app_name,
             unexpected_msg="Image not fetched from registry")
-        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+        self.run_command("docker image ls")
+        self.run_command_check_stdout_matches("kaboxer -vv run kbx-demo",
                                               "Hello World")
 
     def test_list_registry(self):
