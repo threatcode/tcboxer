@@ -62,8 +62,11 @@ class TestKaboxerCommon(unittest.TestCase):
 
     def check_return_code(self, result, msg=None):
         if msg is None:
-            cmd = ' '.join(result.args)
-            msg = "Error when running %s\nSTDOUT:\n%s\nSTDERR:\n%s" % (
+            if isinstance(result.args, str):
+                cmd = result.args
+            else:
+                cmd = ' '.join(result.args)
+            msg = "Error when running '%s'\nSTDOUT:\n%s\nSTDERR:\n%s" % (
                 cmd, result.stdout, result.stderr)
         self.assertEqual(result.returncode, 0, msg)
 
@@ -76,7 +79,7 @@ class TestKaboxerCommon(unittest.TestCase):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
                            capture_output=True)
         if msg is None:
-            msg = "Unexpected success when running %s\n"
+            msg = "Unexpected success when running '%s'\n"
             msg += "STDOUT:\n%s\nSTDERR:\n%s"
             msg = msg % (cmd, o.stdout, o.stderr)
         self.assertNotEqual(o.returncode, 0, msg)
@@ -84,8 +87,11 @@ class TestKaboxerCommon(unittest.TestCase):
     def check_output_matches(self, result, expected, output='stdout', msg=None,
                              must_fail=False):
         if msg is None:
-            cmd = ' '.join(result.args)
-            msg = "Unexpected output when running %s" % cmd
+            if isinstance(result.args, str):
+                cmd = result.args
+            else:
+                cmd = ' '.join(result.args)
+            msg = "Unexpected output when running '%s'" % cmd
         if must_fail:
             msg += " (%s matches %s)\n" % (output, expected)
         else:
