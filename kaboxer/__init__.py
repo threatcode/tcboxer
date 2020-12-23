@@ -1536,7 +1536,7 @@ class KaboxerAppConfig:
     def app_id(self):
         return self.config.get('application', {}).get('id', None)
 
-    def get(self, key_path):
+    def get(self, key_path, default_value=None):
         """
         Retrieves a deeply-nested value with a convenient syntax
         where `key_path` is a colon-separated list of keys to traverse
@@ -1551,7 +1551,7 @@ class KaboxerAppConfig:
             if key in to_traverse:
                 to_traverse = to_traverse[key]
             else:
-                return None
+                return default_value
         return to_traverse
 
     def load(self, path):

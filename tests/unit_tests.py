@@ -98,6 +98,10 @@ class TestKaboxerAppConfig(unittest.TestCase):
     def test_get_non_existing_key(self):
         self.assertIsNone(self.obj.get('application:bad:key'))
 
+    def test_get_non_existing_key_default_value(self):
+        self.assertEqual(self.obj.get('application:bad:key', 'default'),
+                         'default')
+
     def test_load_from_file(self):
         filename = self.get_temp_app_config_file()
         self.obj.load(filename)
