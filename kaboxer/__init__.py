@@ -450,7 +450,7 @@ class Kaboxer:
             for f in glob.glob(os.path.join(path, g)):
                 yamlfiles.append(f)
         for f in yamlfiles:
-            y = yaml.safe_load(open(f))
+            y = KaboxerAppConfig(filename=f)
             app = y.get('application', {}).get('id')
             if app is None:
                 continue
@@ -459,7 +459,6 @@ class Kaboxer:
             if app in parsed_configs:
                 continue
             parsed_configs[app] = y
-            parsed_configs[app]['_config_file'] = f
         if not parsed_configs:
             self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
@@ -800,22 +799,22 @@ Categories={{ p.categories }}
             # Install kaboxer.yaml file
             # Update it first if we ship the tarball
             with tempfile.TemporaryDirectory() as td:
-                filtered_config_file = parsed_config.copy()
+                # Duplicate object
+                filtered_config_file = KaboxerAppConfig(
+                    filename=parsed_config.filename)
                 tf = os.path.join(td, app + '.kaboxer.yaml')
                 if self.args.tarball:
                     # Rewrite the YAML file with the tarball data
-                    del(filtered_config_file['_config_file'])
                     origin_data = {
                         'tarball': os.path.join(main_destpath, app + '.tar'),
                     }
                     if 'container' not in filtered_config_file:
                         filtered_config_file['container'] = {}
                     filtered_config_file['container']['origin'] = origin_data
-                    with open(tf, 'w') as y:
-                        y.write(yaml.dump(filtered_config_file))
+                    filtered_config_file.save(tf)
                 else:
                     # Copy over the unmodified file
-                    shutil.copy(parsed_config['_config_file'], tf)
+                    shutil.copy(parsed_config.filename, tf)
 
                 self.install_to_path(tf, main_destpath)
             # Install desktop file(s)
@@ -1410,7 +1409,7 @@ Categories={{ p.categories }}
                 config_file = os.path.join(p, filename)
                 if os.path.isfile(config_file):
                     try:
-                        y = yaml.safe_load(open(config_file))
+                        y = KaboxerAppConfig(filename=config_file)
                         if y['application']['id'] == app:
                             return y
                     except Exception:
