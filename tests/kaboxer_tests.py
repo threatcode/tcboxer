@@ -679,6 +679,9 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
         y['kbx-demo']['git_url'] = os.getcwd()
         with open(appsfile, 'w') as f:
             f.write(yaml.dump(y))
+        if not os.path.exists('.git'):
+            self.run_command(
+                'git init -q . && git add . && git commit -q -m "Test"')
 
     def tearDown(self):
         if False:
