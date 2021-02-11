@@ -94,10 +94,10 @@ The main user-facing mode of operation, ``kaboxer run`` starts a containerized a
 ``kaboxer purge`` removes an image from the container engine.
 
 ### Examples
-The ``kbx-hello-*`` packages provide examples for the various modes of operation.
-``kbx-hello-server`` includes a systemd service that starts the server as a daemon. It uses ``kaboxer run kbx-hello-server`` and ``kaboxer stop kbx-hello-server`` to actually start or stop the container.
-``kbx-hello-cli`` is a text-mode client. It runs in a terminal using ``kaboxer run kbx-hello-cli``.
-``kbx-hello-gui`` is a graphical client. It runs in a terminal using ``kaboxer run kbx-hello-gui``.
+The ``hello-*-kbx`` packages provide examples for the various modes of operation.
+``hello-server-kbx`` includes a systemd service that starts the server as a daemon. It uses ``kaboxer run hello-server-kbx`` and ``kaboxer stop hello-server-kbx`` to actually start or stop the container.
+``hello-cli-kbx`` is a text-mode client. It runs in a terminal using ``kaboxer run hello-cli-kbx``.
+``hello-gui-kbx`` is a graphical client. It runs in a terminal using ``kaboxer run hello-gui-kbx``.
 
 
 dh_kaboxer
@@ -111,7 +111,7 @@ It works by specifying ``--with kaboxer`` as a parameter for ``dh``, and it expe
 
 dh_kaboxer does not by itself create or install systemd service files or desktop files, but these files are made easy to write by the ``kaboxer`` tool since all the logic is handled by Kaboxer based on the ``.kaboxer.yaml`` configuration files.
 
-Again, refer to the ``kbx-hello-*`` packages provided as examples by the ``kaboxer`` package.
+Again, refer to the ``hello-*-kbx`` packages provided as examples by the ``kaboxer`` package.
 
 Copyright
 =========
