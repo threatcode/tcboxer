@@ -104,9 +104,9 @@ The main user-facing mode of operation, ``kaboxer run`` starts a containerized a
 
 ### Examples
 The ``hello-*-kbx`` packages provide examples for the various modes of operation.
-- ``hello-server-kbx`` includes a systemd service that starts the server as a daemon. It uses ``kaboxer run hello-server-kbx`` and ``kaboxer stop hello-server-kbx`` to actually start or stop the container.
-- ``hello-cli-kbx`` is a text-mode client. It runs in a terminal using ``kaboxer run hello-cli-kbx``.
-- ``hello-gui-kbx`` is a graphical client. It runs in a terminal using ``kaboxer run hello-gui-kbx``.
+- ``hello-server-kbx`` includes a systemd service that starts the server as a daemon. It uses ``kaboxer run hello-server`` and ``kaboxer stop hello-server`` to actually start or stop the container.
+- ``hello-cli-kbx`` is a text-mode client. It runs in a terminal using ``kaboxer run hello-cli``.
+- ``hello-gui-kbx`` is a graphical client. It runs in a terminal using ``kaboxer run hello-gui``.
 
 
 dh_kaboxer
@@ -115,8 +115,8 @@ dh_kaboxer
 ``dh_kaboxer`` is a Debhelper addon that eases generation and management of Kaboxer images in packages. It automates the building of images and their shipping in the packages.
 
 It works by specifying ``--with kaboxer`` as a parameter for ``dh``, and it expects the following for each binary package that should ship a Kaboxer image:
-- a ``debian/<package>.kaboxer.yaml`` file that contains the parameters for kaboxed app: a run mode, a list of networks to create or connect to, a list of mounts, and so on.
-- a ``debian/<package>.Dockerfile`` that is a standard Dockerfile for building the container image.
+- a ``<app>.kaboxer.yaml`` file that contains the parameters for kaboxed app: a run mode, a list of networks to create or connect to, a list of mounts, and so on.
+- a ``<app>.Dockerfile`` that is a standard Dockerfile for building the container image.
 
 ``dh_kaboxer`` does not by itself create or install systemd service files or desktop files, but these files are made easy to write by the ``kaboxer`` tool since all the logic is handled by Kaboxer based on the ``.kaboxer.yaml`` configuration files.
 
