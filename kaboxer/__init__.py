@@ -853,6 +853,7 @@ Categories={{ p.categories }}
                 pass
 
     def extract_file_from_image(self, image, infile, outfile):
+        temp_container = None
         try:
             temp_container = self.docker_conn.containers.create(image)
             (bits, stat) = temp_container.get_archive(infile)
@@ -866,7 +867,8 @@ Categories={{ p.categories }}
                     tf.extract(ti, path=td, set_attrs=False)
                     shutil.move(os.path.join(td, ti.name), outfile)
         finally:
-            temp_container.remove()
+            if temp_container:
+                temp_container.remove()
 
     def extract_file_from_tarball(self, tarball, infile, outfile):
         tf = tarfile.open(tarball)
