@@ -26,7 +26,7 @@ for my $package (@{ $dh{DOPACKAGES} }) {
       my $h = YAML::XS::Load($yaml) or die "Unable to parse YAML from $y";
       push @apps, $h->{application}{id};
       if ($h->{container}{type} eq 'docker') {
-	  addsubstvar($package, 'misc:Depends', 'docker.io');
+	  addsubstvar($package, 'misc:Depends', 'docker.io | docker-ce');
       }
   }
   my $apps = join " ", @apps;
