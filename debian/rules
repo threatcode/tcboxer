@@ -15,4 +15,4 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 endif
 
 override_dh_compress:
-	dh_compress -X kbx-hello
+	dh_compress -X hello-kbx

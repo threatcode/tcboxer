@@ -33,10 +33,10 @@ container:
     default_component: default
     # Define the network configuration
     networks:
-        - kbx-hello
+        - hello-kbx
     # Shared mounts
     mounts:
-        - source: /var/lib/kbx-hello
+        - source: /var/lib/hello-kbx
           target: /data
 # Components define what we can "execute" within the container
 # Simple applications will only have one. When you have multiple

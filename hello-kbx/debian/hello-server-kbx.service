@@ -1,5 +1,5 @@
 [Unit]
-Description=The kbx-hello server
+Description=The hello-kbx server
 After=network.target docker.service
 
 [Service]
