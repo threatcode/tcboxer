@@ -19,5 +19,5 @@ components:
     networks:
       - hello-kbx
     mounts:
-      - source: /var/lib/hello
+      - source: /var/lib/hello-kbx
         target: /data
