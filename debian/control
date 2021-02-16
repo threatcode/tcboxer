@@ -28,7 +28,7 @@ Vcs-Browser: https://gitlab.com/kalilinux/tools/kaboxer
 Package: kaboxer
 Architecture: all
 Depends:
- docker.io,
+ docker.io | docker-ce,
  libfile-copy-recursive-perl,
  libyaml-libyaml-perl,
  sudo,
