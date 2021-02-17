@@ -20,7 +20,9 @@ set -e
 
 case "$1" in
     configure)
-        addgroup --system kaboxer
+        if ! getent group kaboxer >/dev/null; then
+            addgroup --system kaboxer
+	fi
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
