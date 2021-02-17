@@ -31,7 +31,7 @@ for my $package (@{ $dh{DOPACKAGES} }) {
   }
   my $apps = join " ", @apps;
   autoscript($package, 'postinst', 'postinst-kaboxer', "s/#APPS#/$apps/g");
-  autoscript($package, 'postrm', 'postrm-kaboxer', "s/#APPS#/$apps/g");
+  autoscript($package, 'prerm', 'prerm-kaboxer', "s/#APPS#/$apps/g");
 }
 
 __END__
