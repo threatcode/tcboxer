@@ -105,7 +105,7 @@ registry, and so on. Multiple applications can be prepared at the same time.
 **kaboxer** upgrade *APP*...
 
 Brings the installed image for application *APP* to the latest
-version. As for **kaboxer**_prepare_, multiple applications can be
+version. As for **kaboxer prepare**, multiple applications can be
 handled at the same time.
 
 # KABOXER LIST
