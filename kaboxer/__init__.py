@@ -1167,18 +1167,50 @@ Categories={{ p.categories }}
             sys.exit(1)
 
     def cmd_purge(self):
+        """ Purge (uninstall) an application
+
+        XXX Should check if an image is in use before trying to remove it
+        XXX Pruning should be done if at least one image was removed
+        XXX I believe we should clear all tags that are found, regardless
+            of 'maxversion'
+        XXX What about images that have the registry in their name, eg.
+            registry.gitlab.com/kalilinux/packages/APP-kbx/kaboxer/APP?
+        """
+
+        app = self.args.app
+
         current_apps, _, _, available_apps = self.list_apps()
-        if self.args.app in current_apps:
-            self.docker_conn.images.remove('kaboxer/%s:current' %
-                                           (self.args.app,))
-        if self.args.app in available_apps:
-            self.docker_conn.images.remove('kaboxer/%s:%s' % (
-                self.args.app,
-                available_apps[self.args.app]['maxversion']['version']))
+
+        if app in current_apps:
+            imgname = f'kaboxer/{app}:current'
+            img = None
             try:
-                self.docker_conn.images.remove('kaboxer/%s' % (self.args.app,))
-            except Exception:
-                self.show_exception_in_debug_mode()
+                img = self.docker_conn.images.get(imgname)
+            except docker.errors.ImageNotFound:
+                 pass
+            if img:
+                self.docker_conn.images.remove(imgname)
+
+        if app in available_apps:
+            version = available_apps[app]['maxversion']['version']
+            imgname = f'kaboxer/{app}:{version}'
+            img = None
+            try:
+                img = self.docker_conn.images.get(imgname)
+            except docker.errors.ImageNotFound:
+                 pass
+            if img:
+                 self.docker_conn.images.remove(imgname)
+
+            imgname = f'kaboxer/{app}'
+            img = None
+            try:
+                img = self.docker_conn.images.get(imgname)
+            except docker.errors.ImageNotFound:
+                 pass
+            if img:
+                 self.docker_conn.images.remove(imgname)
+
             if self.args.prune:
                 self.docker_conn.images.prune(filters={'dangling': True})
 
