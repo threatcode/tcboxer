@@ -1169,7 +1169,6 @@ Categories={{ p.categories }}
     def cmd_purge(self):
         """ Purge (uninstall) an application
 
-        XXX Should check if an image is in use before trying to remove it
         XXX Pruning should be done if at least one image was removed
         XXX I believe we should clear all tags that are found, regardless
             of 'maxversion'
@@ -1183,34 +1182,16 @@ Categories={{ p.categories }}
 
         if app in current_apps:
             imgname = f'kaboxer/{app}:current'
-            img = None
-            try:
-                img = self.docker_conn.images.get(imgname)
-            except docker.errors.ImageNotFound:
-                 pass
-            if img:
-                self.docker_conn.images.remove(imgname)
+            self.backend.remove_image(self.docker_conn, imgname)
 
         if app in available_apps:
             version = available_apps[app]['maxversion']['version']
             imgname = f'kaboxer/{app}:{version}'
-            img = None
-            try:
-                img = self.docker_conn.images.get(imgname)
-            except docker.errors.ImageNotFound:
-                 pass
-            if img:
-                 self.docker_conn.images.remove(imgname)
+            self.backend.remove_image(self.docker_conn, imgname)
 
             imgname = f'kaboxer/{app}'
-            img = None
-            try:
-                img = self.docker_conn.images.get(imgname)
-            except docker.errors.ImageNotFound:
-                 pass
-            if img:
-                 self.docker_conn.images.remove(imgname)
-
+            self.backend.remove_image(self.docker_conn, imgname)
+           
             if self.args.prune:
                 self.docker_conn.images.prune(filters={'dangling': True})
 
@@ -1627,6 +1608,20 @@ class DockerBackend:
         image = registry_data.get('image', app_config.app_id)
         return "%s/%s" % (registry, image)
 
+    def remove_image(self, docker_conn, image_name):
+        """ Remove a docker image
+
+        Returns: 1 if the image was removed, 0 otherwise.
+
+        XXX Should check if an image is in use before trying to remove it
+        """
+        try:
+            _ = docker_conn.images.get(image_name)
+        except docker.errors.ImageNotFound:
+            return 0
+    
+        docker_conn.images.remove(image_name)
+        return 1
 
 def main():
     kaboxer = Kaboxer()
