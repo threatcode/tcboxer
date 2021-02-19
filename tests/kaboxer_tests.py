@@ -243,6 +243,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertFalse(self.is_image_present(),
                          "Docker image still present after kaboxer purge")
 
+    def test_purge_non_existing_app(self):
+        self.run_and_check_command(
+            "kaboxer purge --prune non-existing-app")
+
     def test_run(self):
         self.test_build_and_save()
         self.run_command_check_stdout_matches("kaboxer run %s" % self.app_name,
