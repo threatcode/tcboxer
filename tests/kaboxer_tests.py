@@ -149,6 +149,13 @@ class TestKaboxerCommon(unittest.TestCase):
         else:
             return False
 
+    def is_container_running(self):
+        if self.run_command("docker ps -f name='%s' -f status=running | grep -q %s" %
+                            (self.app_name, self.app_name)) == 0:
+            return True
+        else:
+            return False
+
     def build(self):
         self.run_and_check_command("kaboxer build")
         self.assertTrue(self.is_image_present(),
@@ -272,6 +279,17 @@ class TestKaboxerLocally(TestKaboxerCommon):
                          "Docker image still present after kaboxer purge")
         self.run_command_check_stdout_matches("kaboxer run %s" % self.app_name,
                                               "Hi there")
+
+    def test_run_detach(self):
+        self.build()
+        self.run_and_check_command(
+            "kaboxer run --component=daemon --detach %s" % self.app_name)
+        self.assertTrue(self.is_container_running(),
+                        "Docker container is not running after kaboxer run --detach")
+        self.run_and_check_command(
+            "kaboxer stop --component=daemon %s" % self.app_name)
+        self.assertFalse(self.is_container_running(),
+                        "Docker container is still running after kaboxer stop")
 
     def test_load_purge(self):
         self.test_build_and_save()
