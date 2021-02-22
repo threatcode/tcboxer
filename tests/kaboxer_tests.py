@@ -56,9 +56,11 @@ class TestKaboxerCommon(unittest.TestCase):
         self.remove_images()
         shutil.rmtree(self.tdname)
 
-    def run_command(self, cmd, ignore_output=False):
+    def run_command(self, cmd, ignore_output=False, wd=None):
         # print ("RUNNING %s" % (cmd,))
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, shell=True,
                            capture_output=ignore_output)
         return o.returncode
 
@@ -686,7 +688,9 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
                 'git init -q . && '
                 'git config user.name "Test Suite" && '
                 'git config user.email "devel@kali.org" && '
-                'git add . && git commit -q -m "Test"')
+                'git add . && '
+                'git commit -q -m "Test"',
+                wd=os.getcwd())
 
     def tearDown(self):
         if False:
