@@ -58,8 +58,9 @@ class TestKaboxerCommon(unittest.TestCase):
 
     def run_command(self, cmd, ignore_output=False):
         # print ("RUNNING %s" % (cmd,))
-        return subprocess.run(cmd, cwd=self.fixdir, shell=True,
-                              capture_output=ignore_output).returncode
+        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+                           capture_output=ignore_output)
+        return o.returncode
 
     def check_return_code(self, result, msg=None):
         if msg is None:
@@ -67,22 +68,23 @@ class TestKaboxerCommon(unittest.TestCase):
                 cmd = result.args
             else:
                 cmd = ' '.join(result.args)
-            msg = "Error when running '%s'\nSTDOUT:\n%s\nSTDERR:\n%s" % (
-                cmd, result.stdout, result.stderr)
+            msg = "Error when running '%s'\n" % cmd
+            msg += "STDOUT:\n%s\n" % result.stdout
+            msg += "STDERR:\n%s\n" % result.stderr
         self.assertEqual(result.returncode, 0, msg)
 
     def run_and_check_command(self, cmd, msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
-                           capture_output=True)
+                           capture_output=True, text=True)
         self.check_return_code(o, msg=msg)
 
     def run_and_check_command_fails(self, cmd, msg=None):
         o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
-                           capture_output=True)
+                           capture_output=True, text=True)
         if msg is None:
-            msg = "Unexpected success when running '%s'\n"
-            msg += "STDOUT:\n%s\nSTDERR:\n%s"
-            msg = msg % (cmd, o.stdout, o.stderr)
+            msg = "Unexpected success when running '%s'\n" % cmd
+            msg += "STDOUT:\n%s\n" % o.stdout
+            msg += "STDERR:\n%s\n" % o.stderr
         self.assertNotEqual(o.returncode, 0, msg)
 
     def check_output_matches(self, result, expected, output='stdout', msg=None,
@@ -97,8 +99,8 @@ class TestKaboxerCommon(unittest.TestCase):
             msg += " (%s matches %s)\n" % (output, expected)
         else:
             msg += " (%s doesn't match %s)\n" % (output, expected)
-        msg += "STDOUT: %s\n" % result.stdout
-        msg += "STDERR: %s\n" % result.stderr
+        msg += "STDOUT:\n%s\n" % result.stdout
+        msg += "STDERR:\n%s\n" % result.stderr
         value = getattr(result, output)
         if must_fail:
             self.assertFalse(re.search(expected, value, re.MULTILINE), msg)
