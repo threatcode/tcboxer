@@ -1,7 +1,7 @@
 application:
     id: CONTAINERID
-    name: Kaboxer test sleeper
-    description: Test container for Kaboxer that only sleeps
+    name: Kaboxer test container
+    description: Test container for Kaboxer with various components
     categories: Utilities;Development
 packaging:
   revision: 3
@@ -21,6 +21,9 @@ components:
   default:
     run_mode: cli
     executable: /run.sh hi
+  interactive:
+    run_mode: cli
+    executable: /run.sh ask
   daemon:
     run_mode: headless
     executable: /run.sh sleep

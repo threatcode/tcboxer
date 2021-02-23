@@ -109,34 +109,34 @@ class TestKaboxerCommon(unittest.TestCase):
         else:
             self.assertTrue(re.search(expected, value, re.MULTILINE), msg)
 
-    def run_command_check_stdout_matches(self, cmd, expected, fail_msg=None,
-                                         unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+    def run_command_check_stdout_matches(self, cmd, expected, input=None,
+                                         fail_msg=None, unexpected_msg=None):
+        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, msg=unexpected_msg)
 
-    def run_command_check_stdout_doesnt_match(self, cmd, expected,
+    def run_command_check_stdout_doesnt_match(self, cmd, expected, input=None,
                                               fail_msg=None,
                                               unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, msg=unexpected_msg,
                                   must_fail=True)
 
-    def run_command_check_stderr_matches(self, cmd, expected, fail_msg=None,
-                                         unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+    def run_command_check_stderr_matches(self, cmd, expected, input=None,
+                                         fail_msg=None, unexpected_msg=None):
+        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, output='stderr',
                                   msg=unexpected_msg)
 
-    def run_command_check_stderr_doesnt_match(self, cmd, expected,
+    def run_command_check_stderr_doesnt_match(self, cmd, expected, input=None,
                                               fail_msg=None,
                                               unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, output='stderr',
@@ -257,6 +257,12 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.build()
         self.run_command_check_stdout_matches(
             "kaboxer -vv run %s" % self.app_name, "Hi there")
+
+    def test_run_interactive(self):
+        self.build()
+        self.run_command_check_stdout_matches(
+            "kaboxer run --component interactive %s" % self.app_name,
+            "Hello alice", input="alice\n")
 
     def test_run_after_purge(self):
         self.test_build_and_save()
