@@ -17,4 +17,8 @@ case "$1" in
     history)
 	cat /persist/run_history
 	;;
+    ask)
+	read -p "What's your name? " name
+	echo "Hello $name"
+	;;	
 esac

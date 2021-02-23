@@ -21,6 +21,9 @@ components:
   default:
     run_mode: cli
     executable: /run.sh hi
+  interactive:
+    run_mode: cli
+    executable: /run.sh ask
   daemon:
     run_mode: headless
     executable: /run.sh sleep
