@@ -388,11 +388,17 @@ class Kaboxer:
             opts['auto_remove'] = True
             if self.args.detach:
                 opts['detach'] = True
-            container = self.docker_conn.containers.create(image, executable,
-                                                           **opts)
+                container = self.docker_conn.containers.run(image, executable,
+                                                            **opts)
+            else:
+                container = self.docker_conn.containers.create(image,
+                                                               executable,
+                                                               **opts)
             for e in extranets:
                 self.create_network(e).connect(container)
-            dockerpty.start(self.docker_conn.api, container.id)
+
+            if not self.args.detach:
+                dockerpty.start(self.docker_conn.api, container.id)
 
         self.run_hook_script('after_run')
 
