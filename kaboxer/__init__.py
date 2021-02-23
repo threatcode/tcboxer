@@ -282,14 +282,11 @@ class Kaboxer:
             container = containers[0]
 
         run_mode = self.component_config['run_mode']
-        opts = self.component_config.get('docker_options', {})
-        if self.args.detach:
-            if self.component_config['run_mode'] == 'headless':
-                opts['detach'] = True
-            else:
-                self.logger.error("Can't detach a non-headless component")
-                sys.exit(1)
+        if self.args.detach and run_mode != 'headless':
+            self.logger.error("Can't detach a non-headless component")
+            sys.exit(1)
 
+        opts = self.component_config.get('docker_options', {})
         opts = self.parse_component_config(opts)
         extranets = []
         try:
@@ -389,11 +386,19 @@ class Kaboxer:
                                    executable)
         else:
             opts['auto_remove'] = True
-            container = self.docker_conn.containers.create(image, executable,
-                                                           **opts)
+            if self.args.detach:
+                opts['detach'] = True
+                container = self.docker_conn.containers.run(image, executable,
+                                                            **opts)
+            else:
+                container = self.docker_conn.containers.create(image,
+                                                               executable,
+                                                               **opts)
             for e in extranets:
                 self.create_network(e).connect(container)
-            dockerpty.start(self.docker_conn.api, container.id)
+
+            if not self.args.detach:
+                dockerpty.start(self.docker_conn.api, container.id)
 
         self.run_hook_script('after_run')
 
