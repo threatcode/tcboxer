@@ -174,7 +174,7 @@ class Kaboxer:
         }
         ll = loglevels.get(self.args.verbose, 'DEBUG')
         ll = getattr(logging, ll)
-        self.logger = logging.Logger('kbxbuilder')
+        self.logger = logging.Logger('kaboxer')
         self.logger.setLevel(ll)
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
