@@ -40,16 +40,9 @@ class TestKaboxerCommon(unittest.TestCase):
         ]
 
     def remove_images(self):
-        self.run_command("docker image rm %s:1.0" % (self.image_name,),
-                         ignore_output=True)
-        self.run_command("docker image rm %s:1.1" % (self.image_name,),
-                         ignore_output=True)
-        self.run_command("docker image rm %s:1.2" % (self.image_name,),
-                         ignore_output=True)
-        self.run_command("docker image rm %s:latest" % (self.image_name,),
-                         ignore_output=True)
-        self.run_command("docker image rm %s:current" % (self.image_name,),
-                         ignore_output=True)
+        self.run_command("docker images --no-trunc --filter='reference=%s' \
+                --format='{{.Repository}}:{{.Tag}}' | xargs -r docker rmi"
+                % self.image_name, ignore_output=True)
 
     def tearDown(self):
         # self.run_command("docker image ls")
