@@ -37,7 +37,7 @@ import yaml
 class Kaboxer:
     def __init__(self):
         self.parser = argparse.ArgumentParser(prog='kaboxer')
-        self.parser.add_argument('--verbose', '-v', action='count', default=0,
+        self.parser.add_argument('-v', '--verbose', action='count', default=0,
                                  help='increase verbosity')
 
         subparsers = self.parser.add_subparsers(
