@@ -1,5 +1,7 @@
 case "$1" in
     remove)
-	kaboxer purge #APPS#
+	for app in #APPS#; do
+	    kaboxer purge $app
+	done
     ;;
 esac
