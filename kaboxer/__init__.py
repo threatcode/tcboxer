@@ -1167,20 +1167,36 @@ Categories={{ p.categories }}
             sys.exit(1)
 
     def cmd_purge(self):
+        """ Purge (uninstall) an application
+
+        XXX I believe we should clear all tags that are found, regardless
+            of 'maxversion'
+        XXX What about images that have the registry in their name, eg.
+            registry.gitlab.com/kalilinux/packages/APP-kbx/kaboxer/APP?
+        """
+
+        app = self.args.app
+        n_removed_images = 0
+
         current_apps, _, _, available_apps = self.list_apps()
-        if self.args.app in current_apps:
-            self.docker_conn.images.remove('kaboxer/%s:current' %
-                                           (self.args.app,))
-        if self.args.app in available_apps:
-            self.docker_conn.images.remove('kaboxer/%s:%s' % (
-                self.args.app,
-                available_apps[self.args.app]['maxversion']['version']))
-            try:
-                self.docker_conn.images.remove('kaboxer/%s' % (self.args.app,))
-            except Exception:
-                self.show_exception_in_debug_mode()
-            if self.args.prune:
-                self.docker_conn.images.prune(filters={'dangling': True})
+
+        if app in current_apps:
+            imgname = f'kaboxer/{app}:current'
+            if self.backend.remove_image(self.docker_conn, imgname):
+                n_removed_images += 1
+
+        if app in available_apps:
+            version = available_apps[app]['maxversion']['version']
+            imgname = f'kaboxer/{app}:{version}'
+            if self.backend.remove_image(self.docker_conn, imgname):
+                n_removed_images += 1
+
+            imgname = f'kaboxer/{app}'
+            if self.backend.remove_image(self.docker_conn, imgname):
+                n_removed_images += 1
+           
+        if n_removed_images > 0 and self.args.prune:
+            self.docker_conn.images.prune(filters={'dangling': True})
 
     def list_apps(self, get_remotes=False, restrict=None):
         current_apps = {}
@@ -1595,6 +1611,20 @@ class DockerBackend:
         image = registry_data.get('image', app_config.app_id)
         return "%s/%s" % (registry, image)
 
+    def remove_image(self, docker_conn, image_name):
+        """ Remove a docker image
+
+        Returns: True if the image was removed, False otherwise.
+
+        XXX Should check if an image is in use before trying to remove it
+        """
+        try:
+            _ = docker_conn.images.get(image_name)
+        except docker.errors.ImageNotFound:
+            return False
+    
+        docker_conn.images.remove(image_name)
+        return True
 
 def main():
     kaboxer = Kaboxer()
