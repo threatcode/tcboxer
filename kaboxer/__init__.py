@@ -1169,7 +1169,6 @@ Categories={{ p.categories }}
     def cmd_purge(self):
         """ Purge (uninstall) an application
 
-        XXX Pruning should be done if at least one image was removed
         XXX I believe we should clear all tags that are found, regardless
             of 'maxversion'
         XXX What about images that have the registry in their name, eg.
@@ -1177,23 +1176,27 @@ Categories={{ p.categories }}
         """
 
         app = self.args.app
+        n_removed_images = 0
 
         current_apps, _, _, available_apps = self.list_apps()
 
         if app in current_apps:
             imgname = f'kaboxer/{app}:current'
-            self.backend.remove_image(self.docker_conn, imgname)
+            if self.backend.remove_image(self.docker_conn, imgname):
+                n_removed_images += 1
 
         if app in available_apps:
             version = available_apps[app]['maxversion']['version']
             imgname = f'kaboxer/{app}:{version}'
-            self.backend.remove_image(self.docker_conn, imgname)
+            if self.backend.remove_image(self.docker_conn, imgname):
+                n_removed_images += 1
 
             imgname = f'kaboxer/{app}'
-            self.backend.remove_image(self.docker_conn, imgname)
+            if self.backend.remove_image(self.docker_conn, imgname):
+                n_removed_images += 1
            
-            if self.args.prune:
-                self.docker_conn.images.prune(filters={'dangling': True})
+        if n_removed_images > 0 and self.args.prune:
+            self.docker_conn.images.prune(filters={'dangling': True})
 
     def list_apps(self, get_remotes=False, restrict=None):
         current_apps = {}
@@ -1611,17 +1614,17 @@ class DockerBackend:
     def remove_image(self, docker_conn, image_name):
         """ Remove a docker image
 
-        Returns: 1 if the image was removed, 0 otherwise.
+        Returns: True if the image was removed, False otherwise.
 
         XXX Should check if an image is in use before trying to remove it
         """
         try:
             _ = docker_conn.images.get(image_name)
         except docker.errors.ImageNotFound:
-            return 0
+            return False
     
         docker_conn.images.remove(image_name)
-        return 1
+        return True
 
 def main():
     kaboxer = Kaboxer()
