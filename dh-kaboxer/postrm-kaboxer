@@ -1,5 +1,0 @@
-case "$1" in
-    purge)
-	kaboxer purge #APPS#
-    ;;
-esac

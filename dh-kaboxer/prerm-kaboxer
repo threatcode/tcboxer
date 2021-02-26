@@ -1,0 +1,7 @@
+case "$1" in
+    remove)
+	for app in #APPS#; do
+	    kaboxer purge $app || true
+	done
+    ;;
+esac
