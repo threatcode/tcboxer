@@ -165,6 +165,7 @@ class Kaboxer:
         ]
 
         self.backend = DockerBackend()
+        self.registry = ContainerRegistry()
 
     def setup_logging(self):
         loglevels = {
@@ -178,6 +179,8 @@ class Kaboxer:
         self.logger.setLevel(ll)
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
+
+        self.registry.logger = self.logger
 
     def setup_docker(self):
         self._docker_conn = docker.from_env()
@@ -1289,63 +1292,19 @@ Categories={{ p.categories }}
 
         if get_remotes:
             for aid in registry_apps:
-                url = registry_apps[aid]['url']
-                if not re.match('https?://', url):
-                    url = 'http://' + url
-                comps = re.split('/', url)
-                h = '/'.join(comps[:3])
-                p = '/'.join(comps[3:])
-                i = registry_apps[aid]['image']
-                u2 = 'v2/%s/%s/tags' % (p, i)
-                u2 = re.sub('//', '/', u2)
-                registry_apps[aid]['versions'] = []
-                fullurl = "%s/%s" % (h, u2)
-                self.logger.debug("Querying registry on official API URL: %s",
-                                  fullurl)
-                req = None
-                try:
-                    req = requests.get(fullurl)
-                except requests.ConnectionError:
-                    self.logger.warning("Could not query registry on %s",
-                                        fullurl, exc_info=1)
-                if req is not None and req.ok:
-                    json_data = req.json()
-                    self.logger.debug('Results: %s', json_data)
-                    results = json_data.get('results', [])
-                    for r in results:
-                        registry_apps[aid]['versions'].append(r['name'])
-                elif req is not None and not req.ok:
-                    self.logger.debug(
-                        "HTTP request failed with status_code = %d",
-                        req.status_code)
-                    fullurl = "%s/%s/list" % (h, u2)
-                    self.logger.debug("Querying registry on alternate URL: %s",
-                                      fullurl)
-                    req = None
-                    try:
-                        req = requests.get(fullurl)
-                    except requests.ConnectionError:
-                        self.logger.warning("Could not query registry on %s",
-                                            fullurl, exc_info=1)
-                    if req is not None and req.ok:
-                        json_data = req.json()
-                        self.logger.debug('Results: %s', json_data)
-                        results = json_data.get('tags', [])
-                        for r in results:
-                            registry_apps[aid]['versions'].append(r)
-                    elif req is not None and not req.ok:
-                        self.logger.debug(
-                            "HTTP request failed with status_code = %d",
-                            req.status_code)
+                app = registry_apps[aid]
+                app['versions'] = self.registry.get_versions_for_app(
+                        app['url'], app['image'])
 
-                curmax = max(registry_apps[aid]['versions'], default=None,
+                curmax = max(app['versions'], default=None,
                              key=lambda x: parse_version(x))
                 if curmax:
                     self.logger.debug("Maximal version for image %s is %s",
                                       aid, curmax)
-                    registry_apps[aid]['maxversion'] = curmax
+                    app['maxversion'] = curmax
                 else:
                     self.logger.debug("No versions found for image %s", aid)
+
         return (current_apps, registry_apps, tarball_apps, available_apps)
 
     def cmd_list(self):
@@ -1625,6 +1584,64 @@ class DockerBackend:
     
         docker_conn.images.remove(image_name)
         return True
+
+
+class ContainerRegistry:
+    def get_versions_for_app(self, registry_url, image):
+        """ List versions of an image on a remote registry.
+
+        Returns: an array of versions.
+        """
+        versions = []
+
+        url = registry_url
+        if not re.match('https?://', url):
+            url = 'http://' + url
+        comps = re.split('/', url)
+        h = '/'.join(comps[:3])
+        p = '/'.join(comps[3:])
+        i = image
+        u2 = 'v2/%s/%s/tags' % (p, i)
+        u2 = re.sub('//', '/', u2)
+        fullurl = "%s/%s" % (h, u2)
+        self.logger.debug("Querying registry on official API URL: %s",
+                fullurl)
+        req = None
+        try:
+            req = requests.get(fullurl)
+        except requests.ConnectionError:
+            self.logger.warning("Could not query registry on %s",
+                    fullurl, exc_info=1)
+        if req is not None and req.ok:
+            json_data = req.json()
+            self.logger.debug('Results: %s', json_data)
+            results = json_data.get('results', [])
+            for r in results:
+                versions.append(r['name'])
+        elif req is not None and not req.ok:
+            self.logger.debug("HTTP request failed with status_code = %d",
+                    req.status_code)
+            fullurl = "%s/%s/list" % (h, u2)
+            self.logger.debug("Querying registry on alternate URL: %s",
+                    fullurl)
+            req = None
+            try:
+                req = requests.get(fullurl)
+            except requests.ConnectionError:
+                self.logger.warning("Could not query registry on %s",
+                        fullurl, exc_info=1)
+            if req is not None and req.ok:
+                json_data = req.json()
+                self.logger.debug('Results: %s', json_data)
+                results = json_data.get('tags', [])
+                for r in results:
+                    versions.append(r)
+            elif req is not None and not req.ok:
+                self.logger.debug("HTTP request failed with status_code = %d",
+                        req.status_code)
+        
+        return versions
+
 
 def main():
     kaboxer = Kaboxer()
