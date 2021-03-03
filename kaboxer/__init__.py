@@ -1618,10 +1618,20 @@ class ContainerRegistry:
 
         return json_data
 
-    def _get_tags_docker_registry_official_api(self, parsed_registry_url, image):
+    def _get_tags_docker_hub_registry(self, parsed_registry_url, image):
+        """ Get image tags on the Docker Hub Registry
+
+        This is an undocumented API endpoint. It's interesting to note that this
+        endpoint also existed in the v1 API (just replace v2 by v1 in the URL),
+        so maybe it exists for compatibility, however it returns a different
+        output, compared to v1.
+
+        It's not clear at all if this endpoint exists on services other than the
+        Docker Hub. However it's clear that it does not require authentication.
+        """
 
         u = parsed_registry_url
-        url = '{}://{}/v2/{}/{}/tags'.format(u.scheme, u.netloc,
+        url = '{}://{}/v2/repositories/{}/{}/tags'.format(u.scheme, u.netloc,
                 u.path.lstrip('/'), image)
 
         json_data = self._request_json(url)
@@ -1679,15 +1689,12 @@ class ContainerRegistry:
         if not url.scheme:
             url.scheme = 'https'
 
-        versions = self._get_tags_docker_registry_official_api(url, image)
-        if versions:
-            return versions
+        if url.netloc == 'registry.hub.docker.com':
+            versions = self._get_tags_docker_hub_registry(url, image)
+        else:
+            versions = self._get_tags_docker_registry_v2(url, image)
 
-        versions = self._get_tags_docker_registry_v2(url, image)
-        if versions:
-            return versions
-
-        return []
+        return versions
 
 
 def main():
