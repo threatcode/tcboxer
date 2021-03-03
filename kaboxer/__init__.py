@@ -31,6 +31,8 @@ import requests
 
 import tabulate
 
+import urllib.parse
+
 import yaml
 
 
@@ -1594,16 +1596,15 @@ class ContainerRegistry:
         """
         versions = []
 
-        url = registry_url
-        if not re.match('https?://', url):
-            url = 'http://' + url
-        comps = re.split('/', url)
-        h = '/'.join(comps[:3])
-        p = '/'.join(comps[3:])
-        i = image
-        u2 = 'v2/%s/%s/tags' % (p, i)
+        url = urllib.parse.urlparse(registry_url)
+        if not url.netloc:
+            self.logger.warning("Invalid registry url: %s", registry_url)
+            return []
+        if not url.scheme:
+            url.scheme = 'http'
+        u2 = 'v2/%s/%s/tags' % (url.path, image)
         u2 = re.sub('//', '/', u2)
-        fullurl = "%s/%s" % (h, u2)
+        fullurl = "%s://%s/%s" % (url.scheme, url.netloc, u2)
         self.logger.debug("Querying registry on official API URL: %s",
                 fullurl)
         req = None
@@ -1621,7 +1622,7 @@ class ContainerRegistry:
         elif req is not None and not req.ok:
             self.logger.debug("HTTP request failed with status_code = %d",
                     req.status_code)
-            fullurl = "%s/%s/list" % (h, u2)
+            fullurl = "%s://%s/%s/list" % (url.scheme, url.netloc, u2)
             self.logger.debug("Querying registry on alternate URL: %s",
                     fullurl)
             req = None
