@@ -183,7 +183,8 @@ class Kaboxer:
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
 
-        self.registry.logger = self.logger
+        self.registry.logger.setLevel(ll)
+        self.registry.logger.addHandler(ch)
 
     def setup_docker(self):
         self._docker_conn = docker.from_env()
@@ -1590,6 +1591,8 @@ class DockerBackend:
 
 
 class ContainerRegistry:
+    def __init__(self):
+        self.logger = logging.Logger('kaboxer.ContainerRegistry')
 
     def _request_json(self, url):
 
