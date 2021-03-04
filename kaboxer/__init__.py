@@ -1676,6 +1676,70 @@ class ContainerRegistry:
 
         return versions
 
+    def _get_tags_gitlab_registry(self, project, image):
+        """ Get image tags using the GitLab Container Registry API
+
+        References:
+        - https://docs.gitlab.com/ce/api/
+        - https://docs.gitlab.com/ce/api/container_registry.html
+        """
+
+        api_url = 'https://gitlab.com/api/v4'
+
+        # First request
+
+        project_url_encoded = urllib.parse.quote(project, safe='')
+        url = '{}/projects/{}/registry/repositories'.format(
+                api_url, project_url_encoded)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return []
+
+        try:
+            _ = iter(json_data)
+        except TypeError:
+            self.logger.warning("Unexpected json: %s", json_data)
+            return []
+
+        project_id = ''
+        repository_id = ''
+        for item in json_data:
+            if item.get('name', '') != image:
+                continue
+            project_id = item.get('project_id', '')
+            repository_id = item.get('id', '')
+            break
+
+        if not project_id or not repository_id:
+            self.logger.warning("Could not find valid image '%s' in json: %s",
+                    image, json_data)
+            return []
+
+        # Second request
+
+        url = '{}/projects/{}/registry/repositories/{}/tags'.format(
+                api_url, project_id, repository_id)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return None
+
+        try:
+            _ = iter(json_data)
+        except TypeError:
+            self.logger.warning("Unexpected json: %s", json_data)
+            return None
+
+        tags = []
+        for item in json_data:
+            try:
+                tags.append(item['name'])
+            except KeyError:
+                self.logger.warning("Missing keys in json: %s", item)
+
+        return tags
+
     def get_versions_for_app(self, registry_url, image):
         """ List versions of an image on a remote registry.
 
@@ -1689,7 +1753,10 @@ class ContainerRegistry:
         if not url.scheme:
             url.scheme = 'https'
 
-        if url.netloc == 'registry.hub.docker.com':
+        if url.netloc == 'registry.gitlab.com':
+            project = url.path.lstrip('/')
+            versions = self._get_tags_gitlab_registry(project, image)
+        elif url.netloc == 'registry.hub.docker.com':
             versions = self._get_tags_docker_hub_registry(url, image)
         else:
             versions = self._get_tags_docker_registry_v2(url, image)
