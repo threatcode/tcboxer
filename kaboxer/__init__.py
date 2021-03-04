@@ -3,6 +3,7 @@
 import argparse
 import glob
 import grp
+from http import HTTPStatus
 import io
 import json
 import logging
@@ -1589,12 +1590,76 @@ class DockerBackend:
 
 
 class ContainerRegistry:
+
+    def _request_json(self, url):
+
+        self.logger.debug("Requesting %s", url)
+
+        resp = None
+
+        try:
+            resp = requests.get(url)
+        except requests.ConnectionError:
+            self.logger.warning("Failed to request %s", url, exc_info=1)
+            return None
+
+        if not resp.ok:
+            self.logger.warning("Request failed with %d (%s)",
+                    resp.status_code, HTTPStatus(resp.status_code).phrase)
+            return None
+
+        try:
+            json_data = resp.json()
+        except ValueError:
+            self.logger.warning("Failed to parse response as JSON: %s", resp.text)
+            return None
+
+        self.logger.debug('Result: %s', json_data)
+
+        return json_data
+
+    def _get_tags_docker_registry_official_api(self, parsed_registry_url, image):
+
+        u = parsed_registry_url
+        url = '{}://{}/v2/{}/{}/tags'.format(u.scheme, u.netloc,
+                u.path.lstrip('/'), image)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return []
+
+        results = json_data.get('results', [])
+        versions = []
+        for r in results:
+            try:
+                versions.append(r['name'])
+            except KeyError:
+                self.logger.warning("Missing key in JSON: %s", r)
+
+        return versions
+
+    def _get_tags_docker_registry_alternate_api(self, parsed_registry_url, image):
+
+        u = parsed_registry_url
+        url = '{}://{}/v2/{}/{}/tags/list'.format(u.scheme, u.netloc,
+                u.path.lstrip('/'), image)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return []
+
+        results = json_data.get('tags', [])
+        versions = []
+        for r in results:
+            versions.append(r)
+
+        return versions
+
     def get_versions_for_app(self, registry_url, image):
         """ List versions of an image on a remote registry.
 
         Returns: an array of versions.
         """
-        versions = []
 
         url = urllib.parse.urlparse(registry_url)
         if not url.netloc:
@@ -1602,46 +1667,16 @@ class ContainerRegistry:
             return []
         if not url.scheme:
             url.scheme = 'https'
-        u2 = 'v2/%s/%s/tags' % (url.path, image)
-        u2 = re.sub('//', '/', u2)
-        fullurl = "%s://%s/%s" % (url.scheme, url.netloc, u2)
-        self.logger.debug("Querying registry on official API URL: %s",
-                fullurl)
-        req = None
-        try:
-            req = requests.get(fullurl)
-        except requests.ConnectionError:
-            self.logger.warning("Could not query registry on %s",
-                    fullurl, exc_info=1)
-        if req is not None and req.ok:
-            json_data = req.json()
-            self.logger.debug('Results: %s', json_data)
-            results = json_data.get('results', [])
-            for r in results:
-                versions.append(r['name'])
-        elif req is not None and not req.ok:
-            self.logger.debug("HTTP request failed with status_code = %d",
-                    req.status_code)
-            fullurl = "%s://%s/%s/list" % (url.scheme, url.netloc, u2)
-            self.logger.debug("Querying registry on alternate URL: %s",
-                    fullurl)
-            req = None
-            try:
-                req = requests.get(fullurl)
-            except requests.ConnectionError:
-                self.logger.warning("Could not query registry on %s",
-                        fullurl, exc_info=1)
-            if req is not None and req.ok:
-                json_data = req.json()
-                self.logger.debug('Results: %s', json_data)
-                results = json_data.get('tags', [])
-                for r in results:
-                    versions.append(r)
-            elif req is not None and not req.ok:
-                self.logger.debug("HTTP request failed with status_code = %d",
-                        req.status_code)
-        
-        return versions
+
+        versions = self._get_tags_docker_registry_official_api(url, image)
+        if versions:
+            return versions
+
+        versions = self._get_tags_docker_registry_alternate_api(url, image)
+        if versions:
+            return versions
+
+        return []
 
 
 def main():
