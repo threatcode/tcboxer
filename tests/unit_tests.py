@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 
+import json
 import os
+import responses
 import tempfile
 import unittest
 
-from kaboxer import DockerBackend, Kaboxer, KaboxerAppConfig
+from kaboxer import ContainerRegistry, DockerBackend, Kaboxer, KaboxerAppConfig
 
 
 class TestKaboxerApplication(unittest.TestCase):
@@ -163,6 +165,94 @@ class TestDockerBackend(unittest.TestCase):
         self.set_origin_registry('https://foo.bar.com/registry', 'myname')
         self.assertEqual(self.obj.get_remote_image_name(self.app_config),
                          'foo.bar.com/registry/myname')
+
+
+class TestContainerRegistry(unittest.TestCase):
+    def setUp(self):
+        self.obj = ContainerRegistry()
+
+    @unittest.skip("Not implemented yet")
+    def test_get_from_docker(self):
+        pass
+
+    @responses.activate
+    def test_get_from_docker_hub(self):
+        api_url = 'https://registry.hub.docker.com/v2'
+
+        def mk_tags_url(image):
+            return '{}/repositories/{}/tags'.format(api_url, image)
+       
+        responses_dir = 'tests/fixtures/docker-hub-registry-v2'
+        with open(responses_dir + '/tags.json') as f:
+            tags_json = json.load(f)
+
+        image = 'something/somewhere'
+        responses.add(responses.GET, mk_tags_url(image),
+            json=tags_json, status=200)
+        tags = self.obj._get_tags_docker_hub_registry(image)
+        self.assertTrue(tags == [ 'latest', '0.5' ])
+
+    @responses.activate
+    def test_get_from_gitlab(self):
+        api_url = 'https://gitlab.com/api/v4'
+
+        def mk_repos_url(image):
+            return '{}/projects/{}/registry/repositories'.format(
+                    api_url, image.replace('/', '%2F'))
+
+        def mk_tags_url(project_id, repository_id):
+            return '{}/projects/{}/registry/repositories/{}/tags'.format(
+                    api_url, project_id, repository_id)
+
+        # a non-existing image
+        proj = 'too-short'
+        responses.add(responses.GET, mk_repos_url(proj),
+                body='{}', status=404)
+        tags = self.obj._get_tags_gitlab_registry(proj)
+        self.assertTrue(tags == [])
+
+        # various images in 'group/project'
+        responses_dir = 'tests/fixtures/gitlab-registry-v4'
+        with open(responses_dir + '/project-repositories.json') as f:
+            project_repos = json.load(f)
+        with open(responses_dir + '/project-tags.json') as f:
+            project_tags = json.load(f)
+        with open(responses_dir + '/project-foo-tags.json') as f:
+            project_foo_tags = json.load(f)
+        with open(responses_dir + '/project-foo-bar-tags.json') as f:
+            project_foo_bar_tags = json.load(f)
+
+        proj = 'group/project'
+        responses.add(responses.GET, mk_repos_url(proj),
+                json=project_repos, status=200)
+    
+        image = proj
+        responses.add(responses.GET, mk_tags_url(9, 1),
+                json=project_tags, status=200)
+        tags = self.obj._get_tags_gitlab_registry(image)
+        self.assertTrue(tags == [ 'A', 'latest' ])
+
+        image = proj + '/foo'
+        responses.add(responses.GET, mk_repos_url(image),
+                body='{}', status=404)
+        responses.add(responses.GET, mk_tags_url(9, 2),
+                json=project_foo_tags, status=200)
+        tags = self.obj._get_tags_gitlab_registry(image)
+        self.assertTrue(tags == [ 'B' ])
+
+        image = proj + '/foo/bar'
+        responses.add(responses.GET, mk_repos_url(image),
+                body='{}', status=404)
+        responses.add(responses.GET, mk_tags_url(9, 3),
+                json=project_foo_bar_tags, status=200)
+        tags = self.obj._get_tags_gitlab_registry(image)
+        self.assertTrue(tags == [ 'C' ])
+
+        image = proj + '/non-existing'
+        responses.add(responses.GET, mk_repos_url(image),
+                body='{}', status=404)
+        tags = self.obj._get_tags_gitlab_registry(image)
+        self.assertTrue(tags == [])
 
 
 if __name__ == '__main__':
