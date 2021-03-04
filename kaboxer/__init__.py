@@ -1638,7 +1638,18 @@ class ContainerRegistry:
 
         return versions
 
-    def _get_tags_docker_registry_alternate_api(self, parsed_registry_url, image):
+    def _get_tags_docker_registry_v2(self, parsed_registry_url, image):
+        """ Get image tags using the Docker Registry HTTP API V2
+
+        This API was standardized by the Open Container Initiative under the name
+        of "OCI Distribution Spec". Hence we can expect it to be implemented by
+        various container registries. However it seems that it can't work without
+        authentication. Tested with: registry.gitlab.com, registry.hub.docker.com.
+
+        References:
+        - https://docs.docker.com/registry/spec/api/
+        - https://github.com/opencontainers/distribution-spec/blob/master/spec.md
+        """
 
         u = parsed_registry_url
         url = '{}://{}/v2/{}/{}/tags/list'.format(u.scheme, u.netloc,
@@ -1672,7 +1683,7 @@ class ContainerRegistry:
         if versions:
             return versions
 
-        versions = self._get_tags_docker_registry_alternate_api(url, image)
+        versions = self._get_tags_docker_registry_v2(url, image)
         if versions:
             return versions
 
