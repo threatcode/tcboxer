@@ -1601,7 +1601,7 @@ class ContainerRegistry:
             self.logger.warning("Invalid registry url: %s", registry_url)
             return []
         if not url.scheme:
-            url.scheme = 'http'
+            url.scheme = 'https'
         u2 = 'v2/%s/%s/tags' % (url.path, image)
         u2 = re.sub('//', '/', u2)
         fullurl = "%s://%s/%s" % (url.scheme, url.netloc, u2)
