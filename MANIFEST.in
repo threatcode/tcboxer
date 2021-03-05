@@ -1,3 +1,4 @@
 include VERSION
+include dh-kaboxer/*
 include man/*
 include tests/*
