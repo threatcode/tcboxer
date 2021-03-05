@@ -1618,7 +1618,7 @@ class ContainerRegistry:
 
         return json_data
 
-    def _get_tags_docker_hub_registry(self, parsed_registry_url, image):
+    def _get_tags_docker_hub_registry(self, image):
         """ Get image tags on the Docker Hub Registry
 
         This is an undocumented API endpoint. It's interesting to note that this
@@ -1630,9 +1630,8 @@ class ContainerRegistry:
         Docker Hub. However it's clear that it does not require authentication.
         """
 
-        u = parsed_registry_url
-        url = '{}://{}/v2/repositories/{}/{}/tags'.format(u.scheme, u.netloc,
-                u.path.lstrip('/'), image)
+        registry_url = 'https://registry.hub.docker.com'
+        url = '{}/v2/repositories/{}/tags'.format(registry_url, image)
 
         json_data = self._request_json(url)
         if not json_data:
@@ -1648,7 +1647,7 @@ class ContainerRegistry:
 
         return versions
 
-    def _get_tags_docker_registry_v2(self, parsed_registry_url, image):
+    def _get_tags_docker_registry_v2(self, registry_url, image):
         """ Get image tags using the Docker Registry HTTP API V2
 
         This API was standardized by the Open Container Initiative under the name
@@ -1661,9 +1660,7 @@ class ContainerRegistry:
         - https://github.com/opencontainers/distribution-spec/blob/master/spec.md
         """
 
-        u = parsed_registry_url
-        url = '{}://{}/v2/{}/{}/tags/list'.format(u.scheme, u.netloc,
-                u.path.lstrip('/'), image)
+        url = '{}/v2/{}/tags/list'.format(registry_url, image)
 
         json_data = self._request_json(url)
         if not json_data:
@@ -1676,7 +1673,7 @@ class ContainerRegistry:
 
         return versions
 
-    def _get_tags_gitlab_registry(self, project, image):
+    def _get_tags_gitlab_registry(self, image):
         """ Get image tags using the GitLab Container Registry API
 
         References:
@@ -1686,13 +1683,31 @@ class ContainerRegistry:
 
         api_url = 'https://gitlab.com/api/v4'
 
-        # First request
+        # First request, list registry repositories for a project.
+        #
+        # At this stage, all we know is that the image name follows the
+        # convention <namespace>/<project>[/<image>].  In order to talk
+        # to the API, we need to know '<namespace>/<project>',  and for
+        # that all we can do is to guess, through trial and failure.
+        #
+        # References:
+        # - https://docs.gitlab.com/ce/user/packages/container_registry/#image-naming-convention
+        # - https://docs.gitlab.com/ce/api/#namespaced-path-encoding
 
-        project_url_encoded = urllib.parse.quote(project, safe='')
-        url = '{}/projects/{}/registry/repositories'.format(
-                api_url, project_url_encoded)
+        image = image.strip('/')
+        image = re.sub('/+', '/', image)
+        project_path = image
+        json_data = None
+        while True:
+            url = '{}/projects/{}/registry/repositories'.format(
+                    api_url, urllib.parse.quote(project_path, safe=''))
+            json_data = self._request_json(url)
+            if json_data:
+                break
+            if project_path.count('/') < 2:
+                break
+            project_path = project_path.rsplit('/', maxsplit=1)[0]
 
-        json_data = self._request_json(url)
         if not json_data:
             return []
 
@@ -1705,7 +1720,7 @@ class ContainerRegistry:
         project_id = ''
         repository_id = ''
         for item in json_data:
-            if item.get('name', '') != image:
+            if item.get('path', '') != image:
                 continue
             project_id = item.get('project_id', '')
             repository_id = item.get('id', '')
@@ -1716,7 +1731,7 @@ class ContainerRegistry:
                     image, json_data)
             return []
 
-        # Second request
+        # Second request, list registry repository tags
 
         url = '{}/projects/{}/registry/repositories/{}/tags'.format(
                 api_url, project_id, repository_id)
@@ -1746,20 +1761,15 @@ class ContainerRegistry:
         Returns: an array of versions.
         """
 
-        url = urllib.parse.urlparse(registry_url)
-        if not url.netloc:
-            self.logger.warning("Invalid registry url: %s", registry_url)
-            return []
-        if not url.scheme:
-            url.scheme = 'https'
+        if not re.match('^https?://', registry_url):
+            registry_url = 'https://' + registry_url
 
-        if url.netloc == 'registry.gitlab.com':
-            project = url.path.lstrip('/')
-            versions = self._get_tags_gitlab_registry(project, image)
-        elif url.netloc == 'registry.hub.docker.com':
-            versions = self._get_tags_docker_hub_registry(url, image)
+        if 'registry.gitlab.com' in registry_url:
+            versions = self._get_tags_gitlab_registry(image)
+        elif 'registry.hub.docker.com' in registry_url:
+            versions = self._get_tags_docker_hub_registry(image)
         else:
-            versions = self._get_tags_docker_registry_v2(url, image)
+            versions = self._get_tags_docker_registry_v2(registry_url, image)
 
         return versions
 
