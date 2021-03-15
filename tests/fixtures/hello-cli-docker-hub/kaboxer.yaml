@@ -1,0 +1,8 @@
+application:
+    id: hello-cli
+container:
+  type: docker
+  origin:
+    registry:
+      url: https://registry.hub.docker.com
+      image: kaboxer/hello-cli

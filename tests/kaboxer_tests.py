@@ -705,6 +705,20 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
             "kaboxer run kbx-demo /run.sh history", "3 1.0")
 
 
+class TestKaboxerWithPublicRegistries(TestKaboxerCommon):
+    def test_list_from_docker_hub(self):
+        workdir = os.path.join(self.fixdir, 'hello-cli-docker-hub')
+        self.run_command_check_stdout_matches(
+            "kaboxer list --available --skip-headers",
+            "^hello-cli", wd=workdir)
+
+    def test_list_from_gitlab(self):
+        workdir = os.path.join(self.fixdir, 'hello-cli-gitlab')
+        self.run_command_check_stdout_matches(
+            "kaboxer list --available --skip-headers",
+            "^hello-cli", wd=workdir)
+
+
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):
     def setUp(self):
         super().setUp()
