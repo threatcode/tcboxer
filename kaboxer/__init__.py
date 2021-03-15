@@ -1690,26 +1690,47 @@ class ContainerRegistry:
         #
         # At this stage, all we know is that the image name follows the
         # convention <namespace>/<project>[/<image>].  In order to talk
-        # to the API, we need to know '<namespace>/<project>',  and for
-        # that all we can do is to guess, through trial and failure.
+        # to the API, we need to know the part '<namespace>/<project>'
+        # (ie. the "project path"). However, note that both <image> and
+        # <project> might contain slashes.  So the only way to find the
+        # project path is to send HTTP requests until we get a positive
+        # result.
         #
         # References:
         # - https://docs.gitlab.com/ce/user/packages/container_registry/#image-naming-convention
         # - https://docs.gitlab.com/ce/api/#namespaced-path-encoding
 
+        # Sanitize image, remove stray slashes
         image = image.strip('/')
         image = re.sub('/+', '/', image)
-        project_path = image
+
+        # List the possible project paths, eg.
+        # [ 'a/b', 'a/b/c', 'a/b/c/d' ]
+        elems = image.split('/')
+        if not len(elems) > 1:
+            return []
+        elems.reverse()
+        path = elems.pop() + '/' + elems.pop()
+        paths = [ path ]
+        while elems:
+            path += '/' + elems.pop()
+            paths.append(path)
+
+        # Optimize for the case where the image name is of the form:
+        # <project-path>/<image>, where <image> does not contain any slash.
+        # We want to try this case first, as it's the most likely.
+        if len(paths) > 1:
+            paths[-1], paths[-2] = paths[-2], paths[-1]
+
+        # Now try all the tentative paths, in reverse order
         json_data = None
-        while True:
+        while paths:
+            path = paths.pop()
             url = '{}/projects/{}/registry/repositories'.format(
-                    api_url, urllib.parse.quote(project_path, safe=''))
+                    api_url, urllib.parse.quote(path, safe=''))
             json_data = self._request_json(url)
             if json_data:
                 break
-            if project_path.count('/') < 2:
-                break
-            project_path = project_path.rsplit('/', maxsplit=1)[0]
 
         if not json_data:
             return []
