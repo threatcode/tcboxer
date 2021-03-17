@@ -168,91 +168,196 @@ class TestDockerBackend(unittest.TestCase):
 
 
 class TestContainerRegistry(unittest.TestCase):
+
+    NOT_FOUND = None
+
     def setUp(self):
         self.obj = ContainerRegistry()
+        self.json_fixture_dir = 'tests/fixtures/'
+        self.api_url = 'not-set-yet'
+        self.url_templates = {}
+
+    def get_url(self, key, **kwargs):
+        template = self.url_templates[key]
+        formatted = template.format(**kwargs)
+        return self.api_url + formatted
+
+    def set_url_response_as_json_fixture(self, url, json_file):
+        json_path = os.path.join(self.json_fixture_dir, json_file)
+        with open(json_path) as f:
+            json_data = json.load(f)
+        responses.add(responses.GET, url, json=json_data, status=200)
+
+    def set_url_response_not_found(self, url):
+        responses.add(responses.GET, url, body='{}', status=404)
+
+
+class TestDockerContainerRegistry(TestContainerRegistry):
+    def setUp(self):
+        super().setUp()
+        self.json_fixture_dir += 'not-implemented'
+        self.api_url = 'not-implemented'
+        self.url_templates = {}
 
     @unittest.skip("Not implemented yet")
-    def test_get_from_docker(self):
+    def test_get_image(self):
         pass
 
+
+class TestDockerHubContainerRegistry(TestContainerRegistry):
+    def setUp(self):
+        super().setUp()
+        self.json_fixture_dir += 'docker-hub-registry-v2'
+        self.api_url = 'https://registry.hub.docker.com/v2'
+        self.url_templates = {
+            'tags': '/repositories/{image}/tags'
+        }
+
+    def setup_responses_for_tags(self, image, json_file):
+        url = self.get_url('tags', image=image)
+        if json_file:
+            self.set_url_response_as_json_fixture(url, json_file)
+        else:
+            self.set_url_response_not_found(url)
+
     @responses.activate
-    def test_get_from_docker_hub(self):
-        api_url = 'https://registry.hub.docker.com/v2'
-
-        def mk_tags_url(image):
-            return '{}/repositories/{}/tags'.format(api_url, image)
-       
-        responses_dir = 'tests/fixtures/docker-hub-registry-v2'
-        with open(responses_dir + '/tags.json') as f:
-            tags_json = json.load(f)
-
-        image = 'something/somewhere'
-        responses.add(responses.GET, mk_tags_url(image),
-            json=tags_json, status=200)
-        tags = self.obj._get_tags_docker_hub_registry(image)
-        self.assertTrue(tags == [ 'latest', '0.5' ])
+    def test_get_non_existing_image(self):
+        self.setup_responses_for_tags('foo/bar', self.NOT_FOUND)
+        tags = self.obj._get_tags_docker_hub_registry('foo/bar')
+        self.assertEqual(tags, [])
 
     @responses.activate
-    def test_get_from_gitlab(self):
-        api_url = 'https://gitlab.com/api/v4'
+    def test_get_image(self):
+        self.setup_responses_for_tags('foo/bar', 'tags.json')
+        tags = self.obj._get_tags_docker_hub_registry('foo/bar')
+        self.assertEqual(tags, [ 'latest', '0.5' ])
 
-        def mk_repos_url(image):
-            return '{}/projects/{}/registry/repositories'.format(
-                    api_url, image.replace('/', '%2F'))
 
-        def mk_tags_url(project_id, repository_id):
-            return '{}/projects/{}/registry/repositories/{}/tags'.format(
-                    api_url, project_id, repository_id)
+class TestGitlabContainerRegistry(TestContainerRegistry):
+    def setUp(self):
+        super().setUp()
+        self.json_fixture_dir += 'gitlab-registry-v4'
+        self.api_url = 'https://gitlab.com/api/v4'
+        self.url_templates = {
+            'repos': '/projects/{proj}/registry/repositories',
+            'tags' : '/projects/{proj_id}/registry/repositories/{repo_id}/tags',
+        }
 
-        # a non-existing image
-        proj = 'too-short'
-        responses.add(responses.GET, mk_repos_url(proj),
-                body='{}', status=404)
-        tags = self.obj._get_tags_gitlab_registry(proj)
-        self.assertTrue(tags == [])
+    def _setup_responses_for_repos(self, project, json_file):
+        """
+        Setup response for the first request, ie. the request to get
+        the list of repositories in a project.
+        https://docs.gitlab.com/ce/api/container_registry.html#within-a-project
+        """
+        project_url_encoded = project.replace('/', '%2F')
+        url = self.get_url('repos', proj=project_url_encoded)
+        if json_file:
+            self.set_url_response_as_json_fixture(url, json_file)
+        else:
+            self.set_url_response_not_found(url)
 
-        # various images in 'group/project'
-        responses_dir = 'tests/fixtures/gitlab-registry-v4'
-        with open(responses_dir + '/project-repositories.json') as f:
-            project_repos = json.load(f)
-        with open(responses_dir + '/project-tags.json') as f:
-            project_tags = json.load(f)
-        with open(responses_dir + '/project-foo-tags.json') as f:
-            project_foo_tags = json.load(f)
-        with open(responses_dir + '/project-foo-bar-tags.json') as f:
-            project_foo_bar_tags = json.load(f)
+    def _setup_responses_for_tags(self, project_id, repository_id, json_file):
+        """
+        Setup response for the second request, ie. the request to get
+        the list of tags for a given repository.
+        https://docs.gitlab.com/ce/api/container_registry.html#within-a-project-1
+        """
+        url = self.get_url('tags', proj_id=project_id, repo_id=repository_id)
+        if json_file:
+            self.set_url_response_as_json_fixture(url, json_file)
+        else:
+            self.set_url_response_not_found(url)
 
-        proj = 'group/project'
-        responses.add(responses.GET, mk_repos_url(proj),
-                json=project_repos, status=200)
-    
-        image = proj
-        responses.add(responses.GET, mk_tags_url(9, 1),
-                json=project_tags, status=200)
-        tags = self.obj._get_tags_gitlab_registry(image)
-        self.assertTrue(tags == [ 'A', 'latest' ])
+    def _setup_not_found_responses(self, project, image):
+        """
+        Setup 404 not found responses for various urls. These are all the
+        paths from <project>/elem1 until <project>/elem1/.../elemN, with elems
+        being parts of image. All these paths are NOT project paths.
+        """
+        if not image:
+            return
 
-        image = proj + '/foo'
-        responses.add(responses.GET, mk_repos_url(image),
-                body='{}', status=404)
-        responses.add(responses.GET, mk_tags_url(9, 2),
-                json=project_foo_tags, status=200)
-        tags = self.obj._get_tags_gitlab_registry(image)
-        self.assertTrue(tags == [ 'B' ])
+        path = project
+        for elem in image.split('/'):
+            path = path + '/' + elem
+            url_encoded = path.replace('/', '%2F')
+            url = self.get_url('repos', proj=url_encoded)
+            self.set_url_response_not_found(url)
 
-        image = proj + '/foo/bar'
-        responses.add(responses.GET, mk_repos_url(image),
-                body='{}', status=404)
-        responses.add(responses.GET, mk_tags_url(9, 3),
-                json=project_foo_bar_tags, status=200)
-        tags = self.obj._get_tags_gitlab_registry(image)
-        self.assertTrue(tags == [ 'C' ])
+    def setup_responses(self, project, image, repos_json, proj_id, repo_id, tags_json):
+        """
+        Setup responses for a test. Short how to:
+        - if 'project' is supposed to exist, then provide 'repos_json' (the list of
+          repos in this project).
+        - 'image' can be an empty string, this is valid.
+        - if 'image' is supposed to be found in this project, then provide 'proj_id'
+          and 'repo_id'. Look for their values in the repos_json file. Additionally,
+          you should provide 'tags_json' (the list of tags for this image), unless
+          you want to simulate some kind of unexpected 'not found' error.
+        """
+        # set response for the 1st http request
+        self._setup_responses_for_repos(project, repos_json)
 
-        image = proj + '/non-existing'
-        responses.add(responses.GET, mk_repos_url(image),
-                body='{}', status=404)
-        tags = self.obj._get_tags_gitlab_registry(image)
-        self.assertTrue(tags == [])
+        # set response for the 2nd http request
+        if proj_id > 0 and repo_id > 0:
+            self._setup_responses_for_tags(proj_id, repo_id, tags_json)
+
+        # set all the 'not found' responses for the requests that we expect
+        # to be sent (this is because responses prints some warnings when a
+        # request does not have a match, and we don't want that)
+        self._setup_not_found_responses(project, image)
+
+    @responses.activate
+    def test_get_image_invalid_project_no_image_name(self):
+        self.setup_responses('too-short', '', self.NOT_FOUND, -1, -1, self.NOT_FOUND)
+        tags = self.obj._get_tags_gitlab_registry('too-short')
+        self.assertEqual(tags, [])
+
+    def test_get_image_invalid_project_with_image_name(self):
+        self.setup_responses('too-short', 'image', self.NOT_FOUND, -1, -1, self.NOT_FOUND)
+        tags = self.obj._get_tags_gitlab_registry('too-short/image')
+        self.assertEqual(tags, [])
+
+    @responses.activate
+    def test_get_image_non_existing_project(self):
+        self.setup_responses('foo/bar', '', self.NOT_FOUND, -1, -1, self.NOT_FOUND)
+        tags = self.obj._get_tags_gitlab_registry('foo/bar')
+        self.assertEqual(tags, [])
+
+    @responses.activate
+    def test_get_image_depth_level_1(self):
+        self.setup_responses('group/project', '', 'project-repositories.json',
+                9, 1, 'project-tags.json')
+        tags = self.obj._get_tags_gitlab_registry('group/project')
+        self.assertEqual(tags, [ 'A', 'latest' ])
+
+    @responses.activate
+    def test_get_image_depth_level_2(self):
+        self.setup_responses('group/project', 'foo', 'project-repositories.json',
+                9, 2, 'project-foo-tags.json')
+        tags = self.obj._get_tags_gitlab_registry('group/project/foo')
+        self.assertEqual(tags, [ 'B' ])
+
+    @responses.activate
+    def test_get_image_depth_level_3(self):
+        self.setup_responses('group/project', 'foo/bar', 'project-repositories.json',
+                9, 3, 'project-foo-bar-tags.json')
+        tags = self.obj._get_tags_gitlab_registry('group/project/foo/bar')
+        self.assertEqual(tags, [ 'C' ])
+
+    @responses.activate
+    def test_get_image_non_existing_image_1(self):
+        self.setup_responses('group/project', 'no-such-image',
+                'project-repositories.json', -1, -1, self.NOT_FOUND)
+        tags = self.obj._get_tags_gitlab_registry('group/project/no-such-image')
+        self.assertEqual(tags, [])
+
+    @responses.activate
+    def test_get_image_non_existing_image_2(self):
+        self.setup_responses('group/project', 'foo',
+                'project-repositories.json', 9, 2, self.NOT_FOUND)
+        tags = self.obj._get_tags_gitlab_registry('group/project/foo')
+        self.assertEqual(tags, [])
 
 
 if __name__ == '__main__':
