@@ -1590,6 +1590,40 @@ class DockerBackend:
         return True
 
 
+def get_possible_gitlab_project_paths(full_path):
+    """ Get the possible project paths from a GitLab Docker image.
+        
+    We know that the image name follows the convention
+    <namespace>/<project>[/<image>]. The "project path"
+    is the part '<namespace>/<project>'. Additionally:
+    - <project> might contain slashes
+    - <image> might contain slashes
+    - <image> is optional
+
+    With that in mind, the "possible project paths" are
+    all the paths that we can derive from the image name,
+    eg. for an image 'a/b/c/d', the possible project paths
+    are [ 'a/b/c/d', 'a/b/c', 'a/b' ].
+
+    There's an additional trick. We make the assumption that
+    the most likely image name is <project-path>/<image>,
+    where <image> does not contain any slash. Therefore the
+    most likely project path is the image name with the last
+    element removed.
+
+    We put it first in the list, so that it's tried first.
+    """
+    paths = [full_path]
+    p = full_path
+    while '/' in p:
+        p, _ = p.rsplit('/', 1)
+        paths.append(p)
+    del paths[-1]
+    if len(paths) > 1:
+        paths[0], paths[1] = paths[1], paths[0]
+
+    return paths
+
 class ContainerRegistry:
     def __init__(self):
         self.logger = logging.Logger('kaboxer.ContainerRegistry')
@@ -1691,10 +1725,8 @@ class ContainerRegistry:
         # At this stage, all we know is that the image name follows the
         # convention <namespace>/<project>[/<image>].  In order to talk
         # to the API, we need to know the part '<namespace>/<project>'
-        # (ie. the "project path"). However, note that both <image> and
-        # <project> might contain slashes.  So the only way to find the
-        # project path is to send HTTP requests until we get a positive
-        # result.
+        # (ie. the "project path"). The only way to find it is to send
+        # HTTP requests until we get a positive result.
         #
         # References:
         # - https://docs.gitlab.com/ce/user/packages/container_registry/#image-naming-convention
@@ -1704,28 +1736,9 @@ class ContainerRegistry:
         image = image.strip('/')
         image = re.sub('/+', '/', image)
 
-        # List the possible project paths, eg.
-        # [ 'a/b', 'a/b/c', 'a/b/c/d' ]
-        elems = image.split('/')
-        if not len(elems) > 1:
-            return []
-        elems.reverse()
-        path = elems.pop() + '/' + elems.pop()
-        paths = [ path ]
-        while elems:
-            path += '/' + elems.pop()
-            paths.append(path)
-
-        # Optimize for the case where the image name is of the form:
-        # <project-path>/<image>, where <image> does not contain any slash.
-        # We want to try this case first, as it's the most likely.
-        if len(paths) > 1:
-            paths[-1], paths[-2] = paths[-2], paths[-1]
-
-        # Now try all the tentative paths, in reverse order
+        project_paths = get_possible_gitlab_project_paths(image)
         json_data = None
-        while paths:
-            path = paths.pop()
+        for path in project_paths:
             url = '{}/projects/{}/registry/repositories'.format(
                     api_url, urllib.parse.quote(path, safe=''))
             json_data = self._request_json(url)
