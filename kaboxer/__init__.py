@@ -1762,13 +1762,13 @@ class ContainerRegistry:
 
         json_data = self._request_json(url)
         if not json_data:
-            return None
+            return []
 
         try:
             _ = iter(json_data)
         except TypeError:
             self.logger.warning("Unexpected json: %s", json_data)
-            return None
+            return []
 
         tags = []
         for item in json_data:
