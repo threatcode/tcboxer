@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 from kaboxer import ContainerRegistry, DockerBackend, Kaboxer, KaboxerAppConfig
+from kaboxer import get_possible_gitlab_project_paths
 
 
 class TestKaboxerApplication(unittest.TestCase):
@@ -358,6 +359,22 @@ class TestGitlabContainerRegistry(TestContainerRegistry):
                 'project-repositories.json', 9, 2, self.NOT_FOUND)
         tags = self.obj._get_tags_gitlab_registry('group/project/foo')
         self.assertEqual(tags, [])
+
+
+class TestGetPossibleGitlabProjectPaths(unittest.TestCase):
+    def test_get_possible_gitlab_project_paths(self):
+        path = 'group/project'
+        pp = get_possible_gitlab_project_paths(path)
+        self.assertEqual(pp, [ 'group/project' ])
+
+        path = 'group/project/foo'
+        pp = get_possible_gitlab_project_paths(path)
+        self.assertEqual(pp, [ 'group/project', 'group/project/foo' ])
+
+        path = 'group/project/foo/bar'
+        pp = get_possible_gitlab_project_paths(path)
+        self.assertEqual(pp, [ 'group/project/foo',
+            'group/project/foo/bar', 'group/project' ])
 
 
 if __name__ == '__main__':
