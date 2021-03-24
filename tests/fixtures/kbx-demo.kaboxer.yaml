@@ -7,7 +7,7 @@ container:
   type: docker
   origin:
     registry:
-      url: localhost:5999
+      url: http://localhost:5999
       image: kbx-demo
 build:
   docker:

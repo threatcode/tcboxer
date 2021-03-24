@@ -3,6 +3,7 @@
 import argparse
 import glob
 import grp
+from http import HTTPStatus
 import io
 import json
 import logging
@@ -30,6 +31,8 @@ import prompt_toolkit
 import requests
 
 import tabulate
+
+import urllib.parse
 
 import yaml
 
@@ -165,6 +168,7 @@ class Kaboxer:
         ]
 
         self.backend = DockerBackend()
+        self.registry = ContainerRegistry()
 
     def setup_logging(self):
         loglevels = {
@@ -178,6 +182,9 @@ class Kaboxer:
         self.logger.setLevel(ll)
         ch = logging.StreamHandler()
         self.logger.addHandler(ch)
+
+        self.registry.logger.setLevel(ll)
+        self.registry.logger.addHandler(ch)
 
     def setup_docker(self):
         self._docker_conn = docker.from_env()
@@ -1289,63 +1296,19 @@ Categories={{ p.categories }}
 
         if get_remotes:
             for aid in registry_apps:
-                url = registry_apps[aid]['url']
-                if not re.match('https?://', url):
-                    url = 'http://' + url
-                comps = re.split('/', url)
-                h = '/'.join(comps[:3])
-                p = '/'.join(comps[3:])
-                i = registry_apps[aid]['image']
-                u2 = 'v2/%s/%s/tags' % (p, i)
-                u2 = re.sub('//', '/', u2)
-                registry_apps[aid]['versions'] = []
-                fullurl = "%s/%s" % (h, u2)
-                self.logger.debug("Querying registry on official API URL: %s",
-                                  fullurl)
-                req = None
-                try:
-                    req = requests.get(fullurl)
-                except requests.ConnectionError:
-                    self.logger.warning("Could not query registry on %s",
-                                        fullurl, exc_info=1)
-                if req is not None and req.ok:
-                    json_data = req.json()
-                    self.logger.debug('Results: %s', json_data)
-                    results = json_data.get('results', [])
-                    for r in results:
-                        registry_apps[aid]['versions'].append(r['name'])
-                elif req is not None and not req.ok:
-                    self.logger.debug(
-                        "HTTP request failed with status_code = %d",
-                        req.status_code)
-                    fullurl = "%s/%s/list" % (h, u2)
-                    self.logger.debug("Querying registry on alternate URL: %s",
-                                      fullurl)
-                    req = None
-                    try:
-                        req = requests.get(fullurl)
-                    except requests.ConnectionError:
-                        self.logger.warning("Could not query registry on %s",
-                                            fullurl, exc_info=1)
-                    if req is not None and req.ok:
-                        json_data = req.json()
-                        self.logger.debug('Results: %s', json_data)
-                        results = json_data.get('tags', [])
-                        for r in results:
-                            registry_apps[aid]['versions'].append(r)
-                    elif req is not None and not req.ok:
-                        self.logger.debug(
-                            "HTTP request failed with status_code = %d",
-                            req.status_code)
+                app = registry_apps[aid]
+                app['versions'] = self.registry.get_versions_for_app(
+                        app['url'], app['image'])
 
-                curmax = max(registry_apps[aid]['versions'], default=None,
+                curmax = max(app['versions'], default=None,
                              key=lambda x: parse_version(x))
                 if curmax:
                     self.logger.debug("Maximal version for image %s is %s",
                                       aid, curmax)
-                    registry_apps[aid]['maxversion'] = curmax
+                    app['maxversion'] = curmax
                 else:
                     self.logger.debug("No versions found for image %s", aid)
+
         return (current_apps, registry_apps, tarball_apps, available_apps)
 
     def cmd_list(self):
@@ -1625,6 +1588,228 @@ class DockerBackend:
     
         docker_conn.images.remove(image_name)
         return True
+
+
+def get_possible_gitlab_project_paths(full_path):
+    """ Get the possible project paths from a GitLab Docker image.
+        
+    We know that the image name follows the convention
+    <namespace>/<project>[/<image>]. The "project path"
+    is the part '<namespace>/<project>'. Additionally:
+    - <project> might contain slashes
+    - <image> might contain slashes
+    - <image> is optional
+
+    With that in mind, the "possible project paths" are
+    all the paths that we can derive from the image name,
+    eg. for an image 'a/b/c/d', the possible project paths
+    are [ 'a/b/c/d', 'a/b/c', 'a/b' ].
+
+    There's an additional trick. We make the assumption that
+    the most likely image name is <project-path>/<image>,
+    where <image> does not contain any slash. Therefore the
+    most likely project path is the image name with the last
+    element removed.
+
+    We put it first in the list, so that it's tried first.
+    """
+    paths = [full_path]
+    p = full_path
+    while '/' in p:
+        p, _ = p.rsplit('/', 1)
+        paths.append(p)
+    del paths[-1]
+    if len(paths) > 1:
+        paths[0], paths[1] = paths[1], paths[0]
+
+    return paths
+
+class ContainerRegistry:
+    def __init__(self):
+        self.logger = logging.Logger('kaboxer.ContainerRegistry')
+
+    def _request_json(self, url):
+
+        self.logger.debug("Requesting %s", url)
+
+        resp = None
+
+        try:
+            resp = requests.get(url)
+        except requests.ConnectionError:
+            self.logger.warning("Failed to request %s", url, exc_info=1)
+            return None
+
+        if not resp.ok:
+            self.logger.warning("Request failed with %d (%s)",
+                    resp.status_code, HTTPStatus(resp.status_code).phrase)
+            return None
+
+        try:
+            json_data = resp.json()
+        except ValueError:
+            self.logger.warning("Failed to parse response as JSON: %s", resp.text)
+            return None
+
+        self.logger.debug('Result: %s', json_data)
+
+        return json_data
+
+    def _get_tags_docker_hub_registry(self, image):
+        """ Get image tags on the Docker Hub Registry
+
+        This is an undocumented API endpoint. It's interesting to note that this
+        endpoint also existed in the v1 API (just replace v2 by v1 in the URL),
+        so maybe it exists for compatibility, however it returns a different
+        output, compared to v1.
+
+        It's not clear at all if this endpoint exists on services other than the
+        Docker Hub. However it's clear that it does not require authentication.
+        """
+
+        registry_url = 'https://registry.hub.docker.com'
+        url = '{}/v2/repositories/{}/tags'.format(registry_url, image)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return []
+
+        results = json_data.get('results', [])
+        versions = []
+        for r in results:
+            try:
+                versions.append(r['name'])
+            except KeyError:
+                self.logger.warning("Missing key in JSON: %s", r)
+
+        return versions
+
+    def _get_tags_docker_registry_v2(self, registry_url, image):
+        """ Get image tags using the Docker Registry HTTP API V2
+
+        This API was standardized by the Open Container Initiative under the name
+        of "OCI Distribution Spec". Hence we can expect it to be implemented by
+        various container registries. However it seems that it can't work without
+        authentication. Tested with: registry.gitlab.com, registry.hub.docker.com.
+
+        References:
+        - https://docs.docker.com/registry/spec/api/
+        - https://github.com/opencontainers/distribution-spec/blob/master/spec.md
+        """
+
+        url = '{}/v2/{}/tags/list'.format(registry_url, image)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return []
+
+        results = json_data.get('tags', [])
+        versions = []
+        for r in results:
+            versions.append(r)
+
+        return versions
+
+    def _get_tags_gitlab_registry(self, image):
+        """ Get image tags using the GitLab Container Registry API
+
+        References:
+        - https://docs.gitlab.com/ce/api/
+        - https://docs.gitlab.com/ce/api/container_registry.html
+        """
+
+        api_url = 'https://gitlab.com/api/v4'
+
+        # First request, list registry repositories for a project.
+        #
+        # At this stage, all we know is that the image name follows the
+        # convention <namespace>/<project>[/<image>].  In order to talk
+        # to the API, we need to know the part '<namespace>/<project>'
+        # (ie. the "project path"). The only way to find it is to send
+        # HTTP requests until we get a positive result.
+        #
+        # References:
+        # - https://docs.gitlab.com/ce/user/packages/container_registry/#image-naming-convention
+        # - https://docs.gitlab.com/ce/api/#namespaced-path-encoding
+
+        # Sanitize image, remove stray slashes
+        image = image.strip('/')
+        image = re.sub('/+', '/', image)
+
+        project_paths = get_possible_gitlab_project_paths(image)
+        json_data = None
+        for path in project_paths:
+            url = '{}/projects/{}/registry/repositories'.format(
+                    api_url, urllib.parse.quote(path, safe=''))
+            json_data = self._request_json(url)
+            if json_data:
+                break
+
+        if not json_data:
+            return []
+
+        try:
+            _ = iter(json_data)
+        except TypeError:
+            self.logger.warning("Unexpected json: %s", json_data)
+            return []
+
+        project_id = ''
+        repository_id = ''
+        for item in json_data:
+            if item.get('path', '') != image:
+                continue
+            project_id = item.get('project_id', '')
+            repository_id = item.get('id', '')
+            break
+
+        if not project_id or not repository_id:
+            self.logger.warning("Could not find valid image '%s' in json: %s",
+                    image, json_data)
+            return []
+
+        # Second request, list registry repository tags
+
+        url = '{}/projects/{}/registry/repositories/{}/tags'.format(
+                api_url, project_id, repository_id)
+
+        json_data = self._request_json(url)
+        if not json_data:
+            return []
+
+        try:
+            _ = iter(json_data)
+        except TypeError:
+            self.logger.warning("Unexpected json: %s", json_data)
+            return []
+
+        tags = []
+        for item in json_data:
+            try:
+                tags.append(item['name'])
+            except KeyError:
+                self.logger.warning("Missing keys in json: %s", item)
+
+        return tags
+
+    def get_versions_for_app(self, registry_url, image):
+        """ List versions of an image on a remote registry.
+
+        Returns: an array of versions.
+        """
+
+        if not re.match('^https?://', registry_url):
+            registry_url = 'https://' + registry_url
+
+        if 'registry.gitlab.com' in registry_url:
+            versions = self._get_tags_gitlab_registry(image)
+        elif 'registry.hub.docker.com' in registry_url:
+            versions = self._get_tags_docker_hub_registry(image)
+        else:
+            versions = self._get_tags_docker_registry_v2(registry_url, image)
+
+        return versions
+
 
 def main():
     kaboxer = Kaboxer()

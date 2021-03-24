@@ -68,13 +68,17 @@ class TestKaboxerCommon(unittest.TestCase):
             msg += "STDERR:\n%s\n" % result.stderr
         self.assertEqual(result.returncode, 0, msg)
 
-    def run_and_check_command(self, cmd, msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+    def run_and_check_command(self, cmd, msg=None, wd=None):
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=msg)
 
-    def run_and_check_command_fails(self, cmd, msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, shell=True,
+    def run_and_check_command_fails(self, cmd, msg=None, wd=None):
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, shell=True,
                            capture_output=True, text=True)
         if msg is None:
             msg = "Unexpected success when running '%s'\n" % cmd
@@ -102,34 +106,40 @@ class TestKaboxerCommon(unittest.TestCase):
         else:
             self.assertTrue(re.search(expected, value, re.MULTILINE), msg)
 
-    def run_command_check_stdout_matches(self, cmd, expected, input=None,
+    def run_command_check_stdout_matches(self, cmd, expected, input=None, wd=None,
                                          fail_msg=None, unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, msg=unexpected_msg)
 
-    def run_command_check_stdout_doesnt_match(self, cmd, expected, input=None,
-                                              fail_msg=None,
-                                              unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
+    def run_command_check_stdout_doesnt_match(self, cmd, expected, input=None, wd=None,
+                                              fail_msg=None, unexpected_msg=None):
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, msg=unexpected_msg,
                                   must_fail=True)
 
-    def run_command_check_stderr_matches(self, cmd, expected, input=None,
+    def run_command_check_stderr_matches(self, cmd, expected, input=None, wd=None,
                                          fail_msg=None, unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, output='stderr',
                                   msg=unexpected_msg)
 
-    def run_command_check_stderr_doesnt_match(self, cmd, expected, input=None,
-                                              fail_msg=None,
-                                              unexpected_msg=None):
-        o = subprocess.run(cmd, cwd=self.fixdir, input=input, shell=True,
+    def run_command_check_stderr_doesnt_match(self, cmd, expected, input=None, wd=None,
+                                              fail_msg=None, unexpected_msg=None):
+        if wd is None:
+            wd = self.fixdir
+        o = subprocess.run(cmd, cwd=wd, input=input, shell=True,
                            capture_output=True, text=True)
         self.check_return_code(o, msg=fail_msg)
         self.check_output_matches(o, expected, output='stderr',
@@ -693,6 +703,20 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
                                               "Hello World 1.1")
         self.run_command_check_stdout_matches(
             "kaboxer run kbx-demo /run.sh history", "3 1.0")
+
+
+class TestKaboxerWithPublicRegistries(TestKaboxerCommon):
+    def test_list_from_docker_hub(self):
+        workdir = os.path.join(self.fixdir, 'hello-cli-docker-hub')
+        self.run_command_check_stdout_matches(
+            "kaboxer list --available --skip-headers",
+            "^hello-cli", wd=workdir)
+
+    def test_list_from_gitlab(self):
+        workdir = os.path.join(self.fixdir, 'hello-cli-gitlab')
+        self.run_command_check_stdout_matches(
+            "kaboxer list --available --skip-headers",
+            "^hello-cli", wd=workdir)
 
 
 class TestKbxbuilder(TestKaboxerWithRegistryCommon):

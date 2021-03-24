@@ -1,0 +1,7 @@
+[
+  {
+    "name": "B",
+    "path": "group/project/foo:B",
+    "location": "gitlab.example.com:5000/group/project/foo:B"
+  }
+]
