@@ -298,6 +298,18 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertFalse(self.is_container_running(),
                         "Docker container is still running after kaboxer stop")
 
+    def test_stop_non_existing_app(self):
+        self.run_and_check_command_fails(
+            "kaboxer stop non-existing-app")
+
+    def test_stop_non_headless_app(self):
+        self.run_and_check_command_fails(
+            "kaboxer stop %s" % self.app_name)
+
+    def test_stop_headless_app_not_running(self):
+        self.run_and_check_command_fails(
+            "kaboxer stop --component=daemon %s" % self.app_name)
+
     def test_load_purge(self):
         self.test_build_and_save()
         self.run_and_check_command(
