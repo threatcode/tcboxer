@@ -30,7 +30,7 @@
 
 **kaboxer** pull *APP*...
 
-**kaboxer** push [**--version** *VERSION*] *APP*
+**kaboxer** push [**--version** *VERSION*] *APP* [*PATH*]
 
 **kaboxer** save *APP* *FILE*
 
@@ -154,7 +154,7 @@ directory if omitted).
 
 # KABOXER PUSH
 
-**kaboxer** push [**--version** *VERSION*] *APP*
+**kaboxer** push [**--version** *VERSION*] *APP* [*PATH*]
 
 Push an image for application *APP* to its configured registry. If
 **--version** *VERSION* is specified, push a specific version.
