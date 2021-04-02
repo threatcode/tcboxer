@@ -423,6 +423,9 @@ class Kaboxer:
         run_mode = self.component_config['run_mode']
         if run_mode == 'headless':
             containers = self.docker_conn.containers.list(filters={'name': app})
+            if not containers:
+                self.logger.error("%s is not running", app)
+                sys.exit(1)
             container = containers[0]
             self.run_hook_script('before_stop')
             container.stop()
