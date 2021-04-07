@@ -510,7 +510,7 @@ class Kaboxer:
 
     def build_image(self, parsed_config):
         path = self.args.path
-        app = parsed_config['application']['id']
+        app = parsed_config.app_id
         self.logger.info("Building container image for %s", app)
         try:
             df = os.path.join(path, parsed_config['build']['docker']['file'])
@@ -588,13 +588,13 @@ class Kaboxer:
             image.tag(tagname)
         if self.args.save:
             tarball = os.path.join(
-                path, parsed_config['application']['id'] + '.tar')
+                path, parsed_config.app_id + '.tar')
             self.save_image_to_file(image, tarball)
         if self.args.push:
             self.push([saved_version])
 
     def build_desktop_files(self, parsed_config):
-        app = parsed_config['application']['id']
+        app = parsed_config.app_id
         if 'desktop-files' not in parsed_config.get('install', {}):
             self.logger.info("Building desktop files for %s", app)
             self.gen_desktop_files(parsed_config)
@@ -624,7 +624,7 @@ class Kaboxer:
             try:
                 imagename = registry_data['image']
             except KeyError:
-                imagename = parsed_config['application']['id']
+                imagename = parsed_config.app_id
             remotename = '%s/%s' % (registry, imagename)
             localname = 'kaboxer/%s' % app
 
@@ -703,7 +703,7 @@ Categories={{ p.categories }}
                 'comment': parsed_config['application'].get('description',
                                                             '').split('\n')[0],
                 'component': component,
-                'appid': parsed_config['application']['id'],
+                'appid': parsed_config.app_id,
                 'categories': parsed_config['application'].get('categories',
                                                                'Uncategorized'),
             }
@@ -724,7 +724,7 @@ Categories={{ p.categories }}
                     (params['reuse_container'], params['component'],
                      params['appid']))
                 ofname = 'kaboxer-%s-%s-start.desktop' % (
-                    parsed_config['application']['id'], component)
+                    parsed_config.app_id, component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
                 # One .desktop file for stopping
@@ -736,13 +736,13 @@ Categories={{ p.categories }}
                     (params['reuse_container'], params['component'],
                      params['appid']))
                 ofname = 'kaboxer-%s-%s-stop.desktop' % (
-                    parsed_config['application']['id'], component)
+                    parsed_config.app_id, component)
                 with open(ofname, 'w') as outfile:
                     outfile.write(t.render(p=params))
             else:
                 params['name'] = component_name
                 ofname = 'kaboxer-%s-%s.desktop' % (
-                    parsed_config['application']['id'], component)
+                    parsed_config.app_id, component)
                 params['exec'] = "kaboxer run %s--component %s %s" % (
                     params['reuse_container'], params['component'],
                     params['appid'])
@@ -759,9 +759,9 @@ Categories={{ p.categories }}
         for app in parsed_configs:
             self.logger.info("Cleaning %s", app)
             parsed_config = parsed_configs[app]
-            app = parsed_config['application']['id']
+            app = parsed_config.app_id
             tarball = os.path.join(path,
-                                   parsed_config['application']['id'] + '.tar')
+                                   parsed_config.app_id + '.tar')
             if os.path.commonpath([path, tarball]) == path and \
                     os.path.isfile(tarball):
                 os.unlink(tarball)
@@ -791,12 +791,12 @@ Categories={{ p.categories }}
             for component, data in parsed_config['components'].items():
                 if data['run_mode'] == 'headless':
                     desktopfiles.append('kaboxer-%s-%s-start.desktop' % (
-                        parsed_config['application']['id'], component))
+                        parsed_config.app_id, component))
                     desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (
-                        parsed_config['application']['id'], component))
+                        parsed_config.app_id, component))
                 else:
                     desktopfiles.append('kaboxer-%s-%s.desktop' % (
-                        parsed_config['application']['id'], component))
+                        parsed_config.app_id, component))
         return desktopfiles
 
     def cmd_install(self):
@@ -846,7 +846,7 @@ Categories={{ p.categories }}
                 (_, ife) = os.path.splitext(os.path.basename(iconfile))
                 with tempfile.TemporaryDirectory() as td:
                     renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
-                        parsed_config['application']['id'], ife))
+                        parsed_config.app_id, ife))
                     shutil.copy(iconfile, renamed_icon)
                     self.install_to_path(renamed_icon, os.path.join(
                         self.args.prefix, 'share', 'icons'))
@@ -857,9 +857,9 @@ Categories={{ p.categories }}
                 (_, ife) = os.path.splitext(os.path.basename(iconfile))
                 with tempfile.TemporaryDirectory() as td:
                     renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
-                        parsed_config['application']['id'], ife))
+                        parsed_config.app_id, ife))
                     self.extract_file_from_image(
-                        'kaboxer/' + parsed_config['application']['id'],
+                        'kaboxer/' + parsed_config.app_id,
                         iconfile, renamed_icon)
                     self.install_to_path(
                         renamed_icon,
@@ -1165,7 +1165,7 @@ Categories={{ p.categories }}
                 ]
                 for p in paths:
                     tarfile = os.path.join(
-                        p, self.config['application']['id'] + '.tar')
+                        p, self.config.app_id + '.tar')
                     if os.path.isfile(tarfile):
                         self.logger.info("Loading image from %s", tarfile)
                         self.load_image(tarfile, app, target_version)
@@ -1407,7 +1407,7 @@ Categories={{ p.categories }}
                 if os.path.isfile(config_file):
                     try:
                         y = KaboxerAppConfig(filename=config_file)
-                        if y['application']['id'] == app:
+                        if y.app_id == app:
                             return y
                     except Exception:
                         self.logger.warning("Failed to parse %s as YAML",
