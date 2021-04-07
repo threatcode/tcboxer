@@ -765,9 +765,9 @@ Categories={{ p.categories }}
             if os.path.commonpath([path, tarball]) == path and \
                     os.path.isfile(tarball):
                 os.unlink(tarball)
-            generateddesktopfiles = self._list_desktop_files(
+            generated_desktop_files = self._list_desktop_files(
                 parsed_config, generated_only=True)
-            for d in generateddesktopfiles:
+            for d in generated_desktop_files:
                 if os.path.isfile(d):
                     os.unlink(d)
 
@@ -783,21 +783,21 @@ Categories={{ p.categories }}
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
         try:
-            desktopfiles = parsed_config['install']['desktop-files']
+            desktop_files = parsed_config['install']['desktop-files']
             if generated_only:
                 return []
         except KeyError:
-            desktopfiles = []
+            desktop_files = []
             for component, data in parsed_config['components'].items():
                 if data['run_mode'] == 'headless':
-                    desktopfiles.append('kaboxer-%s-%s-start.desktop' % (
+                    desktop_files.append('kaboxer-%s-%s-start.desktop' % (
                         parsed_config.app_id, component))
-                    desktopfiles.append('kaboxer-%s-%s-stop.desktop' % (
+                    desktop_files.append('kaboxer-%s-%s-stop.desktop' % (
                         parsed_config.app_id, component))
                 else:
-                    desktopfiles.append('kaboxer-%s-%s.desktop' % (
+                    desktop_files.append('kaboxer-%s-%s.desktop' % (
                         parsed_config.app_id, component))
-        return desktopfiles
+        return desktop_files
 
     def cmd_install(self):
         main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
@@ -835,32 +835,32 @@ Categories={{ p.categories }}
 
                 self.install_to_path(tf, main_destpath)
             # Install desktop file(s)
-            desktopfiles = self._list_desktop_files(parsed_config)
-            for d in desktopfiles:
+            desktop_files = self._list_desktop_files(parsed_config)
+            for d in desktop_files:
                 self.install_to_path(
                     os.path.join(path, d),
                     os.path.join(self.args.prefix, 'share', 'applications'))
             # Install icon file(s)
             try:
-                iconfile = parsed_config['install']['icon']
-                (_, ife) = os.path.splitext(os.path.basename(iconfile))
+                icon_file = parsed_config['install']['icon']
+                (_, ife) = os.path.splitext(os.path.basename(icon_file))
                 with tempfile.TemporaryDirectory() as td:
                     renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
                         parsed_config.app_id, ife))
-                    shutil.copy(iconfile, renamed_icon)
+                    shutil.copy(icon_file, renamed_icon)
                     self.install_to_path(renamed_icon, os.path.join(
                         self.args.prefix, 'share', 'icons'))
             except KeyError:
                 pass
             try:
-                iconfile = parsed_config['install']['extract-icon']
-                (_, ife) = os.path.splitext(os.path.basename(iconfile))
+                icon_file = parsed_config['install']['extract-icon']
+                (_, ife) = os.path.splitext(os.path.basename(icon_file))
                 with tempfile.TemporaryDirectory() as td:
                     renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
                         parsed_config.app_id, ife))
                     self.extract_file_from_image(
                         'kaboxer/' + parsed_config.app_id,
-                        iconfile, renamed_icon)
+                        icon_file, renamed_icon)
                     self.install_to_path(
                         renamed_icon,
                         os.path.join(self.args.prefix, 'share', 'icons'))
