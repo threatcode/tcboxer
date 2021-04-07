@@ -511,7 +511,7 @@ class Kaboxer:
                         parsed_config.app_id + '.tar')
                     self.save_image_to_file(image, tarball)
                 if self.args.push:
-                    self.push([saved_version])
+                    self.push(parsed_config, [saved_version])
             self.build_desktop_files(parsed_config)
 
     def build_image(self, parsed_config):
@@ -607,85 +607,86 @@ class Kaboxer:
         return parse_version(saved_version)
 
     def cmd_push(self):
-        self.push()
-
-    def push(self, versions=[]):
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Pushing %s", app)
-
-            # Build the remote name of the image
             parsed_config = parsed_configs[app]
-            if 'registry' not in parsed_config['container']['origin']:
-                self.logger.error("No registry defined for %s", app)
-                sys.exit(1)
-            registry_data = parsed_config['container']['origin']['registry']
-            registry = registry_data['url']
-            registry = re.sub('^https?://', '', registry)
-            try:
-                imagename = registry_data['image']
-            except KeyError:
-                imagename = parsed_config.app_id
-            remotename = '%s/%s' % (registry, imagename)
-            localname = 'kaboxer/%s' % app
+            self.push(parsed_config)
 
-            # Always fetch the latest tag to be able to compare and update
-            # it if required
-            self.docker_pull('%s:latest' % remotename)
+    def push(self, parsed_config, versions=[]):
+        app = parsed_config.app_id
+        self.logger.info("Pushing %s", app)
 
-            # Figure out which versions to push
-            if len(versions) == 0:
-                if self.args.version:
-                    try:
-                        self.do_version_checks(self.args.version,
-                                               parsed_configs)
-                        versions = [self.args.version]
-                    except Exception as e:
-                        message = str(e)
-                        self.logger.error(message)
-                        sys.exit(1)
-                else:
-                    for image in self.docker_conn.images.list():
-                        for tag in image.tags:
-                            (i, ver) = tag.rsplit(':', 1)
-                            if i != localname:
-                                continue
-                            if ver == 'current' or ver == 'latest':
-                                continue
-                            versions.append(ver)
+        # Build the remote name of the image
+        if 'registry' not in parsed_config['container']['origin']:
+            self.logger.error("No registry defined for %s", app)
+            sys.exit(1)
+        registry_data = parsed_config['container']['origin']['registry']
+        registry = registry_data['url']
+        registry = re.sub('^https?://', '', registry)
+        try:
+            imagename = registry_data['image']
+        except KeyError:
+            imagename = parsed_config.app_id
+        remotename = '%s/%s' % (registry, imagename)
+        localname = 'kaboxer/%s' % app
 
-            # Push each version
-            for version in versions:
-                local_tagname = "%s:%s" % (localname, version)
-                local_image = self.find_image(local_tagname)
-                if not local_image:
-                    self.logger.error("No %s image found", local_tagname)
+        # Always fetch the latest tag to be able to compare and update
+        # it if required
+        self.docker_pull('%s:latest' % remotename)
+
+        # Figure out which versions to push
+        if len(versions) == 0:
+            if self.args.version:
+                try:
+                    self.do_version_checks(self.args.version,
+                                           parsed_configs)
+                    versions = [self.args.version]
+                except Exception as e:
+                    message = str(e)
+                    self.logger.error(message)
                     sys.exit(1)
-                saved_version = self.extract_version_from_image(local_image)
-                remote_tagname = '%s:%s' % (remotename, saved_version)
-                local_image.tag(remote_tagname)
-                self.docker_conn.images.push(remote_tagname)
+            else:
+                for image in self.docker_conn.images.list():
+                    for tag in image.tags:
+                        (i, ver) = tag.rsplit(':', 1)
+                        if i != localname:
+                            continue
+                        if ver == 'current' or ver == 'latest':
+                            continue
+                        versions.append(ver)
 
-            # Update remote latest tag if needed
-            local_tagname = '%s:latest' % localname
+        # Push each version
+        for version in versions:
+            local_tagname = "%s:%s" % (localname, version)
             local_image = self.find_image(local_tagname)
-            remote_tagname = '%s:latest' % remotename
-            remote_image = self.find_image(remote_tagname)
+            if not local_image:
+                self.logger.error("No %s image found", local_tagname)
+                sys.exit(1)
+            saved_version = self.extract_version_from_image(local_image)
+            remote_tagname = '%s:%s' % (remotename, saved_version)
+            local_image.tag(remote_tagname)
+            self.docker_conn.images.push(remote_tagname)
 
-            must_update = False
-            if not remote_image and local_image:
-                # Remote side has no latest tag yet, force update
+        # Update remote latest tag if needed
+        local_tagname = '%s:latest' % localname
+        local_image = self.find_image(local_tagname)
+        remote_tagname = '%s:latest' % remotename
+        remote_image = self.find_image(remote_tagname)
+
+        must_update = False
+        if not remote_image and local_image:
+            # Remote side has no latest tag yet, force update
+            must_update = True
+        elif remote_image and local_image:
+            # Otherwise update only if we have newer or same version
+            local_version = self.extract_version_from_image(local_image)
+            remote_version = self.extract_version_from_image(remote_image)
+            if local_version >= remote_version:
                 must_update = True
-            elif remote_image and local_image:
-                # Otherwise update only if we have newer or same version
-                local_version = self.extract_version_from_image(local_image)
-                remote_version = self.extract_version_from_image(remote_image)
-                if local_version >= remote_version:
-                    must_update = True
 
-            if must_update:
-                local_image.tag(remote_tagname)
-                self.docker_conn.images.push(remote_tagname)
+        if must_update:
+            local_image.tag(remote_tagname)
+            self.docker_conn.images.push(remote_tagname)
 
     def gen_desktop_files(self, parsed_config):
         template_text = """[Desktop Entry]
