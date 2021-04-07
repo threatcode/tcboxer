@@ -567,8 +567,8 @@ class Kaboxer:
             tmp.flush()
             image = self.inject_file_into_image(
                 image, tmp.name, '/kaboxer/kaboxer-build-cmd')
-            image = self.inject_file_into_image(
-                image, df, '/kaboxer/Dockerfile')
+        image = self.inject_file_into_image(
+            image, df, '/kaboxer/Dockerfile')
         with tempfile.NamedTemporaryFile(mode='w+t') as tmp:
             savedbuildargs = {
                 'rm': True,
@@ -581,11 +581,11 @@ class Kaboxer:
             tmp.flush()
             image = self.inject_file_into_image(
                 image, tmp.name, '/kaboxer/docker-build-parameters')
-            tagname = 'kaboxer/%s:%s' % (app, str(saved_version))
+        tagname = 'kaboxer/%s:%s' % (app, str(saved_version))
+        image.tag(tagname)
+        tagname = 'kaboxer/%s:latest' % (app,)
+        if not self.find_image(tagname):
             image.tag(tagname)
-            tagname = 'kaboxer/%s:latest' % (app,)
-            if not self.find_image(tagname):
-                image.tag(tagname)
         if self.args.save:
             tarball = os.path.join(
                 path, parsed_config['application']['id'] + '.tar')
