@@ -511,7 +511,7 @@ class Kaboxer:
                         parsed_config.app_id + '.tar')
                     self.save_image_to_file(image, tarball)
                 if self.args.push:
-                    self.push(parsed_config, [saved_version])
+                    self.push_image(parsed_config, [saved_version])
             self.build_desktop_files(parsed_config)
 
     def build_image(self, parsed_config):
@@ -610,9 +610,9 @@ class Kaboxer:
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
-            self.push(parsed_config)
+            self.push_image(parsed_config)
 
-    def push(self, parsed_config, versions=[]):
+    def push_image(self, parsed_config, versions=[]):
         app = parsed_config.app_id
         self.logger.info("Pushing %s", app)
 
