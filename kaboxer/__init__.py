@@ -1399,11 +1399,8 @@ Categories={{ p.categories }}
                                     disable_numparse=True,
                                     ))
 
-    def load_config(self, app=None):
-        if app:
-            filenames = [app + '.kaboxer.yaml', 'kaboxer.yaml']
-        else:
-            filenames = ['kaboxer.yaml']
+    def load_config(self, app):
+        filenames = [app + '.kaboxer.yaml', 'kaboxer.yaml']
         for p in self.config_paths:
             for filename in filenames:
                 config_file = os.path.join(p, filename)
