@@ -505,7 +505,13 @@ class Kaboxer:
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
             if not self.args.skip_image_build:
-                self.build_image(parsed_config)
+                image, saved_version = self.build_image(parsed_config)
+                if self.args.save:
+                    tarball = os.path.join(self.args.path,
+                        parsed_config.app_id + '.tar')
+                    self.save_image_to_file(image, tarball)
+                if self.args.push:
+                    self.push([saved_version])
             self.build_desktop_files(parsed_config)
 
     def build_image(self, parsed_config):
@@ -586,12 +592,7 @@ class Kaboxer:
         tagname = 'kaboxer/%s:latest' % (app,)
         if not self.find_image(tagname):
             image.tag(tagname)
-        if self.args.save:
-            tarball = os.path.join(
-                path, parsed_config.app_id + '.tar')
-            self.save_image_to_file(image, tarball)
-        if self.args.push:
-            self.push([saved_version])
+        return image, saved_version
 
     def build_desktop_files(self, parsed_config):
         app = parsed_config.app_id
