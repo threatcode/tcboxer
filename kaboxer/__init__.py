@@ -763,8 +763,7 @@ Categories={{ p.categories }}
         app = parsed_config.app_id
         path = os.path.realpath(self.args.path)
         self.logger.info("Cleaning %s", app)
-        tarball = os.path.join(path,
-                               parsed_config.app_id + '.tar')
+        tarball = os.path.join(path, app + '.tar')
         if os.path.commonpath([path, tarball]) == path and \
                 os.path.isfile(tarball):
             os.unlink(tarball)
