@@ -800,72 +800,76 @@ Categories={{ p.categories }}
         return desktop_files
 
     def cmd_install(self):
-        main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
-        path = self.args.path
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Installing %s", app)
             parsed_config = parsed_configs[app]
-            # Install image tarball
-            if self.args.tarball:
-                tarball = os.path.join(path, app + '.tar')
-                try:
-                    self.install_to_path(tarball, main_destpath)
-                except shutil.SameFileError:
-                    pass
-            # Install kaboxer.yaml file
-            # Update it first if we ship the tarball
-            with tempfile.TemporaryDirectory() as td:
-                # Duplicate object
-                filtered_config_file = KaboxerAppConfig(
-                    filename=parsed_config.filename)
-                tf = os.path.join(td, app + '.kaboxer.yaml')
-                if self.args.tarball:
-                    # Rewrite the YAML file with the tarball data
-                    origin_data = {
-                        'tarball': os.path.join(main_destpath, app + '.tar'),
-                    }
-                    if 'container' not in filtered_config_file:
-                        filtered_config_file['container'] = {}
-                    filtered_config_file['container']['origin'] = origin_data
-                    filtered_config_file.save(tf)
-                else:
-                    # Copy over the unmodified file
-                    shutil.copy(parsed_config.filename, tf)
+            self.install_app(parsed_config)
 
-                self.install_to_path(tf, main_destpath)
-            # Install desktop file(s)
-            desktop_files = self._list_desktop_files(parsed_config)
-            for d in desktop_files:
+    def install_app(self, parsed_config):
+        main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
+        path = self.args.path
+        app = parsed_config.app_id
+        self.logger.info("Installing %s", app)
+        # Install image tarball
+        if self.args.tarball:
+            tarball = os.path.join(path, app + '.tar')
+            try:
+                self.install_to_path(tarball, main_destpath)
+            except shutil.SameFileError:
+                pass
+        # Install kaboxer.yaml file
+        # Update it first if we ship the tarball
+        with tempfile.TemporaryDirectory() as td:
+            # Duplicate object
+            filtered_config_file = KaboxerAppConfig(
+                filename=parsed_config.filename)
+            tf = os.path.join(td, app + '.kaboxer.yaml')
+            if self.args.tarball:
+                # Rewrite the YAML file with the tarball data
+                origin_data = {
+                    'tarball': os.path.join(main_destpath, app + '.tar'),
+                }
+                if 'container' not in filtered_config_file:
+                    filtered_config_file['container'] = {}
+                filtered_config_file['container']['origin'] = origin_data
+                filtered_config_file.save(tf)
+            else:
+                # Copy over the unmodified file
+                shutil.copy(parsed_config.filename, tf)
+
+            self.install_to_path(tf, main_destpath)
+        # Install desktop file(s)
+        desktop_files = self._list_desktop_files(parsed_config)
+        for d in desktop_files:
+            self.install_to_path(
+                os.path.join(path, d),
+                os.path.join(self.args.prefix, 'share', 'applications'))
+        # Install icon file(s)
+        try:
+            icon_file = parsed_config['install']['icon']
+            (_, ife) = os.path.splitext(os.path.basename(icon_file))
+            with tempfile.TemporaryDirectory() as td:
+                renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
+                    parsed_config.app_id, ife))
+                shutil.copy(icon_file, renamed_icon)
+                self.install_to_path(renamed_icon, os.path.join(
+                    self.args.prefix, 'share', 'icons'))
+        except KeyError:
+            pass
+        try:
+            icon_file = parsed_config['install']['extract-icon']
+            (_, ife) = os.path.splitext(os.path.basename(icon_file))
+            with tempfile.TemporaryDirectory() as td:
+                renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
+                    parsed_config.app_id, ife))
+                self.extract_file_from_image(
+                    'kaboxer/' + parsed_config.app_id,
+                    icon_file, renamed_icon)
                 self.install_to_path(
-                    os.path.join(path, d),
-                    os.path.join(self.args.prefix, 'share', 'applications'))
-            # Install icon file(s)
-            try:
-                icon_file = parsed_config['install']['icon']
-                (_, ife) = os.path.splitext(os.path.basename(icon_file))
-                with tempfile.TemporaryDirectory() as td:
-                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
-                        parsed_config.app_id, ife))
-                    shutil.copy(icon_file, renamed_icon)
-                    self.install_to_path(renamed_icon, os.path.join(
-                        self.args.prefix, 'share', 'icons'))
-            except KeyError:
-                pass
-            try:
-                icon_file = parsed_config['install']['extract-icon']
-                (_, ife) = os.path.splitext(os.path.basename(icon_file))
-                with tempfile.TemporaryDirectory() as td:
-                    renamed_icon = os.path.join(td, 'kaboxer-%s%s' % (
-                        parsed_config.app_id, ife))
-                    self.extract_file_from_image(
-                        'kaboxer/' + parsed_config.app_id,
-                        icon_file, renamed_icon)
-                    self.install_to_path(
-                        renamed_icon,
-                        os.path.join(self.args.prefix, 'share', 'icons'))
-            except KeyError:
-                pass
+                    renamed_icon,
+                    os.path.join(self.args.prefix, 'share', 'icons'))
+        except KeyError:
+            pass
 
     def extract_file_from_image(self, image, infile, outfile):
         temp_container = None
