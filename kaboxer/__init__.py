@@ -754,22 +754,25 @@ Categories={{ p.categories }}
                     outfile.write(t.render(p=params))
 
     def cmd_clean(self):
-        path = os.path.realpath(self.args.path)
         parsed_configs = self.find_config_for_build_apps()
         for app in parsed_configs:
-            self.logger.info("Cleaning %s", app)
             parsed_config = parsed_configs[app]
-            app = parsed_config.app_id
-            tarball = os.path.join(path,
-                                   parsed_config.app_id + '.tar')
-            if os.path.commonpath([path, tarball]) == path and \
-                    os.path.isfile(tarball):
-                os.unlink(tarball)
-            generated_desktop_files = self._list_desktop_files(
-                parsed_config, generated_only=True)
-            for d in generated_desktop_files:
-                if os.path.isfile(d):
-                    os.unlink(d)
+            self.clean_app(parsed_config)
+
+    def clean_app(self, parsed_config):
+        app = parsed_config.app_id
+        path = os.path.realpath(self.args.path)
+        self.logger.info("Cleaning %s", app)
+        tarball = os.path.join(path,
+                               parsed_config.app_id + '.tar')
+        if os.path.commonpath([path, tarball]) == path and \
+                os.path.isfile(tarball):
+            os.unlink(tarball)
+        generated_desktop_files = self._list_desktop_files(
+            parsed_config, generated_only=True)
+        for d in generated_desktop_files:
+            if os.path.isfile(d):
+                os.unlink(d)
 
     def install_to_path(self, f, path):
         if self.args.destdir == '':
