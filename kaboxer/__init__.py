@@ -495,6 +495,20 @@ class Kaboxer:
                 parsed_configs.append(app_config)
         return parsed_configs
 
+    def find_config_for_app_in_dir(self, path, app):
+        filenames = [app + '.kaboxer.yaml', 'kaboxer.yaml']
+        for filename in filenames:
+            config_file = os.path.join(path, filename)
+            if os.path.isfile(config_file):
+                try:
+                    y = KaboxerAppConfig(filename=config_file)
+                    if y.app_id == app:
+                        return y
+                except Exception:
+                    self.logger.warning("Failed to parse %s as YAML",
+                                        config_file, exc_info=1)
+        return None
+
     def do_version_checks(self, v, config):
         parsed_v = parse_version(v)
         try:
@@ -1408,18 +1422,10 @@ Categories={{ p.categories }}
                                     ))
 
     def load_config(self, app):
-        filenames = [app + '.kaboxer.yaml', 'kaboxer.yaml']
         for p in self.config_paths:
-            for filename in filenames:
-                config_file = os.path.join(p, filename)
-                if os.path.isfile(config_file):
-                    try:
-                        y = KaboxerAppConfig(filename=config_file)
-                        if y.app_id == app:
-                            return y
-                    except Exception:
-                        self.logger.warning("Failed to parse %s as YAML",
-                                            config_file, exc_info=1)
+            parsed_config = self.find_config_for_app_in_dir(p, app)
+            if parsed_config:
+                return parsed_config
         self.logger.error("Could not find appropriate config file for %s", app)
         sys.exit(1)
 
