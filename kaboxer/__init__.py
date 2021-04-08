@@ -1238,72 +1238,72 @@ Categories={{ p.categories }}
             for app_config in parsed_configs:
                 aid = app_config.app_id
                 self.logger.debug("Analyzing %s", aid)
-                    try:
-                        imagenames = (
-                            self.backend.get_local_image_name(app_config),
-                            self.backend.get_remote_image_name(app_config),
-                        )
-                        self.logger.debug(
-                            'Looking for local docker image in %s',
-                            imagenames)
-                        # XXX: factorize logic to find the right image
-                        for image in self.docker_conn.images.list():
-                            for tag in image.tags:
-                                (imagename, ver) = tag.rsplit(':', 1)
-                                if imagename not in imagenames:
-                                    continue
-                                curver = self.get_meta_file(
-                                    image, 'version').strip()
-                                item = {
-                                    'version': curver,
-                                    'packaging-revision-from-image':
-                                    self.get_meta_file(
-                                        image, 'packaging-revision'
-                                    ).strip(),
-                                    'packaging-revision-from-yaml':
-                                    app_config.get('packaging:revision'),
-                                    'image': imagename,
-                                }
-                                if ver == 'current':
-                                    current_apps[aid] = item
-                                if aid not in available_apps:
-                                    available_apps[aid] = {}
-                                available_apps[aid][ver] = item
-                                _maxversion = available_apps[aid].get(
-                                    'maxversion')
-                                if _maxversion:
-                                    max_avail_version = parse_version(
-                                        _maxversion['version'])
-                                if not _maxversion or max_avail_version <= \
-                                        parse_version(curver):
-                                    available_apps[aid]['maxversion'] = item
-                    except Exception as e:
-                        print(e)
-                        pass
+                try:
+                    imagenames = (
+                        self.backend.get_local_image_name(app_config),
+                        self.backend.get_remote_image_name(app_config),
+                    )
+                    self.logger.debug(
+                        'Looking for local docker image in %s',
+                        imagenames)
+                    # XXX: factorize logic to find the right image
+                    for image in self.docker_conn.images.list():
+                        for tag in image.tags:
+                            (imagename, ver) = tag.rsplit(':', 1)
+                            if imagename not in imagenames:
+                                continue
+                            curver = self.get_meta_file(
+                                image, 'version').strip()
+                            item = {
+                                'version': curver,
+                                'packaging-revision-from-image':
+                                self.get_meta_file(
+                                    image, 'packaging-revision'
+                                ).strip(),
+                                'packaging-revision-from-yaml':
+                                app_config.get('packaging:revision'),
+                                'image': imagename,
+                            }
+                            if ver == 'current':
+                                current_apps[aid] = item
+                            if aid not in available_apps:
+                                available_apps[aid] = {}
+                            available_apps[aid][ver] = item
+                            _maxversion = available_apps[aid].get(
+                                'maxversion')
+                            if _maxversion:
+                                max_avail_version = parse_version(
+                                    _maxversion['version'])
+                            if not _maxversion or max_avail_version <= \
+                                    parse_version(curver):
+                                available_apps[aid]['maxversion'] = item
+                except Exception as e:
+                    print(e)
+                    pass
 
-                    registry_data = app_config.get(
-                        'container:origin:registry')
-                    if registry_data and 'url' in registry_data:
-                        registry_apps[aid] = {
-                            'url': registry_data['url'],
-                            'image': registry_data.get('image', aid),
-                            'packaging-revision-from-yaml':
-                            app_config.get('packaging:revision'),
-                        }
+                registry_data = app_config.get(
+                    'container:origin:registry')
+                if registry_data and 'url' in registry_data:
+                    registry_apps[aid] = {
+                        'url': registry_data['url'],
+                        'image': registry_data.get('image', aid),
+                        'packaging-revision-from-yaml':
+                        app_config.get('packaging:revision'),
+                    }
 
-                    _tarball = app_config.get('container:origin:tarball')
-                    if _tarball and os.path.exists(_tarball):
-                        _ver = self.get_meta_file_from_tarball(
-                            _tarball, 'version').strip()
-                        _pkg_rev_img = self.get_meta_file_from_tarball(
-                            _tarball, 'packaging-revision').strip()
-                        _pkg_rev_yaml = app_config.get('packaging:revision')
-                        tarball_apps[aid] = {
-                            'tarball': _tarball,
-                            'version': _ver,
-                            'packaging-revision-from-image': _pkg_rev_img,
-                            'packaging-revision-from-yaml': _pkg_rev_yaml,
-                        }
+                _tarball = app_config.get('container:origin:tarball')
+                if _tarball and os.path.exists(_tarball):
+                    _ver = self.get_meta_file_from_tarball(
+                        _tarball, 'version').strip()
+                    _pkg_rev_img = self.get_meta_file_from_tarball(
+                        _tarball, 'packaging-revision').strip()
+                    _pkg_rev_yaml = app_config.get('packaging:revision')
+                    tarball_apps[aid] = {
+                        'tarball': _tarball,
+                        'version': _ver,
+                        'packaging-revision-from-image': _pkg_rev_img,
+                        'packaging-revision-from-yaml': _pkg_rev_yaml,
+                    }
 
         if get_remotes:
             for aid in registry_apps:
