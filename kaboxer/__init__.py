@@ -458,7 +458,7 @@ class Kaboxer:
         image = 'kaboxer/' + self.args.app
         print(self.get_meta_file(image, 'version'))
 
-    def find_config_for_build_apps(self):
+    def find_configs_for_build_cmds(self):
         path = self.args.path
         yamlfiles = []
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
@@ -501,7 +501,7 @@ class Kaboxer:
             pass
 
     def cmd_build(self):
-        parsed_configs = self.find_config_for_build_apps()
+        parsed_configs = self.find_configs_for_build_cmds()
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
             if not self.args.skip_image_build:
@@ -607,7 +607,7 @@ class Kaboxer:
         return parse_version(saved_version)
 
     def cmd_push(self):
-        parsed_configs = self.find_config_for_build_apps()
+        parsed_configs = self.find_configs_for_build_cmds()
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
             self.push_image(parsed_config)
@@ -749,7 +749,7 @@ Categories={{ p.categories }}
                     outfile.write(t.render(p=params))
 
     def cmd_clean(self):
-        parsed_configs = self.find_config_for_build_apps()
+        parsed_configs = self.find_configs_for_build_cmds()
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
             self.clean_app(parsed_config)
@@ -797,7 +797,7 @@ Categories={{ p.categories }}
         return desktop_files
 
     def cmd_install(self):
-        parsed_configs = self.find_config_for_build_apps()
+        parsed_configs = self.find_configs_for_build_cmds()
         for app in parsed_configs:
             parsed_config = parsed_configs[app]
             self.install_app(parsed_config)
