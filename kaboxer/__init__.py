@@ -481,6 +481,20 @@ class Kaboxer:
             sys.exit(1)
         return parsed_configs
 
+    def find_configs_in_dir(self, path, restrict):
+        globs = ['kaboxer.yaml', '*.kaboxer.yaml']
+        parsed_configs = []
+        for g in globs:
+            for f in glob.glob(os.path.join(path, g)):
+                if not os.path.exists(f):
+                    continue
+                app_config = KaboxerAppConfig(filename=f)
+                aid = app_config.app_id
+                if restrict is not None and aid not in restrict:
+                    continue
+                parsed_configs.append(app_config)
+        return parsed_configs
+
     def do_version_checks(self, v, config):
         parsed_v = parse_version(v)
         try:
@@ -1219,18 +1233,11 @@ Categories={{ p.categories }}
             restrict = [re.sub('=.*', '', i) for i in restrict]
 
         self.logger.debug('Finding kaboxer applications')
-        globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         for p in self.config_paths:
-            # XXX: factorize logic to find yaml files in a given dir
-            for g in globs:
-                for f in glob.glob(os.path.join(p, g)):
-                    if not os.path.exists(f):
-                        continue
-                    self.logger.debug('Analyzing %s', f)
-                    app_config = KaboxerAppConfig(filename=f)
-                    aid = app_config.app_id
-                    if restrict is not None and aid not in restrict:
-                        continue
+            parsed_configs = self.find_configs_in_dir(p, restrict)
+            for app_config in parsed_configs:
+                aid = app_config.app_id
+                self.logger.debug("Analyzing %s", aid)
                     try:
                         imagenames = (
                             self.backend.get_local_image_name(app_config),
