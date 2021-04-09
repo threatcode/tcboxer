@@ -458,8 +458,7 @@ class Kaboxer:
         image = 'kaboxer/' + self.args.app
         print(self.get_meta_file(image, 'version'))
 
-    def find_configs_for_build_cmds(self):
-        path = self.args.path
+    def _find_configs_for_build_cmds(self, path):
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         yamlfiles = []
         configs = []
@@ -479,9 +478,6 @@ class Kaboxer:
                 if app == c.app_id:
                     continue
             configs.append(y)
-        if not configs:
-            self.logger.error("Failed to find appropriate kaboxer.yaml file")
-            sys.exit(1)
         return configs
 
     def find_configs_in_dir(self, path, restrict):
@@ -501,6 +497,14 @@ class Kaboxer:
             if restrict is not None and app not in restrict:
                 continue
             configs.append(y)
+        return configs
+
+    def find_configs_for_build_cmds(self):
+        path = self.args.path
+        configs = self._find_configs_for_build_cmd(path)
+        if not configs:
+            self.logger.error("Failed to find appropriate kaboxer.yaml file")
+            sys.exit(1)
         return configs
 
     def find_config_for_app_in_dir(self, path, app):
