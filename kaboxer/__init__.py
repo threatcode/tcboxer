@@ -458,7 +458,7 @@ class Kaboxer:
         image = 'kaboxer/' + self.args.app
         print(self.get_meta_file(image, 'version'))
 
-    def _find_configs_for_build_cmds(self, path, restrict):
+    def _find_configs_for_build_cmds(self, path, restrict, allow_duplicate=False):
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         yamlfiles = []
         configs = []
@@ -474,13 +474,14 @@ class Kaboxer:
                 continue
             if restrict is not None and app not in restrict:
                 continue
-            for c in configs:
-                if app == c.app_id:
-                    continue
+            if not allow_duplicate:
+                for c in configs:
+                   if app == c.app_id:
+                       continue
             configs.append(y)
         return configs
 
-    def find_configs_in_dir(self, path, restrict):
+    def find_configs_in_dir(self, path, restrict, allow_duplicate=True):
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         yamlfiles = []
         configs = []
@@ -496,6 +497,10 @@ class Kaboxer:
                 continue
             if restrict is not None and app not in restrict:
                 continue
+            if not allow_duplicate:
+                for c in configs:
+                   if app == c.app_id:
+                       continue
             configs.append(y)
         return configs
 
