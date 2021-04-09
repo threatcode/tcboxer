@@ -71,6 +71,8 @@ sub install {
 sub clean {
     my $this=shift;
 
+    return 0 unless $this->_has_kaboxer_files();
+
     $this->doit_in_sourcedir("kaboxer", "--verbose", "clean", @_);
 }
 
