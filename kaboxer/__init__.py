@@ -459,6 +459,15 @@ class Kaboxer:
         print(self.get_meta_file(image, 'version'))
 
     def find_configs_in_dir(self, path, restrict, allow_duplicate=True):
+        """ Find Kaboxer app config files in a given directory
+        
+        'restrict' is a list of app ids that are allowed. If None, every app id
+        is allowed (no restriction). 'allow_duplicate' decides what happens when
+        more than one config files are found with the same app id: if set to
+        False, only keep the first one.
+
+        Returns a list of KaboxerAppConfig objects.
+        """
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         yamlfiles = []
         configs = []
@@ -468,15 +477,21 @@ class Kaboxer:
                     continue
                 yamlfiles.append(f)
         for f in yamlfiles:
-            y = KaboxerAppConfig(filename=f)
+            try:
+                y = KaboxerAppConfig(filename=f)
+            except yaml.YAMLError:
+                self.logger.warning("Failed to parse %s as YAML", f, exc_info=1)
+                continue
             app = y.app_id
             if app is None:
+                self.logger.info("Ignoring %s (no app id)", f)
                 continue
             if restrict is not None and app not in restrict:
                 continue
             if not allow_duplicate:
                 for c in configs:
                    if app == c.app_id:
+                       self.logger.info("Ignoring %s (duplicate app id)", f)
                        continue
             configs.append(y)
         return configs
