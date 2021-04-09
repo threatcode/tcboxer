@@ -460,8 +460,8 @@ class Kaboxer:
 
     def find_configs_for_build_cmds(self):
         path = self.args.path
-        yamlfiles = []
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
+        yamlfiles = []
         configs = {}
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
@@ -485,15 +485,18 @@ class Kaboxer:
 
     def find_configs_in_dir(self, path, restrict):
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
+        yamlfiles = []
         configs = []
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
                 if not os.path.isfile(f):
                     continue
-                y = KaboxerAppConfig(filename=f)
-                if restrict is not None and y.app_id not in restrict:
-                    continue
-                configs.append(y)
+                yamlfiles.append(f)
+        for f in yamlfiles:
+            y = KaboxerAppConfig(filename=f)
+            if restrict is not None and y.app_id not in restrict:
+                continue
+            configs.append(y)
         return configs
 
     def find_config_for_app_in_dir(self, path, app):
