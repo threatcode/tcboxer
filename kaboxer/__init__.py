@@ -458,29 +458,6 @@ class Kaboxer:
         image = 'kaboxer/' + self.args.app
         print(self.get_meta_file(image, 'version'))
 
-    def _find_configs_for_build_cmds(self, path, restrict, allow_duplicate=False):
-        globs = ['kaboxer.yaml', '*.kaboxer.yaml']
-        yamlfiles = []
-        configs = []
-        for g in globs:
-            for f in glob.glob(os.path.join(path, g)):
-                if not os.path.isfile(f):
-                    continue
-                yamlfiles.append(f)
-        for f in yamlfiles:
-            y = KaboxerAppConfig(filename=f)
-            app = y.app_id
-            if app is None:
-                continue
-            if restrict is not None and app not in restrict:
-                continue
-            if not allow_duplicate:
-                for c in configs:
-                   if app == c.app_id:
-                       continue
-            configs.append(y)
-        return configs
-
     def find_configs_in_dir(self, path, restrict, allow_duplicate=True):
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         yamlfiles = []
@@ -507,7 +484,7 @@ class Kaboxer:
     def find_configs_for_build_cmds(self):
         path = self.args.path
         restrict = [ self.args.app ] if self.args.app else None
-        configs = self._find_configs_for_build_cmd(path, restrict)
+        configs = self.find_configs_in_dir(path, restrict, allow_duplicate=False)
         if not configs:
             self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
@@ -1263,7 +1240,7 @@ Categories={{ p.categories }}
 
         self.logger.debug('Finding kaboxer applications')
         for p in self.config_paths:
-            parsed_configs = self.find_configs_in_dir(p, restrict)
+            parsed_configs = self.find_configs_in_dir(p, restrict, allow_duplicate=True)
             for app_config in parsed_configs:
                 aid = app_config.app_id
                 self.logger.debug("Analyzing %s", aid)
