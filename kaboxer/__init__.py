@@ -465,6 +465,8 @@ class Kaboxer:
         configs = {}
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
+                if not os.path.isfile(f):
+                    continue
                 yamlfiles.append(f)
         for f in yamlfiles:
             y = KaboxerAppConfig(filename=f)
@@ -486,7 +488,7 @@ class Kaboxer:
         configs = []
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
-                if not os.path.exists(f):
+                if not os.path.isfile(f):
                     continue
                 y = KaboxerAppConfig(filename=f)
                 if restrict is not None and y.app_id not in restrict:
@@ -498,14 +500,15 @@ class Kaboxer:
         filenames = [app + '.kaboxer.yaml', 'kaboxer.yaml']
         for filename in filenames:
             config_file = os.path.join(path, filename)
-            if os.path.isfile(config_file):
-                try:
-                    y = KaboxerAppConfig(filename=config_file)
-                    if y.app_id == app:
-                        return y
-                except Exception:
-                    self.logger.warning("Failed to parse %s as YAML",
-                                        config_file, exc_info=1)
+            if not os.path.isfile(config_file):
+                continue
+            try:
+                y = KaboxerAppConfig(filename=config_file)
+                if y.app_id == app:
+                    return y
+            except Exception:
+                self.logger.warning("Failed to parse %s as YAML",
+                                    config_file, exc_info=1)
         return None
 
     def do_version_checks(self, v, config):
