@@ -539,16 +539,16 @@ class Kaboxer:
 
     def cmd_build(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for parsed_config in parsed_configs:
+        for config in parsed_configs:
             if not self.args.skip_image_build:
-                image, saved_version = self.build_image(parsed_config)
+                image, saved_version = self.build_image(config)
                 if self.args.save:
                     tarball = os.path.join(self.args.path,
-                        parsed_config.app_id + '.tar')
+                        config.app_id + '.tar')
                     self.save_image_to_file(image, tarball)
                 if self.args.push:
-                    self.push_image(parsed_config, [saved_version])
-            self.build_desktop_files(parsed_config)
+                    self.push_image(config, [saved_version])
+            self.build_desktop_files(config)
 
     def build_image(self, parsed_config):
         path = self.args.path
@@ -644,8 +644,8 @@ class Kaboxer:
 
     def cmd_push(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for parsed_config in parsed_configs:
-            self.push_image(parsed_config)
+        for config in parsed_configs:
+            self.push_image(config)
 
     def push_image(self, parsed_config, versions=[]):
         app = parsed_config.app_id
@@ -785,8 +785,8 @@ Categories={{ p.categories }}
 
     def cmd_clean(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for parsed_config in parsed_configs:
-            self.clean_app(parsed_config)
+        for config in parsed_configs:
+            self.clean_app(config)
 
     def clean_app(self, parsed_config):
         app = parsed_config.app_id
@@ -832,8 +832,8 @@ Categories={{ p.categories }}
 
     def cmd_install(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for parsed_config in parsed_configs:
-            self.install_app(parsed_config)
+        for config in parsed_configs:
+            self.install_app(config)
 
     def install_app(self, parsed_config):
         main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
@@ -1428,9 +1428,9 @@ Categories={{ p.categories }}
 
     def load_config(self, app):
         for p in self.config_paths:
-            parsed_config = self.find_config_for_app_in_dir(p, app)
-            if parsed_config:
-                return parsed_config
+            config = self.find_config_for_app_in_dir(p, app)
+            if config:
+                return config
         self.logger.error("Could not find appropriate config file for %s", app)
         sys.exit(1)
 
