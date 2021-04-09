@@ -462,7 +462,7 @@ class Kaboxer:
         path = self.args.path
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
         yamlfiles = []
-        configs = {}
+        configs = []
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
                 if not os.path.isfile(f):
@@ -475,9 +475,10 @@ class Kaboxer:
                 continue
             if self.args.app and self.args.app != app:
                 continue
-            if app in configs:
-                continue
-            configs[app] = y
+            for c in configs:
+                if app == c.app_id:
+                    continue
+            configs.append(y)
         if not configs:
             self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
@@ -538,8 +539,7 @@ class Kaboxer:
 
     def cmd_build(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for app in parsed_configs:
-            parsed_config = parsed_configs[app]
+        for parsed_config in parsed_configs:
             if not self.args.skip_image_build:
                 image, saved_version = self.build_image(parsed_config)
                 if self.args.save:
@@ -644,8 +644,7 @@ class Kaboxer:
 
     def cmd_push(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for app in parsed_configs:
-            parsed_config = parsed_configs[app]
+        for parsed_config in parsed_configs:
             self.push_image(parsed_config)
 
     def push_image(self, parsed_config, versions=[]):
@@ -786,8 +785,7 @@ Categories={{ p.categories }}
 
     def cmd_clean(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for app in parsed_configs:
-            parsed_config = parsed_configs[app]
+        for parsed_config in parsed_configs:
             self.clean_app(parsed_config)
 
     def clean_app(self, parsed_config):
@@ -834,8 +832,7 @@ Categories={{ p.categories }}
 
     def cmd_install(self):
         parsed_configs = self.find_configs_for_build_cmds()
-        for app in parsed_configs:
-            parsed_config = parsed_configs[app]
+        for parsed_config in parsed_configs:
             self.install_app(parsed_config)
 
     def install_app(self, parsed_config):
