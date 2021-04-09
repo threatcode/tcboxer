@@ -24,11 +24,18 @@ sub new {
     return $this;
 }
 
+sub _has_kaboxer_files {
+    my @kbxfiles = ();
+    return 1 if -e "kaboxer.yaml";
+    @kbxfiles = glob "*.kaboxer.yaml";
+    return @kbxfiles > 0;
+}
+
 sub check_auto_buildable {
     my $this=shift;
     my ($step)=@_;
 
-    return 0 unless glob ("kaboxer.yaml *.kaboxer.yaml");
+    return 0 unless $this->_has_kaboxer_files();
 
     return 1 if $step eq "build";
     return 1 if $step eq "install";
@@ -53,6 +60,7 @@ sub install {
     my $this=shift;
     my $destdir=shift;
     my @kbx_options = ("--destdir", "$destdir", "--prefix", "/usr");
+
     if ($this->{build_strategy} eq 'tarball') {
 	push @kbx_options, "--tarball";
     }
@@ -62,6 +70,8 @@ sub install {
 
 sub clean {
     my $this=shift;
+
+    return 0 unless $this->_has_kaboxer_files();
 
     $this->doit_in_sourcedir("kaboxer", "--verbose", "clean", @_);
 }
