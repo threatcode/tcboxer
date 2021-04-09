@@ -512,11 +512,12 @@ class Kaboxer:
                 continue
             try:
                 y = KaboxerAppConfig(filename=config_file)
-                if y.app_id == app:
-                    return y
-            except Exception:
+            except yaml.YAMLError:
                 self.logger.warning("Failed to parse %s as YAML",
                                     config_file, exc_info=1)
+                continue
+            if y.app_id == app:
+                return y
         return None
 
     def do_version_checks(self, v, config):
