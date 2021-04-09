@@ -494,7 +494,10 @@ class Kaboxer:
                 yamlfiles.append(f)
         for f in yamlfiles:
             y = KaboxerAppConfig(filename=f)
-            if restrict is not None and y.app_id not in restrict:
+            app = y.app_id
+            if app is None:
+                continue
+            if restrict is not None and app not in restrict:
                 continue
             configs.append(y)
         return configs
