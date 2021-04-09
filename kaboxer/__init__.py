@@ -462,7 +462,7 @@ class Kaboxer:
         path = self.args.path
         yamlfiles = []
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
-        parsed_configs = {}
+        configs = {}
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
                 yamlfiles.append(f)
@@ -473,27 +473,26 @@ class Kaboxer:
                 continue
             if self.args.app and self.args.app != app:
                 continue
-            if app in parsed_configs:
+            if app in configs:
                 continue
-            parsed_configs[app] = y
-        if not parsed_configs:
+            configs[app] = y
+        if not configs:
             self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
-        return parsed_configs
+        return configs
 
     def find_configs_in_dir(self, path, restrict):
         globs = ['kaboxer.yaml', '*.kaboxer.yaml']
-        parsed_configs = []
+        configs = []
         for g in globs:
             for f in glob.glob(os.path.join(path, g)):
                 if not os.path.exists(f):
                     continue
-                app_config = KaboxerAppConfig(filename=f)
-                aid = app_config.app_id
-                if restrict is not None and aid not in restrict:
+                y = KaboxerAppConfig(filename=f)
+                if restrict is not None and y.app_id not in restrict:
                     continue
-                parsed_configs.append(app_config)
-        return parsed_configs
+                configs.append(y)
+        return configs
 
     def find_config_for_app_in_dir(self, path, app):
         filenames = [app + '.kaboxer.yaml', 'kaboxer.yaml']
