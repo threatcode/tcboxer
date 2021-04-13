@@ -1,3 +1,90 @@
+kaboxer (0.8.0) kali-dev; urgency=medium
+
+  [ Raphaël Hertzog ]
+  * Rename kbx-hello into hello or hello-kbx
+  * Fix name of example directory
+  * Fix a regression in the test code due to reformatting
+  * Make failures fatal during image build
+  * Improve some test failure messages
+  * Create basic KaboxerAppConfig object
+  * Use new KaboxerAppConfig instead of direct YAML/dict access
+  * Start a DockerBackend class to regroup logic related to docker images
+  * Run functional tests against in-tree code
+  * Support default value in KaboxerConfigApp.get()
+  * Use the new DockerBackend class
+  * Try to make test work even outside of any git repository
+  * Configure authorship data for git commit to work
+  * dh-kaboxer: Don't fail apt if ever kaboxer fails
+  * Add dh-kaboxer to the files required
+
+  [ Arnaud Rebillout ]
+  * Finish renaming kbx-hello into hello-kbx (Fixes: #63)
+  * Update kaboxer usage in readme, plus nitpicks
+  * Some more fixes in README
+  * hello-kbx: Drop useless 'sudo' from the Depends list
+  * hello-kbx: Bump version of the hello app to match the debian version
+  * hello-kbx: Use /var/lib/hello-kbx for data
+  * Allow users to use the vendor package docker-ce
+  * Don't try to remove non-existing container
+  * Generate man page for dh_kaboxer
+  * tests: Fix command output (was bytes instead of text)
+  * tests: Init git repo in the right place (Fixes: #69)
+  * fixtures: Update description of kaboxer.yaml
+  * fixtures: Add an interactive component to the test app
+  * Add a test case for interactive run
+  * Add a test case to show that 'run --detach' is broken
+  * run: Simplify how detach opt is handled
+  * Fix run --detach command (Fixes: #70)
+  * Swap -v and --verbose in add_argument()
+  * Fix logger name (kaboxer instead of kbxbuilder)
+  * tests: Rewrite remove_images to be more generic
+  * Add test to ensure 'kaboxer purge non-existing-app' succeeds
+  * purge: Catch exceptions (Fixes: #55)
+  * purge: Introduce DockerBackend.remove_image() to factorize code
+  * dh-kaboxer: Create kaboxer group only if it does not exist
+  * dh-kaboxer: Move kaboxer purge from postrm to prerm (Fixes: #59)
+  * dh-kaboxer: Support more than one app in prerm
+  * dh-kaboxer: Be more verbose in the postinst script
+  * purge: Prune docker images only if we actually removed an image
+  * Move list_apps() get_remote part in a separate ContainerRegistry object
+  * Rewrite URL parsing with urllib
+  * Default to https (rather than http) when proto is not defined
+  * Split the code that list remote images into several methods
+  * Clarification regarding Docker Registry HTTP API v2
+  * Fix and document the Docker Hub Registry API
+  * Add support for the GitLab Registry API
+  * Rework, assume that the registry url is... the registry url
+  * Create logger for ContainerRegsitry
+  * Local registry for tests is accessible over http
+  * Add mock unit tests for ContainerRegistry
+  * TestKaboxerCommon: Expose working directory in run_* methods
+  * Add integration tests for Docker Hub and GitLab
+  * Optimize listing image tags for GitLab registry
+  * Refactor unit tests for ContainerRegistry
+  * Fix small mistakes detected by the unit tests
+  * Rework the code that finds the possible gitlab project paths
+  * Add a test case for get_possible_gitlab_project_paths()
+  * Add tests for kaboxer stop
+  * stop: Bail out if app is not running (Fixes: #53)
+  * man: Add missing path optional arg to push command
+  * man: Fix minor typo
+  * Minor fix in how config files are found
+  * build_image: Move code that was within "with:" blocks for no reason
+  * load_config: Drop app=None, make app a positional argument
+  * Use app_id accessor rather than ['application']['id']
+  * Rename a few variables for readability
+  * cmd_install: Create a separate install_app() method to install each app
+  * cmd_clean: Create a separate clean_app() method to clean each app
+  * cmd_clean: Nitpick, use variable that was already defined above
+  * cmd_build: Move save/push a level up, in cmd_build() rather than
+    build_image()
+  * cmd_push: Run the loop, and pass parsed_config to push() method
+  * Nitpick, rename push() into push_image()
+  * dh-kaboxer: Fix check_auto_buildable
+  * dh-kaboxer: Don't run clean if there's no kaboxer files
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Tue, 13 Apr 2021 11:03:41 +0700
+
 kaboxer (0.7.1) kali-dev; urgency=medium
 
   * Fix missed flake8 error
