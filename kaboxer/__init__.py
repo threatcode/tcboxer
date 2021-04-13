@@ -616,19 +616,12 @@ class Kaboxer:
         app = parsed_config.app_id
         self.logger.info("Pushing %s", app)
 
-        # Build the remote name of the image
-        if 'registry' not in parsed_config['container']['origin']:
-            self.logger.error("No registry defined for %s", app)
+        # Get the image names
+        localname = self.backend.get_local_image_name(parsed_config)
+        remotename = self.backend.get_remote_image_name(parsed_config)
+        if not remotename:
+            self.logger.error("No remote image name for %s", app)
             sys.exit(1)
-        registry_data = parsed_config['container']['origin']['registry']
-        registry = registry_data['url']
-        registry = re.sub('^https?://', '', registry)
-        try:
-            imagename = registry_data['image']
-        except KeyError:
-            imagename = parsed_config.app_id
-        remotename = '%s/%s' % (registry, imagename)
-        localname = 'kaboxer/%s' % app
 
         # Always fetch the latest tag to be able to compare and update
         # it if required
