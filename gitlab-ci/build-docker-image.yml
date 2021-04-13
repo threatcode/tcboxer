@@ -10,6 +10,9 @@ build-docker-image:
     DOCKER_HOST: tcp://docker:2375
   services:
     - docker:dind
+  except:
+    variables:
+      - $CI_COMMIT_TAG != null && $SALSA_CI_ENABLE_PIPELINE_ON_TAGS !~ /^(1|yes|true)$/
   before_script:
     - apt-get -y update
     - apt-get -y install docker.io kaboxer curl dpkg-dev
