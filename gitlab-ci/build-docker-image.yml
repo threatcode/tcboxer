@@ -31,7 +31,7 @@ build-docker-image:
         do
           for tag in $(docker images --filter="reference=kaboxer/$KABOXER_APP_ID" --format "{{.Tag}}")
           do
-            docker image tag kaboxer/$KABOXER_APP_ID:$tag $CI_REGISTRY_IMAGE/kaboxer/$KABOXER_APP_ID:$tag
-            docker push $CI_REGISTRY_IMAGE/kaboxer/$KABOXER_APP_ID:$tag
+            docker image tag kaboxer/$KABOXER_APP_ID:$tag $CI_REGISTRY_IMAGE/$KABOXER_APP_ID:$tag
+            docker push $CI_REGISTRY_IMAGE/$KABOXER_APP_ID:$tag
           done
         done
