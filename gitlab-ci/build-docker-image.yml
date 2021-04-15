@@ -1,4 +1,6 @@
 variables:
+  # for now we only build amd64 docker images, so i386 pkg wouldn't make sense
+  SALSA_CI_DISABLE_BUILD_PACKAGE_I386: 1
   KABOXER_DOCKER_IMAGE: 'kalilinux/kali-rolling'
   KABOXER_BUILD_DIRECTORY: '.'
   KABOXER_APPLICATIONS: ''
