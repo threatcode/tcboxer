@@ -1037,14 +1037,26 @@ Categories={{ p.categories }}
             full_image_name = '%s:%s' % (image_name, oldver)
             container = self.docker_conn.containers.create(
                 full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
-            dockerpty.start(self.docker_conn.api, container.id)
+            try:
+                dockerpty.start(self.docker_conn.api, container.id)
+            except docker.errors.APIError as e:
+                if e.response.status_code == 400 and 'no such file or directory' in str(e):
+                    pass
+                else:
+                    raise
             container.stop()
             container.remove()
             full_image_name = '%s:%s' % (image_name, newver)
             container = self.docker_conn.containers.create(
                 full_image_name, ['/kaboxer/scripts/post-upgrade', oldver],
                 **opts)
-            dockerpty.start(self.docker_conn.api, container.id)
+            try:
+                dockerpty.start(self.docker_conn.api, container.id)
+            except docker.errors.APIError as e:
+                if e.response.status_code == 400 and 'no such file or directory' in str(e):
+                    pass
+                else:
+                    raise
             container.stop()
             container.remove()
 
