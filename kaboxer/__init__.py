@@ -488,11 +488,10 @@ class Kaboxer:
                 continue
             if restrict is not None and app not in restrict:
                 continue
-            if not allow_duplicate:
-                for c in configs:
-                   if app == c.app_id:
-                       self.logger.info("Ignoring %s (duplicate app id)", f)
-                       continue
+            if allow_duplicate is False:
+                if any(c.app_id == app for c in configs):
+                    self.logger.info("Ignoring %s (duplicate app id)", f)
+                    continue
             configs.append(y)
         return configs
 
