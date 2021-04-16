@@ -716,6 +716,21 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_command_check_stdout_matches(
             "kaboxer run kbx-demo /run.sh history", "3 1.0")
 
+    def test_upgrade_no_scripts(self):
+        self.run_and_check_command(
+            "grep -q '^COPY pre-upgrade post-upgrade ' %s" % 'Dockerfile')
+        self.run_command(
+            "sed -i '/^COPY pre-upgrade post-upgrade /d' %s" % 'Dockerfile')
+        self.run_and_check_command("kaboxer build --push kbx-demo")
+        self.run_and_check_command("kaboxer build --push --version 1.1 kbx-demo")
+        self.remove_images()
+        self.run_and_check_command("kaboxer prepare kbx-demo=1.0")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.0")
+        self.run_and_check_command("kaboxer upgrade kbx-demo=1.1")
+        self.run_command_check_stdout_matches("kaboxer run kbx-demo",
+                                              "Hello World 1.1")
+
 
 class TestKaboxerWithPublicRegistries(TestKaboxerCommon):
     def test_list_from_docker_hub(self):
