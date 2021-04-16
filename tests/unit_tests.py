@@ -3,6 +3,7 @@
 import json
 import os
 import responses
+import shutil
 import tempfile
 import unittest
 
@@ -44,6 +45,56 @@ class TestKaboxerApplication(unittest.TestCase):
 
         args = self.obj.parser.parse_args(args=['-vv', 'build'])
         self.assertEqual(args.verbose, 2)
+
+
+class TestKaboxerFindConfigsInDir(unittest.TestCase):
+    def setUp(self):
+        self.obj = Kaboxer()
+        # annoying logger
+        import logging
+        self.obj.logger = logging.Logger('kaboxer')
+        self.configs_dir = tempfile.mkdtemp()
+        self.mk_config_file('foo')
+        self.mk_config_file('bar')
+        self.mk_config_file('bar', filename='kaboxer.yaml')
+
+    def tearDown(self):
+        shutil.rmtree(self.configs_dir)
+
+    def mk_config_file(self, app_id, filename=None):
+        if not filename:
+            filename = app_id + '.kaboxer.yaml'
+        config_data = {
+            'application': {
+                'id': app_id,
+            }
+        }
+        config = KaboxerAppConfig(config=config_data)
+        config.save(os.path.join(self.configs_dir, filename))
+
+    def assertConfigsAppIds(self, app_configs, app_ids):
+        configs_app_ids = [c.app_id for c in app_configs]
+        self.assertEqual(sorted(configs_app_ids), sorted(app_ids))
+
+    def test_restrict_none_duplicate_true(self):
+        configs = self.obj.find_configs_in_dir(self.configs_dir,
+                restrict=None, allow_duplicate=True)
+        self.assertConfigsAppIds(configs, ['foo', 'bar', 'bar'])
+
+    def test_restrict_none_duplicate_false(self):
+        configs = self.obj.find_configs_in_dir(self.configs_dir,
+                restrict=None, allow_duplicate=False)
+        self.assertConfigsAppIds(configs, ['foo', 'bar'])
+
+    def test_restrict_set_duplicate_true(self):
+        configs = self.obj.find_configs_in_dir(self.configs_dir,
+                restrict=['bar'], allow_duplicate=True)
+        self.assertConfigsAppIds(configs, ['bar', 'bar'])
+
+    def test_restrict_set_duplicate_false(self):
+        configs = self.obj.find_configs_in_dir(self.configs_dir,
+                restrict=['bar'], allow_duplicate=False)
+        self.assertConfigsAppIds(configs, ['bar'])
 
 
 class TestKaboxerAppConfig(unittest.TestCase):
