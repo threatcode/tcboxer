@@ -458,7 +458,7 @@ class Kaboxer:
         image = 'kaboxer/' + self.args.app
         print(self.get_meta_file(image, 'version'))
 
-    def find_configs_in_dir(self, path, restrict, allow_duplicate=True):
+    def find_configs_in_dir(self, path, restrict=None, allow_duplicate=True):
         """ Find Kaboxer app config files in a given directory
         
         'restrict' is a list of app ids that are allowed. If None, every app id
@@ -499,7 +499,7 @@ class Kaboxer:
     def find_configs_for_build_cmds(self):
         path = self.args.path
         restrict = [ self.args.app ] if self.args.app else None
-        configs = self.find_configs_in_dir(path, restrict, allow_duplicate=False)
+        configs = self.find_configs_in_dir(path, restrict=restrict, allow_duplicate=False)
         if not configs:
             self.logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
@@ -1255,7 +1255,7 @@ Categories={{ p.categories }}
 
         self.logger.debug('Finding kaboxer applications')
         for p in self.config_paths:
-            parsed_configs = self.find_configs_in_dir(p, restrict, allow_duplicate=True)
+            parsed_configs = self.find_configs_in_dir(p, restrict=restrict, allow_duplicate=True)
             for app_config in parsed_configs:
                 aid = app_config.app_id
                 self.logger.debug("Analyzing %s", aid)
