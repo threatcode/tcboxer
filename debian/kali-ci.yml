@@ -1,2 +1,14 @@
 include:
   - https://gitlab.com/kalilinux/tools/kali-ci-pipeline/raw/master/recipes/kali.yml
+
+tox:
+  stage: test
+  image: $SALSA_CI_IMAGES_BASE
+  except:
+    variables:
+      - $CI_COMMIT_TAG != null && $SALSA_CI_ENABLE_PIPELINE_ON_TAGS !~ /^(1|yes|true)$/
+  before_script:
+    - apt-get -y update
+    - apt-get -y install pandoc tox
+  script:
+    - tox $(tox -l | grep -v unit-tests | sed -e 's/^/-e /' | tr '\n' ' ')
