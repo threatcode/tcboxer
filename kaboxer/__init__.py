@@ -1673,18 +1673,18 @@ class ContainerRegistry:
         try:
             resp = requests.get(url)
         except requests.ConnectionError:
-            logger.warning("Failed to request %s", url, exc_info=1)
+            logger.debug("Failed to request %s", url, exc_info=1)
             return None
 
         if not resp.ok:
-            logger.warning("Request failed with %d (%s)",
+            logger.debug("Request failed with %d (%s)",
                     resp.status_code, HTTPStatus(resp.status_code).phrase)
             return None
 
         try:
             json_data = resp.json()
         except ValueError:
-            logger.warning("Failed to parse response as JSON: %s", resp.text)
+            logger.debug("Failed to parse response as JSON: %s", resp.text)
             return None
 
         logger.debug('Result: %s', json_data)
