@@ -1035,30 +1035,11 @@ Categories={{ p.categories }}
             opts = {'mounts': [docker.types.Mount(t, s, type='bind')]}
             opts = self.parse_component_config(opts)
             full_image_name = '%s:%s' % (image_name, oldver)
-            container = self.docker_conn.containers.create(
-                full_image_name, ['/kaboxer/scripts/pre-upgrade'], **opts)
-            try:
-                dockerpty.start(self.docker_conn.api, container.id)
-            except docker.errors.APIError as e:
-                if e.response.status_code == 400 and 'no such file or directory' in str(e):
-                    pass
-                else:
-                    raise
-            container.stop()
-            container.remove()
+            self.backend.run_command(self.docker_conn, full_image_name,
+                    ['/kaboxer/scripts/pre-upgrade'], opts, allow_missing=True)
             full_image_name = '%s:%s' % (image_name, newver)
-            container = self.docker_conn.containers.create(
-                full_image_name, ['/kaboxer/scripts/post-upgrade', oldver],
-                **opts)
-            try:
-                dockerpty.start(self.docker_conn.api, container.id)
-            except docker.errors.APIError as e:
-                if e.response.status_code == 400 and 'no such file or directory' in str(e):
-                    pass
-                else:
-                    raise
-            container.stop()
-            container.remove()
+            self.backend.run_command(self.docker_conn, full_image_name,
+                    ['/kaboxer/scripts/post-upgrade', oldver], opts, allow_missing=True)
 
     def docker_pull(self, full_image_name, stop_on_error=False):
         self.logger.info("Pulling %s image from registry", full_image_name)
@@ -1626,6 +1607,30 @@ class DockerBackend:
         docker_conn.images.remove(image_name)
         return True
 
+    def run_command(self, docker_conn, image_name, command, start_options,
+            allow_missing=False):
+        """ Run a command within a docker container
+
+        If the command is optional (ie. it refers to an executable file that
+        might not exist, and you're OK with that), set allow_missing=True.
+
+        If an error occurs, the method raises an exception as documented in
+        <https://docker-py.readthedocs.io/en/stable/containers.html>
+        """
+        container = docker_conn.containers.create(image_name, command, **start_options)
+        try:
+            dockerpty.start(docker_conn.api, container.id)
+        except docker.errors.APIError as e:
+            if (
+                e.response.status_code == 400
+                and "no such file or directory" in str(e)
+                and allow_missing == True
+            ):
+                pass
+            else:
+                raise
+        container.stop()
+        container.remove()
 
 def get_possible_gitlab_project_paths(full_path):
     """ Get the possible project paths from a GitLab Docker image.
