@@ -50,9 +50,6 @@ class TestKaboxerApplication(unittest.TestCase):
 class TestKaboxerFindConfigsInDir(unittest.TestCase):
     def setUp(self):
         self.obj = Kaboxer()
-        # annoying logger
-        import logging
-        self.obj.logger = logging.Logger('kaboxer')
         self.configs_dir = tempfile.mkdtemp()
         self.mk_config_file('foo')
         self.mk_config_file('bar')

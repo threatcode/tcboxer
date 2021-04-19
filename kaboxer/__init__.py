@@ -37,6 +37,9 @@ import urllib.parse
 import yaml
 
 
+logger = logging.getLogger('kaboxer')
+
+
 class Kaboxer:
     def __init__(self):
         self.parser = argparse.ArgumentParser(prog='kaboxer')
@@ -178,13 +181,9 @@ class Kaboxer:
         }
         ll = loglevels.get(self.args.verbose, 'DEBUG')
         ll = getattr(logging, ll)
-        self.logger = logging.Logger('kaboxer')
-        self.logger.setLevel(ll)
+        logger.setLevel(ll)
         ch = logging.StreamHandler()
-        self.logger.addHandler(ch)
-
-        self.registry.logger.setLevel(ll)
-        self.registry.logger.addHandler(ch)
+        logger.addHandler(ch)
 
     def setup_docker(self):
         self._docker_conn = docker.from_env()
@@ -208,17 +207,17 @@ class Kaboxer:
         else:
             groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
             if 'docker' in groups:
-                self.logger.error("No access to Docker even though you're a "
+                logger.error("No access to Docker even though you're a "
                                   "member of the docker group, is "
                                   "docker.service running?")
             else:
-                self.logger.error("No access to Docker, are you a member "
+                logger.error("No access to Docker, are you a member "
                                   "of group docker or kaboxer?")
             sys.exit(1)
 
     def show_exception_in_debug_mode(self):
         if self.args.verbose >= 2:
-            self.logger.exception("The following exception was caught")
+            logger.exception("The following exception was caught")
 
     def go(self):
         self.args = self.parser.parse_args()
@@ -262,10 +261,10 @@ class Kaboxer:
             message = "%s hook script failed with returncode %d" % (
                 event, result.returncode)
             if stop_on_failure:
-                self.logger.error(message)
+                logger.error(message)
                 sys.exit(1)
             else:
-                self.logger.warning(message)
+                logger.warning(message)
 
     def cmd_run(self):
         app = self.args.app
@@ -280,7 +279,7 @@ class Kaboxer:
         image_name = self.backend.get_local_image_name(self.config)
         image = '%s:%s' % (image_name, tag_name)
 
-        self.logger.debug("Running image %s", image)
+        logger.debug("Running image %s", image)
 
         self.run_hook_script('before_run', stop_on_failure=True)
 
@@ -290,7 +289,7 @@ class Kaboxer:
 
         run_mode = self.component_config['run_mode']
         if self.args.detach and run_mode != 'headless':
-            self.logger.error("Can't detach a non-headless component")
+            logger.error("Can't detach a non-headless component")
             sys.exit(1)
 
         opts = self.component_config.get('docker_options', {})
@@ -344,7 +343,7 @@ class Kaboxer:
         elif run_mode == 'headless':
             opts['name'] = self.args.app
         else:
-            self.logger.error("Unknown run mode")
+            logger.error("Unknown run mode")
             sys.exit(1)
         if run_mode == 'gui' or ('allow_x11' in self.component_config and
                                  self.component_config['allow_x11']):
@@ -424,7 +423,7 @@ class Kaboxer:
         if run_mode == 'headless':
             containers = self.docker_conn.containers.list(filters={'name': app})
             if not containers:
-                self.logger.error("%s is not running", app)
+                logger.error("%s is not running", app)
                 sys.exit(1)
             container = containers[0]
             self.run_hook_script('before_stop')
@@ -437,7 +436,7 @@ class Kaboxer:
             if self.args.prompt_before_exit:
                 prompt_toolkit.prompt("Press ENTER to exit")
         else:
-            self.logger.error("Can't stop a non-headless component")
+            logger.error("Can't stop a non-headless component")
             sys.exit(1)
 
     def get_meta_file(self, image, filename):
@@ -480,17 +479,17 @@ class Kaboxer:
             try:
                 y = KaboxerAppConfig(filename=f)
             except yaml.YAMLError:
-                self.logger.warning("Failed to parse %s as YAML", f, exc_info=1)
+                logger.warning("Failed to parse %s as YAML", f, exc_info=1)
                 continue
             app = y.app_id
             if app is None:
-                self.logger.info("Ignoring %s (no app id)", f)
+                logger.info("Ignoring %s (no app id)", f)
                 continue
             if restrict is not None and app not in restrict:
                 continue
             if allow_duplicate is False:
                 if any(c.app_id == app for c in configs):
-                    self.logger.info("Ignoring %s (duplicate app id)", f)
+                    logger.info("Ignoring %s (duplicate app id)", f)
                     continue
             configs.append(y)
         return configs
@@ -500,7 +499,7 @@ class Kaboxer:
         restrict = [ self.args.app ] if self.args.app else None
         configs = self.find_configs_in_dir(path, restrict=restrict, allow_duplicate=False)
         if not configs:
-            self.logger.error("Failed to find appropriate kaboxer.yaml file")
+            logger.error("Failed to find appropriate kaboxer.yaml file")
             sys.exit(1)
         return configs
 
@@ -513,7 +512,7 @@ class Kaboxer:
             try:
                 y = KaboxerAppConfig(filename=config_file)
             except yaml.YAMLError:
-                self.logger.warning("Failed to parse %s as YAML",
+                logger.warning("Failed to parse %s as YAML",
                                     config_file, exc_info=1)
                 continue
             if y.app_id == app:
@@ -555,7 +554,7 @@ class Kaboxer:
     def build_image(self, parsed_config):
         path = self.args.path
         app = parsed_config.app_id
-        self.logger.info("Building container image for %s", app)
+        logger.info("Building container image for %s", app)
         try:
             df = os.path.join(path, parsed_config['build']['docker']['file'])
         except KeyError:
@@ -570,7 +569,7 @@ class Kaboxer:
                     self.do_version_checks(self.args.version, parsed_config)
                 except Exception as e:
                     message = str(e)
-                    self.logger.error(message)
+                    logger.error(message)
                     sys.exit(1)
             buildargs['KBX_APP_VERSION'] = self.args.version
         (image, _) = self.docker_conn.images.build(
@@ -587,14 +586,14 @@ class Kaboxer:
                     except Exception as e:
                         message = str(e)
                         self.docker_conn.images.remove(image=image.id)
-                        self.logger.error(message)
+                        logger.error(message)
                         sys.exit(1)
             except Exception:
                 if self.args.version:
                     saved_version = self.args.version
                     tmp.write(self.args.version)
                 else:
-                    self.logger.error(
+                    logger.error(
                         "Unable to determine version (use --version?)")
                     self.docker_conn.images.remove(image=image.id)
                     sys.exit(1)
@@ -635,7 +634,7 @@ class Kaboxer:
     def build_desktop_files(self, parsed_config):
         app = parsed_config.app_id
         if 'desktop-files' not in parsed_config.get('install', {}):
-            self.logger.info("Building desktop files for %s", app)
+            logger.info("Building desktop files for %s", app)
             self.gen_desktop_files(parsed_config)
 
     def extract_version_from_image(self, image):
@@ -651,13 +650,13 @@ class Kaboxer:
 
     def push_image(self, parsed_config, versions=[]):
         app = parsed_config.app_id
-        self.logger.info("Pushing %s", app)
+        logger.info("Pushing %s", app)
 
         # Get the image names
         localname = self.backend.get_local_image_name(parsed_config)
         remotename = self.backend.get_remote_image_name(parsed_config)
         if not remotename:
-            self.logger.error("No remote image name for %s", app)
+            logger.error("No remote image name for %s", app)
             sys.exit(1)
 
         # Always fetch the latest tag to be able to compare and update
@@ -673,7 +672,7 @@ class Kaboxer:
                     versions = [self.args.version]
                 except Exception as e:
                     message = str(e)
-                    self.logger.error(message)
+                    logger.error(message)
                     sys.exit(1)
             else:
                 for image in self.docker_conn.images.list():
@@ -690,7 +689,7 @@ class Kaboxer:
             local_tagname = "%s:%s" % (localname, version)
             local_image = self.find_image(local_tagname)
             if not local_image:
-                self.logger.error("No %s image found", local_tagname)
+                logger.error("No %s image found", local_tagname)
                 sys.exit(1)
             saved_version = self.extract_version_from_image(local_image)
             remote_tagname = '%s:%s' % (remotename, saved_version)
@@ -793,7 +792,7 @@ Categories={{ p.categories }}
     def clean_app(self, parsed_config):
         app = parsed_config.app_id
         path = os.path.realpath(self.args.path)
-        self.logger.info("Cleaning %s", app)
+        logger.info("Cleaning %s", app)
         tarball = os.path.join(path, app + '.tar')
         if os.path.commonpath([path, tarball]) == path and \
                 os.path.isfile(tarball):
@@ -810,7 +809,7 @@ Categories={{ p.categories }}
         else:
             builddestpath = os.path.join(self.args.destdir,
                                          os.path.relpath(path, '/'))
-        self.logger.info("Installing %s to %s", f, builddestpath)
+        logger.info("Installing %s to %s", f, builddestpath)
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f, builddestpath)
 
@@ -841,7 +840,7 @@ Categories={{ p.categories }}
         main_destpath = os.path.join(self.args.prefix, 'share', 'kaboxer')
         path = self.args.path
         app = parsed_config.app_id
-        self.logger.info("Installing %s", app)
+        logger.info("Installing %s", app)
         # Install image tarball
         if self.args.tarball:
             tarball = os.path.join(path, app + '.tar')
@@ -978,7 +977,7 @@ Categories={{ p.categories }}
                 if tag == 'kaboxer/' + self.args.app + ':latest':
                     self.save_image_to_file(image, self.args.file)
                     return
-        self.logger.error("No image found")
+        logger.error("No image found")
         sys.exit(1)
 
     def save_image_to_file(self, image, destfile):
@@ -994,7 +993,7 @@ Categories={{ p.categories }}
 
     def cmd_load(self):
         v = self.get_meta_file_from_tarball(self.args.file, 'version').strip()
-        self.logger.info("Loading %s at version %s", self.args.app, v)
+        logger.info("Loading %s at version %s", self.args.app, v)
         self.load_image(self.args.file, self.args.app, v)
 
     def find_image(self, name):
@@ -1026,7 +1025,7 @@ Categories={{ p.categories }}
         self.read_config(app)
         if oldver is None or oldver == newver:
             return
-        self.logger.info("Running upgrade scripts for %s (%s -> %s)",
+        logger.info("Running upgrade scripts for %s (%s -> %s)",
                          app, oldver, newver)
         image_name = self.backend.get_local_image_name(self.config)
         with tempfile.TemporaryDirectory() as td:
@@ -1042,12 +1041,12 @@ Categories={{ p.categories }}
                     ['/kaboxer/scripts/post-upgrade', oldver], opts, allow_missing=True)
 
     def docker_pull(self, full_image_name, stop_on_error=False):
-        self.logger.info("Pulling %s image from registry", full_image_name)
+        logger.info("Pulling %s image from registry", full_image_name)
         try:
             image = self.docker_conn.images.pull(full_image_name)
             return image
         except docker.errors.APIError:
-            self.logger.exception("Could not pull %s, wrong URL?",
+            logger.exception("Could not pull %s, wrong URL?",
                                   full_image_name)
             if stop_on_error:
                 sys.exit(1)
@@ -1056,7 +1055,7 @@ Categories={{ p.categories }}
         current_apps, registry_apps, tarball_apps, available_apps = \
             self.list_apps(get_remotes=True, restrict=apps)
         for app in apps:
-            self.logger.info("Preparing %s", app)
+            logger.info("Preparing %s", app)
             previous_version = None
             m = re.search('([^=]+)=([^=]+)$', app)
             if m:
@@ -1067,7 +1066,7 @@ Categories={{ p.categories }}
                     if parse_version(target_version) != \
                             parse_version(previous_version) and \
                             not upgrade:
-                        self.logger.exception(
+                        logger.exception(
                             "%s is at version %s, can't run %s=%s",
                             app, previous_version, app, target_version)
                         sys.exit(1)
@@ -1076,20 +1075,20 @@ Categories={{ p.categories }}
                 try:
                     maxavail = available_apps[app]['maxversion']['version']
                 except KeyError:
-                    self.logger.debug("No version in local repository")
+                    logger.debug("No version in local repository")
                 try:
                     tarball_ver = parse_version(tarball_apps[app]['version'])
                     if maxavail == '' or tarball_ver > parse_version(maxavail):
                         maxavail = tarball_apps[app]['version']
                 except KeyError:
-                    self.logger.debug("No version found in tarball")
+                    logger.debug("No version found in tarball")
                 try:
                     registry_ver = parse_version(
                         registry_apps[app]['maxversion'])
                     if maxavail == '' or registry_ver > parse_version(maxavail):
                         maxavail = registry_apps[app]['maxversion']
                 except KeyError:
-                    self.logger.debug("No version found in remote registry")
+                    logger.debug("No version found in remote registry")
 
                 if app in current_apps:
                     previous_version = current_apps[app]['version']
@@ -1107,7 +1106,7 @@ Categories={{ p.categories }}
 
             if not target_version:
                 # We could not find any version info, let's use the latest tag
-                self.logger.debug("No target version identified, use latest")
+                logger.debug("No target version identified, use latest")
                 target_version = 'latest'
 
             config = self.load_config(app)
@@ -1119,14 +1118,14 @@ Categories={{ p.categories }}
                                                 target_version)
             current_image_name = '%s:%s' % (local_image_name, 'current')
             if previous_version == target_version:
-                self.logger.debug('Stopping because previous==target (%s==%s)',
+                logger.debug('Stopping because previous==target (%s==%s)',
                                   previous_version, target_version)
                 return
 
             if 'maxversion' in available_apps.get(app, {}):
                 max_avail_version = parse_version(
                     available_apps[app]['maxversion']['version'])
-                self.logger.debug('Trying to find %s image for version %s',
+                logger.debug('Trying to find %s image for version %s',
                                   app, max_avail_version)
                 if max_avail_version == parse_version(target_version):
                     image = self.find_image(full_local_image_name)
@@ -1135,7 +1134,7 @@ Categories={{ p.categories }}
                     if image:
                         image.tag(current_image_name)
                     else:
-                        self.logger.error(
+                        logger.error(
                             'Could not find %s image for version %s', app,
                             max_avail_version)
                     self.do_upgrade_scripts(app, previous_version,
@@ -1143,10 +1142,10 @@ Categories={{ p.categories }}
                     return
 
             if config.get('container:origin:registry'):
-                self.logger.debug("Trying to find image in registry")
+                logger.debug("Trying to find image in registry")
                 found_image = self.find_image(full_remote_image_name)
                 if found_image:
-                    self.logger.debug("Found in local registry")
+                    logger.debug("Found in local registry")
                     found_image.tag(current_image_name)
                 else:
                     image = self.docker_pull(full_remote_image_name,
@@ -1178,7 +1177,7 @@ Categories={{ p.categories }}
                 for p in paths:
                     tarfile = os.path.join(p, tarball)
                     if os.path.isfile(tarfile):
-                        self.logger.info("Loading image from %s", tarfile)
+                        logger.info("Loading image from %s", tarfile)
                         image = self.load_image(tarfile, app,
                                                 target_version)
                         image.tag(current_image_name)
@@ -1196,13 +1195,13 @@ Categories={{ p.categories }}
                     tarfile = os.path.join(
                         p, self.config.app_id + '.tar')
                     if os.path.isfile(tarfile):
-                        self.logger.info("Loading image from %s", tarfile)
+                        logger.info("Loading image from %s", tarfile)
                         self.load_image(tarfile, app, target_version)
                         self.do_upgrade_scripts(app, previous_version,
                                                 target_version)
                         return
 
-            self.logger.error("Cannot prepare image")
+            logger.error("Cannot prepare image")
             sys.exit(1)
 
     def cmd_purge(self):
@@ -1246,18 +1245,18 @@ Categories={{ p.categories }}
         if restrict is not None:
             restrict = [re.sub('=.*', '', i) for i in restrict]
 
-        self.logger.debug('Finding kaboxer applications')
+        logger.debug('Finding kaboxer applications')
         for p in self.config_paths:
             parsed_configs = self.find_configs_in_dir(p, restrict=restrict, allow_duplicate=True)
             for app_config in parsed_configs:
                 aid = app_config.app_id
-                self.logger.debug("Analyzing %s", aid)
+                logger.debug("Analyzing %s", aid)
                 try:
                     imagenames = (
                         self.backend.get_local_image_name(app_config),
                         self.backend.get_remote_image_name(app_config),
                     )
-                    self.logger.debug(
+                    logger.debug(
                         'Looking for local docker image in %s',
                         imagenames)
                     # XXX: factorize logic to find the right image
@@ -1328,11 +1327,11 @@ Categories={{ p.categories }}
                 curmax = max(app['versions'], default=None,
                              key=lambda x: parse_version(x))
                 if curmax:
-                    self.logger.debug("Maximal version for image %s is %s",
+                    logger.debug("Maximal version for image %s is %s",
                                       aid, curmax)
                     app['maxversion'] = curmax
                 else:
-                    self.logger.debug("No versions found for image %s", aid)
+                    logger.debug("No versions found for image %s", aid)
 
         return (current_apps, registry_apps, tarball_apps, available_apps)
 
@@ -1426,7 +1425,7 @@ Categories={{ p.categories }}
             config = self.find_config_for_app_in_dir(p, app)
             if config:
                 return config
-        self.logger.error("Could not find appropriate config file for %s", app)
+        logger.error("Could not find appropriate config file for %s", app)
         sys.exit(1)
 
     def read_config(self, app):
@@ -1453,7 +1452,7 @@ Categories={{ p.categories }}
                 self.component_config['name'] = "%s/%s" % (app, component)
             return
 
-        self.logger.error("Can't find an appropriate component")
+        logger.error("Can't find an appropriate component")
         sys.exit(1)
 
     def parse_component_config(self, opts):
@@ -1509,7 +1508,7 @@ Categories={{ p.categories }}
 
     def create_xauth(self):
         if os.getenv('DISPLAY') is None:
-            self.logger.error(
+            logger.error(
                 "No DISPLAY set, are you running in a graphical session?")
             sys.exit(1)
         self.xauth_out = os.path.join(os.getenv('HOME'), '.docker.xauth')
@@ -1667,33 +1666,28 @@ def get_possible_gitlab_project_paths(full_path):
     return paths
 
 class ContainerRegistry:
-    def __init__(self):
-        self.logger = logging.Logger('kaboxer.ContainerRegistry')
-
     def _request_json(self, url):
-
-        self.logger.debug("Requesting %s", url)
-
+        logger.debug("Requesting %s", url)
         resp = None
 
         try:
             resp = requests.get(url)
         except requests.ConnectionError:
-            self.logger.warning("Failed to request %s", url, exc_info=1)
+            logger.warning("Failed to request %s", url, exc_info=1)
             return None
 
         if not resp.ok:
-            self.logger.warning("Request failed with %d (%s)",
+            logger.warning("Request failed with %d (%s)",
                     resp.status_code, HTTPStatus(resp.status_code).phrase)
             return None
 
         try:
             json_data = resp.json()
         except ValueError:
-            self.logger.warning("Failed to parse response as JSON: %s", resp.text)
+            logger.warning("Failed to parse response as JSON: %s", resp.text)
             return None
 
-        self.logger.debug('Result: %s', json_data)
+        logger.debug('Result: %s', json_data)
 
         return json_data
 
@@ -1722,7 +1716,7 @@ class ContainerRegistry:
             try:
                 versions.append(r['name'])
             except KeyError:
-                self.logger.warning("Missing key in JSON: %s", r)
+                logger.warning("Missing key in JSON: %s", r)
 
         return versions
 
@@ -1793,7 +1787,7 @@ class ContainerRegistry:
         try:
             _ = iter(json_data)
         except TypeError:
-            self.logger.warning("Unexpected json: %s", json_data)
+            logger.warning("Unexpected json: %s", json_data)
             return []
 
         project_id = ''
@@ -1806,7 +1800,7 @@ class ContainerRegistry:
             break
 
         if not project_id or not repository_id:
-            self.logger.warning("Could not find valid image '%s' in json: %s",
+            logger.warning("Could not find valid image '%s' in json: %s",
                     image, json_data)
             return []
 
@@ -1822,7 +1816,7 @@ class ContainerRegistry:
         try:
             _ = iter(json_data)
         except TypeError:
-            self.logger.warning("Unexpected json: %s", json_data)
+            logger.warning("Unexpected json: %s", json_data)
             return []
 
         tags = []
@@ -1830,7 +1824,7 @@ class ContainerRegistry:
             try:
                 tags.append(item['name'])
             except KeyError:
-                self.logger.warning("Missing keys in json: %s", item)
+                logger.warning("Missing keys in json: %s", item)
 
         return tags
 
