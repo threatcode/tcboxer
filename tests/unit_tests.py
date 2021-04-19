@@ -218,6 +218,14 @@ class TestDockerBackend(unittest.TestCase):
         self.assertEqual(self.obj.get_remote_image_name(self.app_config),
                          'foo.bar.com/registry/myname')
 
+    @unittest.skip("Not implemented yet")
+    def test_remove_image(self):
+        pass
+
+    @unittest.skip("Not implemented yet")
+    def test_run_command(self):
+        pass
+
 
 class TestContainerRegistry(unittest.TestCase):
 
