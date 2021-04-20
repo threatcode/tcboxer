@@ -1622,7 +1622,7 @@ class DockerBackend:
             if (
                 e.response.status_code == 400
                 and "no such file or directory" in str(e)
-                and allow_missing == True
+                and allow_missing is True
             ):
                 pass
             else:
