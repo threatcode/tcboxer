@@ -22,4 +22,4 @@ class MyClean(clean):
         super().run()
 
 
-setup(cmdclass={'build': MyBuild, 'clean': MyClean})
+setup(cmdclass={"build": MyBuild, "clean": MyClean})
