@@ -1868,7 +1868,7 @@ class ContainerRegistry:
         # HTTP requests until we get a positive result.
         #
         # References:
-        # - https://docs.gitlab.com/ce/user/packages/container_registry/#image-naming-convention
+        # - https://docs.gitlab.com/ce/user/packages/container_registry/#image-naming-convention  # noqa: E501
         # - https://docs.gitlab.com/ce/api/#namespaced-path-encoding
 
         # Sanitize image, remove stray slashes
