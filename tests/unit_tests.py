@@ -2,10 +2,11 @@
 
 import json
 import os
-import responses
 import shutil
 import tempfile
 import unittest
+
+import responses
 
 from kaboxer import ContainerRegistry, DockerBackend, Kaboxer, KaboxerAppConfig
 from kaboxer import get_possible_gitlab_project_paths

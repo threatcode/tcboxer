@@ -3,7 +3,6 @@
 import argparse
 import glob
 import grp
-from http import HTTPStatus
 import io
 import json
 import logging
@@ -17,6 +16,8 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import urllib.parse
+from http import HTTPStatus
 
 import docker
 
@@ -31,8 +32,6 @@ import prompt_toolkit
 import requests
 
 import tabulate
-
-import urllib.parse
 
 import yaml
 
