@@ -668,7 +668,7 @@ class Kaboxer:
             if self.args.version:
                 try:
                     self.do_version_checks(self.args.version,
-                                           parsed_configs)
+                                           parsed_config)
                     versions = [self.args.version]
                 except Exception as e:
                     message = str(e)
