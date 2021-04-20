@@ -109,7 +109,13 @@ class TestKaboxerCommon(unittest.TestCase):
             self.assertTrue(re.search(expected, value, re.MULTILINE), msg)
 
     def run_command_check_stdout_matches(
-        self, cmd, expected, input=None, wd=None, fail_msg=None, unexpected_msg=None
+        self,
+        cmd,
+        expected,
+        input=None,  # noqa: A002
+        wd=None,
+        fail_msg=None,
+        unexpected_msg=None,
     ):
         if wd is None:
             wd = self.fixdir
@@ -120,7 +126,13 @@ class TestKaboxerCommon(unittest.TestCase):
         self.check_output_matches(o, expected, msg=unexpected_msg)
 
     def run_command_check_stdout_doesnt_match(
-        self, cmd, expected, input=None, wd=None, fail_msg=None, unexpected_msg=None
+        self,
+        cmd,
+        expected,
+        input=None,  # noqa: A002
+        wd=None,
+        fail_msg=None,
+        unexpected_msg=None,
     ):
         if wd is None:
             wd = self.fixdir
@@ -131,7 +143,13 @@ class TestKaboxerCommon(unittest.TestCase):
         self.check_output_matches(o, expected, msg=unexpected_msg, must_fail=True)
 
     def run_command_check_stderr_matches(
-        self, cmd, expected, input=None, wd=None, fail_msg=None, unexpected_msg=None
+        self,
+        cmd,
+        expected,
+        input=None,  # noqa: A002
+        wd=None,
+        fail_msg=None,
+        unexpected_msg=None,
     ):
         if wd is None:
             wd = self.fixdir
@@ -142,7 +160,13 @@ class TestKaboxerCommon(unittest.TestCase):
         self.check_output_matches(o, expected, output="stderr", msg=unexpected_msg)
 
     def run_command_check_stderr_doesnt_match(
-        self, cmd, expected, input=None, wd=None, fail_msg=None, unexpected_msg=None
+        self,
+        cmd,
+        expected,
+        input=None,  # noqa: A002
+        wd=None,
+        fail_msg=None,
+        unexpected_msg=None,
     ):
         if wd is None:
             wd = self.fixdir
