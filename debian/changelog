@@ -1,3 +1,49 @@
+kaboxer (0.9.0) kali-dev; urgency=medium
+
+  * push_image: Use DockerBackend methods to get image names
+  * gitlab-ci: Update the default remote image name
+  * gitlab-ci: Don't run on tags
+  * gitlab-ci: Disable i386 package builds
+  * Revert "gitlab-ci: Disable i386 package builds"
+  * Rename method find_config_for_build_apps to find_configs_for_build_cmds
+  * Create a separate method to list configs in a given directory (part 1)
+  * Create a separate method to list configs in a given directory (part 2)
+  * Create a separate method to find config for an app in a diretory
+  * find_config*: Rename some variables
+  * find_config*: Settle for os.path.isfile() in all methods
+  * find_configs_in_dir: Rework it a bit
+  * find_configs_in_dir: Ignore yaml if app.id is None
+  * find_configs_for_build_cmds: Return an array instead of a dict
+  * Minor variable renaming for readability
+  * find_config_for_build_cmds: Split out most of the code in a sub-function
+  * _find_configs_for_build_cmds: Add a restrict param
+  * find_configs*: Add allow_duplicate argument
+  * Drop _find_configs_for_build_cmds
+  * find_configs_in_dir: More robust and more verbose
+  * find_configs_in_dir: Make restrict a keyword argument
+  * find_configs_in_dir: Fix allow_duplicate code
+  * find_config_for_app: Minor changes
+  * Add unit tests for find_configs_in_dir
+  * Add a test case for upgrade without upgrade scripts
+  * Fix upgrade with no upgrade scripts
+  * Move code to run a command in a container in DockerBackend
+  * Some DockerBackend methods are not tested yet
+  * Make logger a global object
+  * Remove warnings in ContainerRegistry._request_json()
+  * Fix do_version_checks argument in push_image()
+  * Flake8-import-order: Re-order import statements accordingly
+  * Flake8: E712 comparison to True
+  * debian: Don't install tox if build options contains nocheck
+  * tox: Re-order flake8 config, document some obscure settings
+  * tox: Add code formatting check (black)
+  * Reformat the code with Black
+  * Flake8: Ignore A002 argument 'input' is shadowing a python builtin
+  * Flake8: Ignore E501 line too long
+  * Add a tox job to GitLab CI
+  * dh-kaboxer: Run upgrade instead of prepare in postinst script
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Wed, 21 Apr 2021 17:01:25 +0700
+
 kaboxer (0.8.0) kali-dev; urgency=medium
 
   [ Raphaël Hertzog ]
