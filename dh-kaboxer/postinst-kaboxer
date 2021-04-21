@@ -1,5 +1,5 @@
 case "$1" in
     configure)
-	kaboxer -v prepare #APPS# || true
+	kaboxer -v upgrade #APPS# || true
     ;;
 esac
