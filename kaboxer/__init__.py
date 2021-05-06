@@ -906,38 +906,30 @@ Categories={categories}
         shutil.copy(f, builddestpath)
 
     def _list_cli_helpers(self, parsed_config, generated_only=False):
-        try:
-            cli_helpers = parsed_config["install"]["cli-helpers"]
-            if generated_only:
+        if generated_only:
+            if "cli-helpers" in parsed_config["install"]:
                 return []
-        except KeyError:
-            cli_helpers = []
-            for component, data in parsed_config["components"].items():
-                appid = parsed_config.app_id
-                cli_helpers.append(f"{appid}-{component}-kbx")
-        return cli_helpers
+
+        files = []
+        app_id = parsed_config.app_id
+        for component, data in parsed_config["components"].items():
+            files.append(f"{app_id}-{component}-kbx")
+        return files
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
-        try:
-            desktop_files = parsed_config["install"]["desktop-files"]
-            if generated_only:
+        if generated_only:
+            if "desktop-files" in parsed_config["install"]:
                 return []
-        except KeyError:
-            desktop_files = []
-            for component, data in parsed_config["components"].items():
-                if data["run_mode"] == "headless":
-                    desktop_files.append(
-                        "kaboxer-%s-%s-start.desktop"
-                        % (parsed_config.app_id, component)
-                    )
-                    desktop_files.append(
-                        "kaboxer-%s-%s-stop.desktop" % (parsed_config.app_id, component)
-                    )
-                else:
-                    desktop_files.append(
-                        "kaboxer-%s-%s.desktop" % (parsed_config.app_id, component)
-                    )
-        return desktop_files
+
+        files = []
+        app_id = parsed_config.app_id
+        for component, data in parsed_config["components"].items():
+            if data["run_mode"] == "headless":
+                files.append(f"kaboxer-{app_id}-{component}-start.desktop")
+                files.append(f"kaboxer-{app_id}-{component}-stop.desktop")
+            else:
+                files.append(f"kaboxer-{app_id}-{component}.desktop")
+        return files
 
     def cmd_install(self):
         parsed_configs = self.find_configs_for_build_cmds()
