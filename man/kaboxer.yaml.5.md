@@ -98,6 +98,11 @@ Since only Docker is supported, the only relevant subsection is
   should be extracted at image installation time for use in the host,
   for instance in graphical menus.
 
+* *cli-helpers* (list): a list of scripts to install on the host to
+  ease running Kaboxer applications from a terminal. In their most
+  simple form, these scripts are just wrappers around the actual
+  kaboxer command.
+
 * *desktop-files* (list): a list of \*.desktop files to
   install on the host in order to make the application visible in
   graphical menus.

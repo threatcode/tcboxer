@@ -593,6 +593,7 @@ class Kaboxer:
                     self.save_image_to_file(image, tarball)
                 if self.args.push:
                     self.push_image(config, [saved_version])
+            self.build_cli_helpers(config)
             self.build_desktop_files(config)
 
     def build_image(self, parsed_config):
@@ -680,6 +681,12 @@ class Kaboxer:
         if not self.find_image(tagname):
             image.tag(tagname)
         return image, saved_version
+
+    def build_cli_helpers(self, parsed_config):
+        app = parsed_config.app_id
+        if "cli-helpers" not in parsed_config.get("install", {}):
+            logger.info("Building cli helpers for %s", app)
+            self.gen_cli_helpers(parsed_config)
 
     def build_desktop_files(self, parsed_config):
         app = parsed_config.app_id
@@ -775,6 +782,37 @@ class Kaboxer:
     def make_stop_command(self, appid, component):
         return f"kaboxer stop --prompt-before-exit --component {component} {appid}"
 
+    def make_run_helper(self, appid, component, args):
+        cmd = self.make_run_command(appid, component, args)
+        return f"#!/bin/sh\nexec {cmd}"
+
+    def make_run_stop_helper(self, appid, component, args):
+        run_cmd = self.make_run_command_headless(appid, component, args)
+        stop_cmd = self.make_stop_command(appid, component)
+        return f"""#!/bin/sh
+case "$1" in
+  (run)  exec {run_cmd} ;;
+  (stop) exec {stop_cmd} ;;
+  (*)    echo >&2 "Usage: $(basename $0) run|stop"; exit 1 ;;
+esac
+"""
+
+    def gen_cli_helpers(self, parsed_config):
+        appid = parsed_config.app_id
+        components = parsed_config["components"]
+        for component, data in components.items():
+            run_args = ""
+            if data.get("reuse_container", False):
+                run_args = "--reuse-container"
+            if data["run_mode"] == "headless":
+                text = self.make_run_stop_helper(appid, component, run_args)
+            else:
+                text = self.make_run_helper(appid, component, run_args)
+            outfile = f"{appid}-{component}-kbx"
+            with open(outfile, "w") as f:
+                f.write(text)
+            os.chmod(outfile, 0o755)
+
     def gen_desktop_files(self, parsed_config):
         template_text = """[Desktop Entry]
 Name={{ p.name }}
@@ -856,6 +894,11 @@ Categories={{ p.categories }}
         tarball = os.path.join(path, app + ".tar")
         if os.path.commonpath([path, tarball]) == path and os.path.isfile(tarball):
             os.unlink(tarball)
+        # Clean generated cli helpers
+        cli_helpers = self._list_cli_helpers(parsed_config, generated_only=True)
+        for f in cli_helpers:
+            if os.path.isfile(f):
+                os.unlink(f)
         generated_desktop_files = self._list_desktop_files(
             parsed_config, generated_only=True
         )
@@ -871,6 +914,18 @@ Categories={{ p.categories }}
         logger.info("Installing %s to %s", f, builddestpath)
         os.makedirs(builddestpath, exist_ok=True)
         shutil.copy(f, builddestpath)
+
+    def _list_cli_helpers(self, parsed_config, generated_only=False):
+        try:
+            cli_helpers = parsed_config["install"]["cli-helpers"]
+            if generated_only:
+                return []
+        except KeyError:
+            cli_helpers = []
+            for component, data in parsed_config["components"].items():
+                appid = parsed_config.app_id
+                cli_helpers.append(f"{appid}-{component}-kbx")
+        return cli_helpers
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
         try:
@@ -931,6 +986,13 @@ Categories={{ p.categories }}
                 shutil.copy(parsed_config.filename, tf)
 
             self.install_to_path(tf, main_destpath)
+        # Install cli helper(s)
+        cli_helpers = self._list_cli_helpers(parsed_config)
+        for c in cli_helpers:
+            self.install_to_path(
+                os.path.join(path, c),
+                os.path.join(self.args.prefix, "bin"),
+            )
         # Install desktop file(s)
         desktop_files = self._list_desktop_files(parsed_config)
         for d in desktop_files:

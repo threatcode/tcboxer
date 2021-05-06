@@ -129,28 +129,30 @@ configured registry. With **--version** *VERSION*, passes a version
 number to the build process to build an image for a specific
 version. With **--ignore-version**, ignores version checks embedded in
 the \*.kaboxer.yaml file. With **--skip-image-build**, only builds
-the desktop files and does not try to build the container image.
+the command-line helpers and desktop files, and does not try to build
+the container image.
 
 # KABOXER INSTALL
 
 **kaboxer** install [**--tarball**] [**--destdir** *DESTDIR*] [**--prefix** *PREFIX*] [*APP*] [*PATH*]
 
-Installs image and related files (\*.desktop files and icons). With
-**--tarball**, uses an image saved as a tarball.  With
-**--destdir** *DESTDIR*, use a specific installation directory (can be
-used for packaging).
-If *APP* is omitted, install all images
-corresponding to \*.kaboxer.yaml files found in path *PATH* (current
-directory if omitted).
+Installs image and related files (command-line helpers, \*.desktop
+files and icons). With **--tarball**, uses an image saved as a tarball.
+With **--destdir** *DESTDIR*, use a specific installation directory
+(can be used for packaging).
+
+If *APP* is omitted, install all apps corresponding to \*.kaboxer.yaml
+files found in path *PATH* (current directory if omitted).
 
 # KABOXER CLEAN
 
 **kaboxer** clean [*APP*] [*PATH*]
 
-Removes files generated as part of **kaboxer** build (tarballs and
-generated \*.desktop files). If *APP* is omitted, cleans all apps
-corresponding to \*.kaboxer.yaml files found in path *PATH* (current
-directory if omitted).
+Removes files generated as part of **kaboxer** build (tarballs,
+generated command-line helpers and \*.desktop files).
+
+If *APP* is omitted, cleans all apps corresponding to \*.kaboxer.yaml
+files found in path *PATH* (current directory if omitted).
 
 # KABOXER PUSH
 
