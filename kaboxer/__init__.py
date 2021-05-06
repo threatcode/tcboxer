@@ -23,8 +23,6 @@ import docker
 
 import dockerpty
 
-import jinja2
-
 from packaging.version import parse as parse_version
 
 import prompt_toolkit
@@ -813,60 +811,66 @@ esac
                 f.write(text)
             os.chmod(outfile, 0o755)
 
-    def gen_desktop_files(self, parsed_config):
-        template_text = """[Desktop Entry]
-Name={{ p.name }}
-Comment={{ p.comment }}
-Exec={{ p.exec }}
-Icon=kaboxer-{{ p.appid }}
-Terminal={{ p.terminal }}
+    def make_desktop_file(self, app_id, name, comment, cmd, terminal, categories):
+        return f"""[Desktop Entry]
+Name={name}
+Comment={comment}
+Exec={cmd}
+Icon=kaboxer-{app_id}
+Terminal={terminal}
 Type=Application
-Categories={{ p.categories }}
-
+Categories={categories}
 """
-        t = jinja2.Template(template_text)
+
+    def gen_desktop_files(self, parsed_config):
         app_id = parsed_config.app_id
+
         application = parsed_config["application"]
+        categories = application.get("categories", "Uncategorized")
+        comment = application.get("description", "").split("\n")[0]
+        fallback_name = application["name"]
+
         components = parsed_config["components"]
         for component, component_data in components.items():
-            params = {
-                "appid": app_id,
-                "categories": application.get("categories", "Uncategorized"),
-                "comment": application.get("description", "").split("\n")[0],
-            }
+            component_name = component_data.get("name", fallback_name)
+
             run_args = ""
             if component_data.get("reuse_container", False):
                 run_args = "--reuse-container"
 
-            component_name = component_data.get("name", application["name"])
-
             if component_data["run_mode"] == "headless":
+                terminal = "true"
                 # One .desktop file for starting
-                params["name"] = "Start %s" % (component_name,)
-                params["terminal"] = "true"
-                params["exec"] = self.make_run_command_headless(
-                    app_id, component, run_args
+                name = f"Start {component_name}"
+                cmd = self.make_run_command_headless(app_id, component, run_args)
+                content = make_desktop_file(
+                    app_id, name, comment, cmd, terminal, categories
                 )
-                ofname = "kaboxer-%s-%s-start.desktop" % (app_id, component)
-                with open(ofname, "w") as outfile:
-                    outfile.write(t.render(p=params))
+                outfile = f"kaboxer-{app_id}-{component}-start.desktop"
+                with open(outfile, "w") as f:
+                    f.write(content)
                 # One .desktop file for stopping
-                params["name"] = "Stop %s" % (component_name,)
-                params["terminal"] = "true"
-                params["exec"] = self.make_stop_command(app_id, component)
-                ofname = "kaboxer-%s-%s-stop.desktop" % (app_id, component)
-                with open(ofname, "w") as outfile:
-                    outfile.write(t.render(p=params))
+                name = f"Stop {component_name}"
+                cmd = self.make_stop_command(app_id, component)
+                content = make_desktop_file(
+                    app_id, name, comment, cmd, terminal, categories
+                )
+                outfile = f"kaboxer-{app_id}-{component}-stop.desktop"
+                with open(outfile, "w") as f:
+                    f.write(content)
             else:
-                params["name"] = component_name
-                params["exec"] = self.make_run_command(app_id, component, run_args)
                 if component_data["run_mode"] == "cli":
-                    params["terminal"] = "true"
+                    terminal = "true"
                 else:
-                    params["terminal"] = "false"
-                ofname = "kaboxer-%s-%s.desktop" % (app_id, component)
-                with open(ofname, "w") as outfile:
-                    outfile.write(t.render(p=params))
+                    terminal = "false"
+                name = component_name
+                cmd = self.make_run_command(app_id, component, run_args)
+                content = make_desktop_file(
+                    app_id, name, comment, cmd, terminal, categories
+                )
+                outfile = f"kaboxer-{app_id}-{component}.desktop"
+                with open(outfile, "w") as f:
+                    f.write(content)
 
     def cmd_clean(self):
         parsed_configs = self.find_configs_for_build_cmds()
