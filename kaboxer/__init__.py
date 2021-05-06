@@ -766,6 +766,15 @@ class Kaboxer:
             local_image.tag(remote_tagname)
             self.docker_conn.images.push(remote_tagname)
 
+    def make_run_command(self, appid, component, args):
+        return f"kaboxer run {args} --component {component} {appid}"
+
+    def make_run_command_headless(self, appid, component, args):
+        return f"kaboxer run --detach --prompt-before-exit {args} --component {component} {appid}"
+
+    def make_stop_command(self, appid, component):
+        return f"kaboxer stop --prompt-before-exit --component {component} {appid}"
+
     def gen_desktop_files(self, parsed_config):
         template_text = """[Desktop Entry]
 Name={{ p.name }}
@@ -789,9 +798,9 @@ Categories={{ p.categories }}
                     "categories", "Uncategorized"
                 ),
             }
-            params["reuse_container"] = ""
+            run_args = ""
             if component_data.get("reuse_container", False):
-                params["reuse_container"] = "--reuse-container "
+                run_args = "--reuse-container"
 
             component_name = component_data.get(
                 "name", parsed_config["application"]["name"]
@@ -801,10 +810,8 @@ Categories={{ p.categories }}
                 # One .desktop file for starting
                 params["name"] = "Start %s" % (component_name,)
                 params["terminal"] = "true"
-                params["exec"] = (
-                    "kaboxer run --detach --prompt-before-exit %s"
-                    "--component %s %s"
-                    % (params["reuse_container"], params["component"], params["appid"])
+                params["exec"] = self.make_run_command_headless(
+                    params["appid"], params["component"], run_args
                 )
                 ofname = "kaboxer-%s-%s-start.desktop" % (
                     parsed_config.app_id,
@@ -815,11 +822,8 @@ Categories={{ p.categories }}
                 # One .desktop file for stopping
                 params["name"] = "Stop %s" % (component_name,)
                 params["terminal"] = "true"
-                params[
-                    "exec"
-                ] = "kaboxer stop --prompt-before-exit --component %s %s" % (
-                    params["component"],
-                    params["appid"],
+                params["exec"] = self.make_stop_command(
+                    params["appid"], params["component"]
                 )
                 ofname = "kaboxer-%s-%s-stop.desktop" % (
                     parsed_config.app_id,
@@ -830,10 +834,8 @@ Categories={{ p.categories }}
             else:
                 params["name"] = component_name
                 ofname = "kaboxer-%s-%s.desktop" % (parsed_config.app_id, component)
-                params["exec"] = "kaboxer run %s--component %s %s" % (
-                    params["reuse_container"],
-                    params["component"],
-                    params["appid"],
+                params["exec"] = self.make_run_command(
+                    params["appid"], params["component"], run_args
                 )
                 if component_data["run_mode"] == "cli":
                     params["terminal"] = "true"
