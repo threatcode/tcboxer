@@ -830,10 +830,9 @@ Categories={{ p.categories }}
         components = parsed_config["components"]
         for component, component_data in components.items():
             params = {
-                "comment": application.get("description", "").split("\n")[0],
-                "component": component,
                 "appid": app_id,
                 "categories": application.get("categories", "Uncategorized"),
+                "comment": application.get("description", "").split("\n")[0],
             }
             run_args = ""
             if component_data.get("reuse_container", False):
