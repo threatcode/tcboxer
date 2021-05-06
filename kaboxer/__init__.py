@@ -57,6 +57,10 @@ def get_headless_desktop_file_filenames(app_id, component):
     return start, stop
 
 
+def get_icon_name(app_id):
+    return f"kaboxer-{app_id}"
+
+
 # Main class
 
 
@@ -1020,13 +1024,12 @@ Categories={categories}
                 os.path.join(self.args.prefix, "share", "applications"),
             )
         # Install icon file(s)
+        icon_install_name = get_icon_name(parsed_config.app_id)
         try:
             icon_file = parsed_config["install"]["icon"]
             (_, ife) = os.path.splitext(os.path.basename(icon_file))
             with tempfile.TemporaryDirectory() as td:
-                renamed_icon = os.path.join(
-                    td, "kaboxer-%s%s" % (parsed_config.app_id, ife)
-                )
+                renamed_icon = os.path.join(td, "%s%s" % (icon_install_name, ife))
                 shutil.copy(icon_file, renamed_icon)
                 self.install_to_path(
                     renamed_icon, os.path.join(self.args.prefix, "share", "icons")
@@ -1037,9 +1040,7 @@ Categories={categories}
             icon_file = parsed_config["install"]["extract-icon"]
             (_, ife) = os.path.splitext(os.path.basename(icon_file))
             with tempfile.TemporaryDirectory() as td:
-                renamed_icon = os.path.join(
-                    td, "kaboxer-%s%s" % (parsed_config.app_id, ife)
-                )
+                renamed_icon = os.path.join(td, "%s%s" % (icon_install_name, ife))
                 self.extract_file_from_image(
                     "kaboxer/" + parsed_config.app_id, icon_file, renamed_icon
                 )
