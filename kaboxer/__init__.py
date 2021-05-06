@@ -817,8 +817,7 @@ Categories={{ p.categories }}
                 params["terminal"] = "true"
                 params[
                     "exec"
-                ] = "kaboxer stop --prompt-before-exit %s" "--component %s %s" % (
-                    params["reuse_container"],
+                ] = "kaboxer stop --prompt-before-exit --component %s %s" % (
                     params["component"],
                     params["appid"],
                 )
