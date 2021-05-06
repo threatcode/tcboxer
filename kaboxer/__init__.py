@@ -41,7 +41,10 @@ logger = logging.getLogger("kaboxer")
 
 
 def get_cli_helper_filename(app_id, component):
-    return f"{app_id}-{component}-kbx"
+    if component:
+        return f"{app_id}-{component}-kbx"
+    else:
+        return f"{app_id}-kbx"
 
 
 def get_desktop_file_filename(app_id, component):
@@ -818,6 +821,7 @@ esac
     def gen_cli_helpers(self, parsed_config):
         app_id = parsed_config.app_id
         components = parsed_config["components"]
+        n_components = len(components)
         for component, data in components.items():
             run_args = ""
             if data.get("reuse_container", False):
@@ -826,7 +830,10 @@ esac
                 content = self.make_run_stop_helper(app_id, component, run_args)
             else:
                 content = self.make_run_helper(app_id, component, run_args)
-            outfile = get_cli_helper_filename(app_id, component)
+            if n_components == 1:
+                outfile = get_cli_helper_filename(app_id, None)
+            else:
+                outfile = get_cli_helper_filename(app_id, component)
             with open(outfile, "w") as f:
                 f.write(content)
             os.chmod(outfile, 0o755)
@@ -934,9 +941,14 @@ Categories={categories}
 
         files = []
         app_id = parsed_config.app_id
-        for component in parsed_config["components"]:
-            fn = get_cli_helper_filename(app_id, component)
+        components = parsed_config["components"]
+        if len(components) == 1:
+            fn = get_cli_helper_filename(app_id, None)
             files.append(fn)
+        else:
+            for component in components:
+                fn = get_cli_helper_filename(app_id, component)
+                files.append(fn)
         return files
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
