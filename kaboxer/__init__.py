@@ -791,22 +791,22 @@ class Kaboxer:
             local_image.tag(remote_tagname)
             self.docker_conn.images.push(remote_tagname)
 
-    def make_run_command(self, appid, component, args):
-        return f"kaboxer run {args} --component {component} {appid}"
+    def make_run_command(self, app_id, component, args):
+        return f"kaboxer run {args} --component {component} {app_id}"
 
-    def make_run_command_headless(self, appid, component, args):
-        return f"kaboxer run --detach --prompt-before-exit {args} --component {component} {appid}"
+    def make_run_command_headless(self, app_id, component, args):
+        return f"kaboxer run --detach --prompt-before-exit {args} --component {component} {app_id}"  # noqa: E501
 
-    def make_stop_command(self, appid, component):
-        return f"kaboxer stop --prompt-before-exit --component {component} {appid}"
+    def make_stop_command(self, app_id, component):
+        return f"kaboxer stop --prompt-before-exit --component {component} {app_id}"
 
-    def make_run_helper(self, appid, component, args):
-        cmd = self.make_run_command(appid, component, args)
+    def make_run_helper(self, app_id, component, args):
+        cmd = self.make_run_command(app_id, component, args)
         return f"#!/bin/sh\nexec {cmd}"
 
-    def make_run_stop_helper(self, appid, component, args):
-        run_cmd = self.make_run_command_headless(appid, component, args)
-        stop_cmd = self.make_stop_command(appid, component)
+    def make_run_stop_helper(self, app_id, component, args):
+        run_cmd = self.make_run_command_headless(app_id, component, args)
+        stop_cmd = self.make_stop_command(app_id, component)
         return f"""#!/bin/sh
 case "$1" in
   (run)  exec {run_cmd} ;;
@@ -816,19 +816,19 @@ esac
 """
 
     def gen_cli_helpers(self, parsed_config):
-        appid = parsed_config.app_id
+        app_id = parsed_config.app_id
         components = parsed_config["components"]
         for component, data in components.items():
             run_args = ""
             if data.get("reuse_container", False):
                 run_args = "--reuse-container"
             if data["run_mode"] == "headless":
-                text = self.make_run_stop_helper(appid, component, run_args)
+                content = self.make_run_stop_helper(app_id, component, run_args)
             else:
-                text = self.make_run_helper(appid, component, run_args)
-            outfile = get_cli_helper_filename(appid, component)
+                content = self.make_run_helper(app_id, component, run_args)
+            outfile = get_cli_helper_filename(app_id, component)
             with open(outfile, "w") as f:
-                f.write(text)
+                f.write(content)
             os.chmod(outfile, 0o755)
 
     def make_desktop_file(self, app_id, name, comment, cmd, terminal, categories):
