@@ -825,60 +825,47 @@ Categories={{ p.categories }}
 
 """
         t = jinja2.Template(template_text)
-        for component, component_data in parsed_config["components"].items():
+        app_id = parsed_config.app_id
+        application = parsed_config["application"]
+        components = parsed_config["components"]
+        for component, component_data in components.items():
             params = {
-                "comment": parsed_config["application"]
-                .get("description", "")
-                .split("\n")[0],
+                "comment": application.get("description", "").split("\n")[0],
                 "component": component,
-                "appid": parsed_config.app_id,
-                "categories": parsed_config["application"].get(
-                    "categories", "Uncategorized"
-                ),
+                "appid": app_id,
+                "categories": application.get("categories", "Uncategorized"),
             }
             run_args = ""
             if component_data.get("reuse_container", False):
                 run_args = "--reuse-container"
 
-            component_name = component_data.get(
-                "name", parsed_config["application"]["name"]
-            )
+            component_name = component_data.get("name", application["name"])
 
             if component_data["run_mode"] == "headless":
                 # One .desktop file for starting
                 params["name"] = "Start %s" % (component_name,)
                 params["terminal"] = "true"
                 params["exec"] = self.make_run_command_headless(
-                    params["appid"], params["component"], run_args
+                    app_id, component, run_args
                 )
-                ofname = "kaboxer-%s-%s-start.desktop" % (
-                    parsed_config.app_id,
-                    component,
-                )
+                ofname = "kaboxer-%s-%s-start.desktop" % (app_id, component)
                 with open(ofname, "w") as outfile:
                     outfile.write(t.render(p=params))
                 # One .desktop file for stopping
                 params["name"] = "Stop %s" % (component_name,)
                 params["terminal"] = "true"
-                params["exec"] = self.make_stop_command(
-                    params["appid"], params["component"]
-                )
-                ofname = "kaboxer-%s-%s-stop.desktop" % (
-                    parsed_config.app_id,
-                    component,
-                )
+                params["exec"] = self.make_stop_command(app_id, component)
+                ofname = "kaboxer-%s-%s-stop.desktop" % (app_id, component)
                 with open(ofname, "w") as outfile:
                     outfile.write(t.render(p=params))
             else:
                 params["name"] = component_name
-                ofname = "kaboxer-%s-%s.desktop" % (parsed_config.app_id, component)
-                params["exec"] = self.make_run_command(
-                    params["appid"], params["component"], run_args
-                )
+                params["exec"] = self.make_run_command(app_id, component, run_args)
                 if component_data["run_mode"] == "cli":
                     params["terminal"] = "true"
                 else:
                     params["terminal"] = "false"
+                ofname = "kaboxer-%s-%s.desktop" % (app_id, component)
                 with open(ofname, "w") as outfile:
                     outfile.write(t.render(p=params))
 
