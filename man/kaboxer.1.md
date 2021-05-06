@@ -8,7 +8,7 @@
 
 # SYNOPSIS
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run|start [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
 
 **kaboxer** stop [**--component** *COMPONENT*] [**--prompt-before-exit**] *APP*
 
@@ -20,7 +20,7 @@
 
 **kaboxer** upgrade *APP*...
 
-**kaboxer** list [**--installed**] [**--available**] [**--upgradeable**] [**--all**] [**--skip-headers**]
+**kaboxer** list|ls [**--installed**] [**--available**] [**--upgradeable**] [**--all**] [**--skip-headers**]
 
 **kaboxer** build [**--skip-image-build**] [**--save**] [**--push**] [**--version** *VERSION*] [**--ignore-version**] [*APP*] [*PATH*]
 
@@ -70,6 +70,8 @@ the app are installed, the **--version** *VERSION* option can be used to
 select which one to actually run. The *EXECUTABLE* parameter can be used
 to pass extra arguments to the application.
 
+**kaboxer start** is an alias for **kaboxer run**.
+
 # KABOXER STOP
 
 **kaboxer** stop [**--component** *COMPONENT*] [**--prompt-before-exit**] *APP*
@@ -116,6 +118,8 @@ Displays lists of known applications, either a single category
 (**--installed** and so on), or all applications (**--all**). The
 **--skip-headers** flag hides the column headers to allow for
 scriptability.
+
+**kaboxer ls** is an alias for **kaboxer list**.
 
 # KABOXER BUILD
 

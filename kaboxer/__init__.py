@@ -50,7 +50,9 @@ class Kaboxer:
             title="subcommands", help="action to perform", dest="action", required=True
         )
 
-        parser_run = subparsers.add_parser("run", help="run containerized app")
+        parser_run = subparsers.add_parser(
+            "run", aliases=["start"], help="run containerized app"
+        )
         parser_run.add_argument("app")
         parser_run.add_argument("--component", help="component to run")
         parser_run.add_argument(
@@ -102,7 +104,9 @@ class Kaboxer:
         parser_upgrade.add_argument("app", nargs="+")
         parser_upgrade.set_defaults(func=self.cmd_upgrade)
 
-        parser_list = subparsers.add_parser("list", help="list containers")
+        parser_list = subparsers.add_parser(
+            "list", aliases=["ls"], help="list containers"
+        )
         parser_list.add_argument(
             "--installed", action="store_true", help="list installed containers"
         )

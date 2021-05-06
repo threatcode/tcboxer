@@ -342,6 +342,12 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "kaboxer -vv run %s" % self.app_name, "Hi there"
         )
 
+    def test_run_alias_start(self):
+        self.build()
+        self.run_command_check_stdout_matches(
+            "kaboxer start %s" % self.app_name, "Hi there"
+        )
+
     def test_run_interactive(self):
         self.build()
         self.run_command_check_stdout_matches(
@@ -606,6 +612,9 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_command(
             "docker image rm %s:1.5" % (self.image_name,), ignore_output=True
         )
+
+    def test_list_alias_ls(self):
+        self.run_and_check_command("kaboxer ls")
 
     def test_list_local(self):
         self.run_and_check_command("kaboxer build")
