@@ -37,6 +37,26 @@ import yaml
 logger = logging.getLogger("kaboxer")
 
 
+# Helpers for generated artifacts
+
+
+def get_cli_helper_filename(app_id, component):
+    return f"{app_id}-{component}-kbx"
+
+
+def get_desktop_file_filename(app_id, component):
+    return f"kaboxer-{app_id}-{component}.desktop"
+
+
+def get_headless_desktop_file_filenames(app_id, component):
+    start = f"kaboxer-{app_id}-{component}-start.desktop"
+    stop = f"kaboxer-{app_id}-{component}-stop.desktop"
+    return start, stop
+
+
+# Main class
+
+
 class Kaboxer:
     def __init__(self):
         self.parser = argparse.ArgumentParser(prog="kaboxer")
@@ -806,7 +826,7 @@ esac
                 text = self.make_run_stop_helper(appid, component, run_args)
             else:
                 text = self.make_run_helper(appid, component, run_args)
-            outfile = f"{appid}-{component}-kbx"
+            outfile = get_cli_helper_filename(appid, component)
             with open(outfile, "w") as f:
                 f.write(text)
             os.chmod(outfile, 0o755)
@@ -843,21 +863,23 @@ Categories={categories}
                 # One .desktop file for starting
                 name = f"Start {component_name}"
                 cmd = self.make_run_command_headless(app_id, component, run_args)
-                content = make_desktop_file(
+                content_start = make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
-                outfile = f"kaboxer-{app_id}-{component}-start.desktop"
-                with open(outfile, "w") as f:
-                    f.write(content)
                 # One .desktop file for stopping
                 name = f"Stop {component_name}"
                 cmd = self.make_stop_command(app_id, component)
-                content = make_desktop_file(
+                content_stop = make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
-                outfile = f"kaboxer-{app_id}-{component}-stop.desktop"
-                with open(outfile, "w") as f:
-                    f.write(content)
+                # Write them down
+                outfile_start, outfile_stop = get_headless_desktop_file_filenames(
+                    app_id, component
+                )
+                with open(outfile_start, "w") as f:
+                    f.write(content_start)
+                with open(outfile_stop, "w") as f:
+                    f.write(content_stop)
             else:
                 if component_data["run_mode"] == "cli":
                     terminal = "true"
@@ -868,7 +890,7 @@ Categories={categories}
                 content = make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
-                outfile = f"kaboxer-{app_id}-{component}.desktop"
+                outfile = get_desktop_file_filename(app_id, component)
                 with open(outfile, "w") as f:
                     f.write(content)
 
@@ -912,8 +934,9 @@ Categories={categories}
 
         files = []
         app_id = parsed_config.app_id
-        for component, data in parsed_config["components"].items():
-            files.append(f"{app_id}-{component}-kbx")
+        for component in parsed_config["components"]:
+            fn = get_cli_helper_filename(app_id, component)
+            files.append(fn)
         return files
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
@@ -925,10 +948,12 @@ Categories={categories}
         app_id = parsed_config.app_id
         for component, data in parsed_config["components"].items():
             if data["run_mode"] == "headless":
-                files.append(f"kaboxer-{app_id}-{component}-start.desktop")
-                files.append(f"kaboxer-{app_id}-{component}-stop.desktop")
+                fn1, fn2 = get_headless_desktop_file_filenames(app_id, component)
+                files.append(fn1)
+                files.append(fn2)
             else:
-                files.append(f"kaboxer-{app_id}-{component}.desktop")
+                fn = get_desktop_file_filename(app_id, component)
+                files.append(fn)
         return files
 
     def cmd_install(self):
