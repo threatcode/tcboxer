@@ -842,14 +842,14 @@ class Kaboxer:
         cmd = self.make_run_command(app_id, component, args)
         return f"#!/bin/sh\nexec {cmd}"
 
-    def make_run_stop_helper(self, app_id, component, args):
+    def make_start_stop_helper(self, app_id, component, args):
         run_cmd = self.make_run_command_headless(app_id, component, args)
         stop_cmd = self.make_stop_command(app_id, component)
         return f"""#!/bin/sh
 case "$1" in
-  (run)  exec {run_cmd} ;;
-  (stop) exec {stop_cmd} ;;
-  (*)    echo >&2 "Usage: $(basename $0) run|stop"; exit 1 ;;
+  (start) exec {run_cmd} ;;
+  (stop)  exec {stop_cmd} ;;
+  (*)     echo >&2 "Usage: $(basename $0) start|stop"; exit 1 ;;
 esac
 """
 
@@ -862,7 +862,7 @@ esac
             if data.get("reuse_container", False):
                 run_args = "--reuse-container"
             if data["run_mode"] == "headless":
-                content = self.make_run_stop_helper(app_id, component, run_args)
+                content = self.make_start_stop_helper(app_id, component, run_args)
             else:
                 content = self.make_run_helper(app_id, component, run_args)
             if n_components == 1:
