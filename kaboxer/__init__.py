@@ -881,6 +881,7 @@ Categories={categories}
         app = parsed_config.app_id
         path = os.path.realpath(self.args.path)
         logger.info("Cleaning %s", app)
+        # Clean tarball
         tarball = os.path.join(path, app + ".tar")
         if os.path.commonpath([path, tarball]) == path and os.path.isfile(tarball):
             os.unlink(tarball)
@@ -889,12 +890,11 @@ Categories={categories}
         for f in cli_helpers:
             if os.path.isfile(f):
                 os.unlink(f)
-        generated_desktop_files = self._list_desktop_files(
-            parsed_config, generated_only=True
-        )
-        for d in generated_desktop_files:
-            if os.path.isfile(d):
-                os.unlink(d)
+        # Clean generated desktop files
+        desktop_files = self._list_desktop_files(parsed_config, generated_only=True)
+        for f in desktop_files:
+            if os.path.isfile(f):
+                os.unlink(f)
 
     def install_to_path(self, f, path):
         if self.args.destdir == "":
