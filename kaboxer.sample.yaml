@@ -95,5 +95,5 @@ install:
     # If auto-generated desktop-files are not suitable, provide
     # your own
     desktop-files:
-        - foo.desktop
-        - bar.desktop
+        - kaboxer-foo.desktop
+        - kaboxer-bar.desktop
