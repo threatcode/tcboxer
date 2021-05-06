@@ -874,13 +874,13 @@ Categories={categories}
                 # One .desktop file for starting
                 name = f"Start {component_name}"
                 cmd = self.make_run_command_headless(app_id, component, run_args)
-                content_start = make_desktop_file(
+                content_start = self.make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
                 # One .desktop file for stopping
                 name = f"Stop {component_name}"
                 cmd = self.make_stop_command(app_id, component)
-                content_stop = make_desktop_file(
+                content_stop = self.make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
                 # Write them down
@@ -898,7 +898,7 @@ Categories={categories}
                     terminal = "false"
                 name = component_name
                 cmd = self.make_run_command(app_id, component, run_args)
-                content = make_desktop_file(
+                content = self.make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
                 outfile = get_desktop_file_filename(app_id, component)
@@ -939,10 +939,14 @@ Categories={categories}
         shutil.copy(f, builddestpath)
 
     def _list_cli_helpers(self, parsed_config, generated_only=False):
-        if generated_only:
-            if "cli-helpers" in parsed_config["install"]:
+        # Return user-provided files if present
+        if "cli-helpers" in parsed_config.get("install", {}):
+            if generated_only:
                 return []
+            else:
+                return parsed_config["install"]["cli-helpers"]
 
+        # Return auto-generated files otherwise
         files = []
         app_id = parsed_config.app_id
         components = parsed_config["components"]
@@ -956,10 +960,14 @@ Categories={categories}
         return files
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
-        if generated_only:
-            if "desktop-files" in parsed_config["install"]:
+        # Return user-provided files if present
+        if "desktop-files" in parsed_config.get("install", {}):
+            if generated_only:
                 return []
+            else:
+                return parsed_config["install"]["desktop-files"]
 
+        # Return auto-generated files otherwise
         files = []
         app_id = parsed_config.app_id
         for component, data in parsed_config["components"].items():
