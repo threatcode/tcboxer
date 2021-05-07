@@ -960,14 +960,16 @@ Categories={categories}
             if os.path.isfile(f):
                 os.unlink(f)
 
-    def install_to_path(self, f, path):
+    def install_to_path(self, f, path, mode=None):
         if self.args.destdir == "":
             instdir = path
         else:
             instdir = os.path.join(self.args.destdir, os.path.relpath(path, "/"))
         logger.info("Installing %s to %s", f, instdir)
         os.makedirs(instdir, exist_ok=True)
-        shutil.copy(f, instdir)
+        installed_file = shutil.copy(f, instdir)
+        if mode:
+            os.chmod(installed_file, mode)
 
     def _list_cli_helpers(self, parsed_config, generated_only=False):
         # Return user-provided files if present
@@ -1040,6 +1042,7 @@ Categories={categories}
             self.install_to_path(
                 os.path.join(path, c),
                 os.path.join(self.args.prefix, "bin"),
+                mode=0o755,
             )
         # Install desktop file(s)
         desktop_files = self._list_desktop_files(parsed_config)
