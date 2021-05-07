@@ -9,7 +9,12 @@ import unittest
 import responses
 
 from kaboxer import ContainerRegistry, DockerBackend, Kaboxer, KaboxerAppConfig
-from kaboxer import get_possible_gitlab_project_paths
+from kaboxer import (
+    get_all_cli_helper_filenames,
+    get_all_desktop_file_filenames,
+    get_icon_name,
+    get_possible_gitlab_project_paths,
+)
 
 
 class TestKaboxerApplication(unittest.TestCase):
@@ -46,6 +51,78 @@ class TestKaboxerApplication(unittest.TestCase):
 
         args = self.obj.parser.parse_args(args=["-vv", "build"])
         self.assertEqual(args.verbose, 2)
+
+
+class TestFilenameHelpers(unittest.TestCase):
+    def assert_cli_helpers(self, app_id, components, expected):
+        files = get_all_cli_helper_filenames(app_id, components)
+        self.assertEqual(sorted(files), sorted(expected))
+
+    def test_cli_helper_filenames_one_component(self):
+        components = ["default"]
+        expected_helpers = ["foo-kbx"]
+        self.assert_cli_helpers("foo", components, expected_helpers)
+
+    def test_cli_helper_filenames_two_components(self):
+        components = ["client", "server"]
+        expected_helpers = ["foo-client-kbx", "foo-server-kbx"]
+        self.assert_cli_helpers("foo", components, expected_helpers)
+
+    def assert_desktop_files(self, app_id, components, expected):
+        files = get_all_desktop_file_filenames(app_id, components)
+        self.assertEqual(sorted(files), sorted(expected))
+
+    def test_desktop_file_filenames_cli(self):
+        components = {
+            "default": {
+                "run_mode": "cli",
+            }
+        }
+        expected_desktop_files = ["kaboxer-foo-default.desktop"]
+        self.assert_desktop_files("foo", components, expected_desktop_files)
+
+    def test_desktop_file_filenames_headless(self):
+        components = {
+            "default": {
+                "run_mode": "headless",
+            }
+        }
+        expected_desktop_files = [
+            "kaboxer-foo-default-start.desktop",
+            "kaboxer-foo-default-stop.desktop",
+        ]
+        self.assert_desktop_files("foo", components, expected_desktop_files)
+
+    def test_filenames_full(self):
+        app_id = "bar"
+        components = {
+            "default": {
+                "run_mode": "cli",
+            },
+            "interactive": {
+                "run_mode": "cli",
+            },
+            "daemon": {
+                "run_mode": "headless",
+            },
+        }
+        expected_cli_helpers = [
+            f"{app_id}-default-kbx",
+            f"{app_id}-interactive-kbx",
+            f"{app_id}-daemon-kbx",
+        ]
+        expected_desktop_files = [
+            f"kaboxer-{app_id}-default.desktop",
+            f"kaboxer-{app_id}-interactive.desktop",
+            f"kaboxer-{app_id}-daemon-start.desktop",
+            f"kaboxer-{app_id}-daemon-stop.desktop",
+        ]
+        self.assert_cli_helpers(app_id, components, expected_cli_helpers)
+        self.assert_desktop_files(app_id, components, expected_desktop_files)
+
+    def test_icon_name(self):
+        icon_name = get_icon_name("foo")
+        self.assertEqual(icon_name, "kaboxer-foo")
 
 
 class TestKaboxerFindConfigsInDir(unittest.TestCase):

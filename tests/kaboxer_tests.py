@@ -34,8 +34,14 @@ class TestKaboxerCommon(unittest.TestCase):
         self.run_command("mkdir -p %s/persist" % (self.fixdir,))
         self.tarfile = "%s.tar" % (self.app_name,)
         self.tarpath = os.path.join(self.fixdir, self.tarfile)
+        self.clihelpers = [
+            "%s-default-kbx" % self.app_name,
+            "%s-interactive-kbx" % self.app_name,
+            "%s-daemon-kbx" % self.app_name,
+        ]
         self.desktopfiles = [
             "kaboxer-%s-default.desktop" % self.app_name,
+            "kaboxer-%s-interactive.desktop" % self.app_name,
             "kaboxer-%s-daemon-start.desktop" % self.app_name,
             "kaboxer-%s-daemon-stop.desktop" % self.app_name,
         ]
@@ -410,13 +416,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
 
     def test_install(self):
         self.test_build_and_save()
-        self.run_and_check_command(
-            "kaboxer install --tarball --destdir %s"
-            % os.path.join(self.fixdir, "target")
-        )
-        installed_tarfile = os.path.join(
-            self.fixdir, "target", "usr", "local", "share", "kaboxer", self.tarfile
-        )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --tarball --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
         self.assertTrue(
             os.path.isfile(installed_tarfile),
             "Tarfile not installed (expecting %s)" % installed_tarfile,
@@ -426,74 +429,179 @@ class TestKaboxerLocally(TestKaboxerCommon):
             os.path.isfile(installed_tarfile),
             "Tarfile still present after unlink (%s)" % installed_tarfile,
         )
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % os.path.join(self.fixdir, "target")
-        )
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Tarfile present after install (%s)" % installed_tarfile,
         )
         self.run_and_check_command(
-            "kaboxer install --tarball --destdir %s --prefix %s"
-            % (os.path.join(self.fixdir, "target"), "/usr")
+            "kaboxer install --tarball --destdir %s --prefix %s" % (destdir, "/usr")
         )
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Default tarfile present after install to non-default dir (%s)"
             % installed_tarfile,
         )
-        installed_tarfile_usr = os.path.join(
-            self.fixdir, "target", "usr", "share", "kaboxer", self.tarfile
-        )
+        instdir = os.path.join(destdir, "usr", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
         self.assertTrue(
-            os.path.isfile(installed_tarfile_usr),
+            os.path.isfile(installed_tarfile),
             "Tarfile not installed (expecting %s)" % installed_tarfile,
         )
 
     def test_install_no_tarball(self):
         self.build()
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        installed_tarfile = os.path.join(
-            self.fixdir, "target", "usr", "local", "share", "kaboxer", self.tarfile
-        )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Tarfile unexpectedly installed (as %s)" % installed_tarfile,
         )
 
-    def test_auto_desktop_files(self):
+    def assert_generated_files(self, instdir, generated_files, manual_files, exe=False):
+        # Auto-generated files should have been built and installed
+        for f in generated_files:
+            built_file = os.path.join(self.fixdir, f)
+            self.assertTrue(
+                os.path.isfile(built_file),
+                "No generated file '%s' present in build dir" % f,
+            )
+            if exe:
+                self.assertTrue(
+                    os.access(built_file, os.X_OK),
+                    "Generated file '%s' not executable in build dir" % f,
+                )
+            else:
+                self.assertFalse(
+                    os.access(built_file, os.X_OK),
+                    "Generated file '%s' executable in build dir" % f,
+                )
+            installed_file = os.path.join(instdir, f)
+            self.assertTrue(
+                os.path.isfile(installed_file),
+                "No generated file '%s' present in install dir" % f,
+            )
+            if exe:
+                self.assertTrue(
+                    os.access(installed_file, os.X_OK),
+                    "Generated file '%s' not executable in install dir" % f,
+                )
+            else:
+                self.assertFalse(
+                    os.access(installed_file, os.X_OK),
+                    "Generated file '%s' executable in install dir" % f,
+                )
+        # Manual files should not have been installed
+        for f in manual_files:
+            installed_file = os.path.join(instdir, f)
+            self.assertFalse(
+                os.path.isfile(installed_file),
+                "Manual file '%s' present in install dir" % f,
+            )
+
+    def assert_manual_files(self, instdir, generated_files, manual_files, exe=False):
+        # Auto-generated files should NOT have been built or installed
+        for f in generated_files:
+            built_file = os.path.join(self.fixdir, f)
+            self.assertFalse(
+                os.path.isfile(built_file),
+                "Generated file '%s' present in build dir" % f,
+            )
+            installed_file = os.path.join(instdir, f)
+            self.assertFalse(
+                os.path.isfile(installed_file),
+                "Generated file '%s' present in install dir" % f,
+            )
+        # Manual files should have been installed
+        for f in manual_files:
+            installed_file = os.path.join(instdir, f)
+            self.assertTrue(
+                os.path.isfile(installed_file),
+                "No manual file '%s' present in install dir" % f,
+            )
+            if exe:
+                self.assertTrue(
+                    os.access(installed_file, os.X_OK),
+                    "Manual file '%s' not executable in install dir" % f,
+                )
+            else:
+                self.assertFalse(
+                    os.access(installed_file, os.X_OK),
+                    "Manual file '%s' executable in install dir" % f,
+                )
+
+    def test_auto_cli_helpers(self):
+        generated_files = self.clihelpers
+        manual_files = ["helper-kbx"]
+        destdir = os.path.join(self.fixdir, "target")
+        instdir = os.path.join(destdir, "usr", "local", "bin")
+
         self.test_build_and_save()
-        for i in self.desktopfiles:
-            self.assertTrue(
-                os.path.isfile(os.path.join(self.fixdir, i)),
-                "No %s file present after kaboxer build" % (i,),
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        self.assert_generated_files(instdir, generated_files, manual_files, exe=True)
+
+        if len(generated_files) == 1:
+            cmd = os.path.join(instdir, "%s-kbx" % self.app_name)
+            self.run_command_check_stdout_matches(cmd, "Hi there")
+        else:
+            cmd = os.path.join(instdir, "%s-default-kbx" % self.app_name)
+            self.run_command_check_stdout_matches(cmd, "Hi there")
+
+    def test_auto_cli_helper_single(self):
+        # Remove components (assume components is at the end of the file)
+        self.run_command("sed -i '/components:/Q' %s" % "kaboxer.yaml")
+        # Add one and only one component
+        with open(os.path.join(self.fixdir, "kaboxer.yaml"), "a") as outfile:
+            outfile.write(
+                """components:
+  default:
+    run_mode: cli
+    executable: /run.sh hi
+"""
             )
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        for i in self.desktopfiles:
-            idf = os.path.join(
-                self.fixdir, "target", "usr", "local", "share", "applications", i
-            )
-            self.assertTrue(
-                os.path.isfile(idf), "Generated desktop file not installed at %s" % idf
-            )
-        idf = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "applications",
-            "sleeper.desktop",
-        )
+        # In this case, cli helper shouldn't have 'component' in their name
+        self.clihelpers = ["%s-kbx" % self.app_name]
+        # Run the test
+        self.test_auto_cli_helpers()
+
+    def test_manual_cli_helpers(self):
+        # we want to test that kaboxer sets the executable bit when installing helpers
         self.assertFalse(
-            os.path.isfile(idf), "Manual desktop file installed at %s" % (idf,)
+            os.access(os.path.join(self.fixdir, "helper-kbx"), os.X_OK),
+            "%s is already executable, we don't want that" % "helper-kbx",
         )
+        # Add cli-helpers to the install section
+        with open(os.path.join(self.fixdir, "kaboxer.yaml"), "a") as outfile:
+            outfile.write(
+                """install:
+  cli-helpers:
+    - helper-kbx
+"""
+            )
+
+        generated_files = self.clihelpers
+        manual_files = ["helper-kbx"]
+        destdir = os.path.join(self.fixdir, "target")
+        instdir = os.path.join(destdir, "usr", "local", "bin")
+
+        self.test_build_and_save()
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        self.assert_manual_files(instdir, generated_files, manual_files, exe=True)
+
+    def test_auto_desktop_files(self):
+        generated_files = self.desktopfiles
+        manual_files = ["sleeper.desktop"]
+        destdir = os.path.join(self.fixdir, "target")
+        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
+
+        self.test_build_and_save()
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        self.assert_generated_files(instdir, generated_files, manual_files)
 
     def test_manual_desktop_files(self):
+        # Add desktop-files to the install section
         with open(os.path.join(self.fixdir, "kaboxer.yaml"), "a") as outfile:
             outfile.write(
                 """install:
@@ -501,65 +609,30 @@ class TestKaboxerLocally(TestKaboxerCommon):
     - sleeper.desktop
 """
             )
+
+        generated_files = self.desktopfiles
+        manual_files = ["sleeper.desktop"]
+        destdir = os.path.join(self.fixdir, "target")
+        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
+
         self.test_build_and_save()
-        for i in self.desktopfiles:
-            self.assertFalse(
-                os.path.isfile(os.path.join(self.fixdir, i)),
-                "%s file present after kaboxer build" % (i,),
-            )
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        for i in self.desktopfiles:
-            idf = os.path.join(
-                self.fixdir, "target", "usr", "local", "share", "applications", i
-            )
-            self.assertFalse(
-                os.path.isfile(idf), "Generated desktop file installed at %s" % (idf,)
-            )
-        idf = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "applications",
-            "sleeper.desktop",
-        )
-        self.assertTrue(
-            os.path.isfile(idf), "Manual desktop file not installed at %s" % (idf,)
-        )
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        self.assert_manual_files(instdir, generated_files, manual_files)
 
     def test_install_icons(self):
         self.test_build_and_save()
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        installed_shipped_icon = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "icons",
-            "kaboxer-%s.svg" % self.app_name,
-        )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "icons")
+        shipped_icon = os.path.join(instdir, "kaboxer-%s.svg" % self.app_name)
         self.assertTrue(
-            os.path.isfile(installed_shipped_icon),
-            "Shipped icon not installed (expecting %s)" % installed_shipped_icon,
+            os.path.isfile(shipped_icon),
+            "Shipped icon not installed (expecting %s)" % shipped_icon,
         )
-        installed_extracted_icon = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "icons",
-            "kaboxer-%s.png" % self.app_name,
-        )
+        extracted_icon = os.path.join(instdir, "kaboxer-%s.png" % self.app_name)
         self.assertTrue(
-            os.path.isfile(installed_extracted_icon),
-            "Extracted icon not installed (expecting %s)" % installed_extracted_icon,
+            os.path.isfile(extracted_icon),
+            "Extracted icon not installed (expecting %s)" % extracted_icon,
         )
 
     def test_meta_files(self):

@@ -23,8 +23,6 @@ import docker
 
 import dockerpty
 
-import jinja2
-
 from packaging.version import parse as parse_version
 
 import prompt_toolkit
@@ -37,6 +35,64 @@ import yaml
 
 
 logger = logging.getLogger("kaboxer")
+
+
+# Helpers for generated artifacts
+
+
+def get_cli_helper_filename(app_id, component):
+    """Filename for an auto-generated cli helper"""
+    if component:
+        return f"{app_id}-{component}-kbx"
+    else:
+        return f"{app_id}-kbx"
+
+
+def get_all_cli_helper_filenames(app_id, components):
+    """Filenames for all the auto-generated cli helpers"""
+    files = []
+    if len(components) == 1:
+        fn = get_cli_helper_filename(app_id, None)
+        files.append(fn)
+    else:
+        for component in components:
+            fn = get_cli_helper_filename(app_id, component)
+            files.append(fn)
+    return files
+
+
+def get_desktop_file_filename(app_id, component):
+    """Filename for an auto-generated desktop file"""
+    return f"kaboxer-{app_id}-{component}.desktop"
+
+
+def get_headless_desktop_file_filenames(app_id, component):
+    """Filenames for the pair of auto-generated desktop files (headless mode)"""
+    start = f"kaboxer-{app_id}-{component}-start.desktop"
+    stop = f"kaboxer-{app_id}-{component}-stop.desktop"
+    return start, stop
+
+
+def get_all_desktop_file_filenames(app_id, components):
+    """Filenames for all the auto-generated desktop files"""
+    files = []
+    for component, data in components.items():
+        if data["run_mode"] == "headless":
+            fn1, fn2 = get_headless_desktop_file_filenames(app_id, component)
+            files.append(fn1)
+            files.append(fn2)
+        else:
+            fn = get_desktop_file_filename(app_id, component)
+            files.append(fn)
+    return files
+
+
+def get_icon_name(app_id):
+    """Filename for the installed icon, without extension"""
+    return f"kaboxer-{app_id}"
+
+
+# Main class
 
 
 class Kaboxer:
@@ -597,6 +653,7 @@ class Kaboxer:
                     self.save_image_to_file(image, tarball)
                 if self.args.push:
                     self.push_image(config, [saved_version])
+            self.build_cli_helpers(config)
             self.build_desktop_files(config)
 
     def build_image(self, parsed_config):
@@ -685,6 +742,12 @@ class Kaboxer:
             image.tag(tagname)
         return image, saved_version
 
+    def build_cli_helpers(self, parsed_config):
+        app = parsed_config.app_id
+        if "cli-helpers" not in parsed_config.get("install", {}):
+            logger.info("Building cli helpers for %s", app)
+            self.gen_cli_helpers(parsed_config)
+
     def build_desktop_files(self, parsed_config):
         app = parsed_config.app_id
         if "desktop-files" not in parsed_config.get("install", {}):
@@ -770,82 +833,112 @@ class Kaboxer:
             local_image.tag(remote_tagname)
             self.docker_conn.images.push(remote_tagname)
 
-    def gen_desktop_files(self, parsed_config):
-        template_text = """[Desktop Entry]
-Name={{ p.name }}
-Comment={{ p.comment }}
-Exec={{ p.exec }}
-Icon=kaboxer-{{ p.appid }}
-Terminal={{ p.terminal }}
-Type=Application
-Categories={{ p.categories }}
+    def make_run_command(self, app_id, component, args):
+        return f"kaboxer run {args} --component {component} {app_id}"
 
+    def make_run_command_headless(self, app_id, component, args):
+        return f"kaboxer run --detach --prompt-before-exit {args} --component {component} {app_id}"  # noqa: E501
+
+    def make_stop_command(self, app_id, component):
+        return f"kaboxer stop --prompt-before-exit --component {component} {app_id}"
+
+    def make_run_helper(self, app_id, component, args):
+        cmd = self.make_run_command(app_id, component, args)
+        return f"#!/bin/sh\nexec {cmd}"
+
+    def make_start_stop_helper(self, app_id, component, args):
+        run_cmd = self.make_run_command_headless(app_id, component, args)
+        stop_cmd = self.make_stop_command(app_id, component)
+        return f"""#!/bin/sh
+case "$1" in
+  (start) exec {run_cmd} ;;
+  (stop)  exec {stop_cmd} ;;
+  (*)     echo >&2 "Usage: $(basename $0) start|stop"; exit 1 ;;
+esac
 """
-        t = jinja2.Template(template_text)
-        for component, component_data in parsed_config["components"].items():
-            params = {
-                "comment": parsed_config["application"]
-                .get("description", "")
-                .split("\n")[0],
-                "component": component,
-                "appid": parsed_config.app_id,
-                "categories": parsed_config["application"].get(
-                    "categories", "Uncategorized"
-                ),
-            }
-            params["reuse_container"] = ""
-            if component_data.get("reuse_container", False):
-                params["reuse_container"] = "--reuse-container "
 
-            component_name = component_data.get(
-                "name", parsed_config["application"]["name"]
-            )
+    def gen_cli_helpers(self, parsed_config):
+        app_id = parsed_config.app_id
+        components = parsed_config["components"]
+        n_components = len(components)
+        for component, data in components.items():
+            run_args = ""
+            if data.get("reuse_container", False):
+                run_args = "--reuse-container"
+            if data["run_mode"] == "headless":
+                content = self.make_start_stop_helper(app_id, component, run_args)
+            else:
+                content = self.make_run_helper(app_id, component, run_args)
+            if n_components == 1:
+                outfile = get_cli_helper_filename(app_id, None)
+            else:
+                outfile = get_cli_helper_filename(app_id, component)
+            with open(outfile, "w") as f:
+                f.write(content)
+            os.chmod(outfile, 0o755)
+
+    def make_desktop_file(self, app_id, name, comment, cmd, terminal, categories):
+        return f"""[Desktop Entry]
+Name={name}
+Comment={comment}
+Exec={cmd}
+Icon=kaboxer-{app_id}
+Terminal={terminal}
+Type=Application
+Categories={categories}
+"""
+
+    def gen_desktop_files(self, parsed_config):
+        app_id = parsed_config.app_id
+
+        application = parsed_config["application"]
+        categories = application.get("categories", "Uncategorized")
+        comment = application.get("description", "").split("\n")[0]
+        fallback_name = application["name"]
+
+        components = parsed_config["components"]
+        for component, component_data in components.items():
+            component_name = component_data.get("name", fallback_name)
+
+            run_args = ""
+            if component_data.get("reuse_container", False):
+                run_args = "--reuse-container"
 
             if component_data["run_mode"] == "headless":
+                terminal = "true"
                 # One .desktop file for starting
-                params["name"] = "Start %s" % (component_name,)
-                params["terminal"] = "true"
-                params["exec"] = (
-                    "kaboxer run --detach --prompt-before-exit %s"
-                    "--component %s %s"
-                    % (params["reuse_container"], params["component"], params["appid"])
+                name = f"Start {component_name}"
+                cmd = self.make_run_command_headless(app_id, component, run_args)
+                content_start = self.make_desktop_file(
+                    app_id, name, comment, cmd, terminal, categories
                 )
-                ofname = "kaboxer-%s-%s-start.desktop" % (
-                    parsed_config.app_id,
-                    component,
-                )
-                with open(ofname, "w") as outfile:
-                    outfile.write(t.render(p=params))
                 # One .desktop file for stopping
-                params["name"] = "Stop %s" % (component_name,)
-                params["terminal"] = "true"
-                params[
-                    "exec"
-                ] = "kaboxer stop --prompt-before-exit %s" "--component %s %s" % (
-                    params["reuse_container"],
-                    params["component"],
-                    params["appid"],
+                name = f"Stop {component_name}"
+                cmd = self.make_stop_command(app_id, component)
+                content_stop = self.make_desktop_file(
+                    app_id, name, comment, cmd, terminal, categories
                 )
-                ofname = "kaboxer-%s-%s-stop.desktop" % (
-                    parsed_config.app_id,
-                    component,
+                # Write them down
+                outfile_start, outfile_stop = get_headless_desktop_file_filenames(
+                    app_id, component
                 )
-                with open(ofname, "w") as outfile:
-                    outfile.write(t.render(p=params))
+                with open(outfile_start, "w") as f:
+                    f.write(content_start)
+                with open(outfile_stop, "w") as f:
+                    f.write(content_stop)
             else:
-                params["name"] = component_name
-                ofname = "kaboxer-%s-%s.desktop" % (parsed_config.app_id, component)
-                params["exec"] = "kaboxer run %s--component %s %s" % (
-                    params["reuse_container"],
-                    params["component"],
-                    params["appid"],
-                )
                 if component_data["run_mode"] == "cli":
-                    params["terminal"] = "true"
+                    terminal = "true"
                 else:
-                    params["terminal"] = "false"
-                with open(ofname, "w") as outfile:
-                    outfile.write(t.render(p=params))
+                    terminal = "false"
+                name = component_name
+                cmd = self.make_run_command(app_id, component, run_args)
+                content = self.make_desktop_file(
+                    app_id, name, comment, cmd, terminal, categories
+                )
+                outfile = get_desktop_file_filename(app_id, component)
+                with open(outfile, "w") as f:
+                    f.write(content)
 
     def cmd_clean(self):
         parsed_configs = self.find_configs_for_build_cmds()
@@ -856,46 +949,59 @@ Categories={{ p.categories }}
         app = parsed_config.app_id
         path = os.path.realpath(self.args.path)
         logger.info("Cleaning %s", app)
+        # Clean tarball
         tarball = os.path.join(path, app + ".tar")
         if os.path.commonpath([path, tarball]) == path and os.path.isfile(tarball):
             os.unlink(tarball)
-        generated_desktop_files = self._list_desktop_files(
-            parsed_config, generated_only=True
-        )
-        for d in generated_desktop_files:
-            if os.path.isfile(d):
-                os.unlink(d)
+        # Clean generated cli helpers
+        cli_helpers = self._list_cli_helpers(parsed_config, generated_only=True)
+        for f in cli_helpers:
+            if os.path.isfile(f):
+                os.unlink(f)
+        # Clean generated desktop files
+        desktop_files = self._list_desktop_files(parsed_config, generated_only=True)
+        for f in desktop_files:
+            if os.path.isfile(f):
+                os.unlink(f)
 
-    def install_to_path(self, f, path):
+    def install_to_path(self, f, path, mode=None):
         if self.args.destdir == "":
-            builddestpath = path
+            instdir = path
         else:
-            builddestpath = os.path.join(self.args.destdir, os.path.relpath(path, "/"))
-        logger.info("Installing %s to %s", f, builddestpath)
-        os.makedirs(builddestpath, exist_ok=True)
-        shutil.copy(f, builddestpath)
+            instdir = os.path.join(self.args.destdir, os.path.relpath(path, "/"))
+        logger.info("Installing %s to %s", f, instdir)
+        os.makedirs(instdir, exist_ok=True)
+        installed_file = shutil.copy(f, instdir)
+        if mode:
+            os.chmod(installed_file, mode)
 
-    def _list_desktop_files(self, parsed_config, generated_only=False):
-        try:
-            desktop_files = parsed_config["install"]["desktop-files"]
+    def _list_cli_helpers(self, parsed_config, generated_only=False):
+        # Return user-provided files if present
+        if "cli-helpers" in parsed_config.get("install", {}):
             if generated_only:
                 return []
-        except KeyError:
-            desktop_files = []
-            for component, data in parsed_config["components"].items():
-                if data["run_mode"] == "headless":
-                    desktop_files.append(
-                        "kaboxer-%s-%s-start.desktop"
-                        % (parsed_config.app_id, component)
-                    )
-                    desktop_files.append(
-                        "kaboxer-%s-%s-stop.desktop" % (parsed_config.app_id, component)
-                    )
-                else:
-                    desktop_files.append(
-                        "kaboxer-%s-%s.desktop" % (parsed_config.app_id, component)
-                    )
-        return desktop_files
+            else:
+                return parsed_config["install"]["cli-helpers"]
+
+        # Return auto-generated files otherwise
+        app_id = parsed_config.app_id
+        components = parsed_config["components"]
+        files = get_all_cli_helper_filenames(app_id, components)
+        return files
+
+    def _list_desktop_files(self, parsed_config, generated_only=False):
+        # Return user-provided files if present
+        if "desktop-files" in parsed_config.get("install", {}):
+            if generated_only:
+                return []
+            else:
+                return parsed_config["install"]["desktop-files"]
+
+        # Return auto-generated files otherwise
+        app_id = parsed_config.app_id
+        components = parsed_config["components"]
+        files = get_all_desktop_file_filenames(app_id, components)
+        return files
 
     def cmd_install(self):
         parsed_configs = self.find_configs_for_build_cmds()
@@ -934,6 +1040,14 @@ Categories={{ p.categories }}
                 shutil.copy(parsed_config.filename, tf)
 
             self.install_to_path(tf, main_destpath)
+        # Install cli helper(s)
+        cli_helpers = self._list_cli_helpers(parsed_config)
+        for c in cli_helpers:
+            self.install_to_path(
+                os.path.join(path, c),
+                os.path.join(self.args.prefix, "bin"),
+                mode=0o755,
+            )
         # Install desktop file(s)
         desktop_files = self._list_desktop_files(parsed_config)
         for d in desktop_files:
@@ -942,13 +1056,12 @@ Categories={{ p.categories }}
                 os.path.join(self.args.prefix, "share", "applications"),
             )
         # Install icon file(s)
+        icon_install_name = get_icon_name(parsed_config.app_id)
         try:
             icon_file = parsed_config["install"]["icon"]
             (_, ife) = os.path.splitext(os.path.basename(icon_file))
             with tempfile.TemporaryDirectory() as td:
-                renamed_icon = os.path.join(
-                    td, "kaboxer-%s%s" % (parsed_config.app_id, ife)
-                )
+                renamed_icon = os.path.join(td, "%s%s" % (icon_install_name, ife))
                 shutil.copy(icon_file, renamed_icon)
                 self.install_to_path(
                     renamed_icon, os.path.join(self.args.prefix, "share", "icons")
@@ -959,9 +1072,7 @@ Categories={{ p.categories }}
             icon_file = parsed_config["install"]["extract-icon"]
             (_, ife) = os.path.splitext(os.path.basename(icon_file))
             with tempfile.TemporaryDirectory() as td:
-                renamed_icon = os.path.join(
-                    td, "kaboxer-%s%s" % (parsed_config.app_id, ife)
-                )
+                renamed_icon = os.path.join(td, "%s%s" % (icon_install_name, ife))
                 self.extract_file_from_image(
                     "kaboxer/" + parsed_config.app_id, icon_file, renamed_icon
                 )

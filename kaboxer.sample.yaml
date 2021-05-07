@@ -92,8 +92,14 @@ install:
     extract-icon: /opt/hello-world/hello-world.svg
     # Alternatively the developer can submit its own icon
     icon: logo/foo.svg
+    # If auto-generated command-line helpers are not suitable, provide
+    # your own
+    cli-helpers:
+        - foo-kbx
+        - bar-default-kbx
+        - bar-server-kbx
     # If auto-generated desktop-files are not suitable, provide
     # your own
     desktop-files:
-        - foo.desktop
-        - bar.desktop
+        - kaboxer-foo.desktop
+        - kaboxer-bar.desktop
