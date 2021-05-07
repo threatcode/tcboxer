@@ -41,6 +41,7 @@ logger = logging.getLogger("kaboxer")
 
 
 def get_cli_helper_filename(app_id, component):
+    """Filename for an auto-generated cli helper"""
     if component:
         return f"{app_id}-{component}-kbx"
     else:
@@ -48,16 +49,19 @@ def get_cli_helper_filename(app_id, component):
 
 
 def get_desktop_file_filename(app_id, component):
+    """Filename for an auto-generated desktop file"""
     return f"kaboxer-{app_id}-{component}.desktop"
 
 
 def get_headless_desktop_file_filenames(app_id, component):
+    """Filenames for the pair of auto-generated desktop files (headless mode)"""
     start = f"kaboxer-{app_id}-{component}-start.desktop"
     stop = f"kaboxer-{app_id}-{component}-stop.desktop"
     return start, stop
 
 
 def get_icon_name(app_id):
+    """Filename for the installed icon, without extension"""
     return f"kaboxer-{app_id}"
 
 
