@@ -962,12 +962,12 @@ Categories={categories}
 
     def install_to_path(self, f, path):
         if self.args.destdir == "":
-            builddestpath = path
+            instdir = path
         else:
-            builddestpath = os.path.join(self.args.destdir, os.path.relpath(path, "/"))
-        logger.info("Installing %s to %s", f, builddestpath)
-        os.makedirs(builddestpath, exist_ok=True)
-        shutil.copy(f, builddestpath)
+            instdir = os.path.join(self.args.destdir, os.path.relpath(path, "/"))
+        logger.info("Installing %s to %s", f, instdir)
+        os.makedirs(instdir, exist_ok=True)
+        shutil.copy(f, instdir)
 
     def _list_cli_helpers(self, parsed_config, generated_only=False):
         # Return user-provided files if present
