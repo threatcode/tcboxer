@@ -48,6 +48,19 @@ def get_cli_helper_filename(app_id, component):
         return f"{app_id}-kbx"
 
 
+def get_all_cli_helper_filenames(app_id, components):
+    """Filenames for all the auto-generated cli helpers"""
+    files = []
+    if len(components) == 1:
+        fn = get_cli_helper_filename(app_id, None)
+        files.append(fn)
+    else:
+        for component in components:
+            fn = get_cli_helper_filename(app_id, component)
+            files.append(fn)
+    return files
+
+
 def get_desktop_file_filename(app_id, component):
     """Filename for an auto-generated desktop file"""
     return f"kaboxer-{app_id}-{component}.desktop"
@@ -58,6 +71,20 @@ def get_headless_desktop_file_filenames(app_id, component):
     start = f"kaboxer-{app_id}-{component}-start.desktop"
     stop = f"kaboxer-{app_id}-{component}-stop.desktop"
     return start, stop
+
+
+def get_all_desktop_file_filenames(app_id, components):
+    """Filenames for all the auto-generated desktop files"""
+    files = []
+    for component, data in components.items():
+        if data["run_mode"] == "headless":
+            fn1, fn2 = get_headless_desktop_file_filenames(app_id, component)
+            files.append(fn1)
+            files.append(fn2)
+        else:
+            fn = get_desktop_file_filename(app_id, component)
+            files.append(fn)
+    return files
 
 
 def get_icon_name(app_id):
@@ -951,16 +978,9 @@ Categories={categories}
                 return parsed_config["install"]["cli-helpers"]
 
         # Return auto-generated files otherwise
-        files = []
         app_id = parsed_config.app_id
         components = parsed_config["components"]
-        if len(components) == 1:
-            fn = get_cli_helper_filename(app_id, None)
-            files.append(fn)
-        else:
-            for component in components:
-                fn = get_cli_helper_filename(app_id, component)
-                files.append(fn)
+        files = get_all_cli_helper_filenames(app_id, components)
         return files
 
     def _list_desktop_files(self, parsed_config, generated_only=False):
@@ -972,16 +992,9 @@ Categories={categories}
                 return parsed_config["install"]["desktop-files"]
 
         # Return auto-generated files otherwise
-        files = []
         app_id = parsed_config.app_id
-        for component, data in parsed_config["components"].items():
-            if data["run_mode"] == "headless":
-                fn1, fn2 = get_headless_desktop_file_filenames(app_id, component)
-                files.append(fn1)
-                files.append(fn2)
-            else:
-                fn = get_desktop_file_filename(app_id, component)
-                files.append(fn)
+        components = parsed_config["components"]
+        files = get_all_desktop_file_filenames(app_id, components)
         return files
 
     def cmd_install(self):
