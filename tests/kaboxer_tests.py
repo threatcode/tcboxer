@@ -34,6 +34,11 @@ class TestKaboxerCommon(unittest.TestCase):
         self.run_command("mkdir -p %s/persist" % (self.fixdir,))
         self.tarfile = "%s.tar" % (self.app_name,)
         self.tarpath = os.path.join(self.fixdir, self.tarfile)
+        self.clihelpers = [
+            "%s-default-kbx" % self.app_name,
+            "%s-interactive-kbx" % self.app_name,
+            "%s-daemon-kbx" % self.app_name,
+        ]
         self.desktopfiles = [
             "kaboxer-%s-default.desktop" % self.app_name,
             "kaboxer-%s-interactive.desktop" % self.app_name,
@@ -447,6 +452,88 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Tarfile unexpectedly installed (as %s)" % installed_tarfile,
+        )
+
+    def test_auto_cli_helpers(self):
+        generated_files = self.clihelpers
+        self.test_build_and_save()
+        for i in generated_files:
+            self.assertTrue(
+                os.path.isfile(os.path.join(self.fixdir, i)),
+                "No %s file present after kaboxer build" % i,
+            )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "bin")
+        for i in generated_files:
+            idf = os.path.join(instdir, i)
+            self.assertTrue(
+                os.path.isfile(idf), "Generated cli helper not installed at %s" % idf
+            )
+            self.assertTrue(
+                os.access(idf, os.X_OK),
+                "Generated cli helper not executable at %s" % idf,
+            )
+        idf = os.path.join(instdir, "helper-kbx")
+        self.assertFalse(os.path.isfile(idf), "Manual cli helper installed at %s" % idf)
+        if len(generated_files) == 1:
+            cmd = os.path.join(instdir, "%s-kbx" % self.app_name)
+            self.run_command_check_stdout_matches(cmd, "Hi there")
+        else:
+            cmd = os.path.join(instdir, "%s-default-kbx" % self.app_name)
+            self.run_command_check_stdout_matches(cmd, "Hi there")
+
+    def test_auto_cli_helper_single(self):
+        # Remove components (assume components is at the end of the file)
+        self.run_command("sed -i '/components:/Q' %s" % "kaboxer.yaml")
+        # Add one and only one component
+        with open(os.path.join(self.fixdir, "kaboxer.yaml"), "a") as outfile:
+            outfile.write(
+                """components:
+  default:
+    run_mode: cli
+    executable: /run.sh hi
+"""
+            )
+        # In this case, cli helper shouldn't have 'component' on their name
+        self.clihelpers = ["%s-kbx" % self.app_name]
+        # Run the test
+        self.test_auto_cli_helpers()
+
+    def test_manual_cli_helpers(self):
+        generated_files = self.clihelpers
+        # we want to test that kaboxer sets the executable bit when installing helpers
+        self.assertFalse(
+            os.access(os.path.join(self.fixdir, "helper-kbx"), os.X_OK),
+            "%s is already executable, we don't want that" % "helper-kbx",
+        )
+        with open(os.path.join(self.fixdir, "kaboxer.yaml"), "a") as outfile:
+            outfile.write(
+                """install:
+  cli-helpers:
+    - helper-kbx
+"""
+            )
+        self.test_build_and_save()
+        for i in generated_files:
+            self.assertFalse(
+                os.path.isfile(os.path.join(self.fixdir, i)),
+                "%s file present after kaboxer build" % i,
+            )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "bin")
+        for i in generated_files:
+            idf = os.path.join(instdir, i)
+            self.assertFalse(
+                os.path.isfile(idf), "Generated cli helper installed at %s" % idf
+            )
+        idf = os.path.join(instdir, "helper-kbx")
+        self.assertTrue(
+            os.path.isfile(idf), "Manual cli helper not installed at %s" % idf
+        )
+        self.assertTrue(
+            os.access(idf, os.X_OK), "Manual cli helper not executable at %s" % idf
         )
 
     def test_auto_desktop_files(self):
