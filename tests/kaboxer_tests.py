@@ -36,6 +36,7 @@ class TestKaboxerCommon(unittest.TestCase):
         self.tarpath = os.path.join(self.fixdir, self.tarfile)
         self.desktopfiles = [
             "kaboxer-%s-default.desktop" % self.app_name,
+            "kaboxer-%s-interactive.desktop" % self.app_name,
             "kaboxer-%s-daemon-start.desktop" % self.app_name,
             "kaboxer-%s-daemon-stop.desktop" % self.app_name,
         ]
