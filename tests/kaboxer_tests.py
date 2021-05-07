@@ -405,13 +405,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
 
     def test_install(self):
         self.test_build_and_save()
-        self.run_and_check_command(
-            "kaboxer install --tarball --destdir %s"
-            % os.path.join(self.fixdir, "target")
-        )
-        installed_tarfile = os.path.join(
-            self.fixdir, "target", "usr", "local", "share", "kaboxer", self.tarfile
-        )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --tarball --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
         self.assertTrue(
             os.path.isfile(installed_tarfile),
             "Tarfile not installed (expecting %s)" % installed_tarfile,
@@ -421,74 +418,60 @@ class TestKaboxerLocally(TestKaboxerCommon):
             os.path.isfile(installed_tarfile),
             "Tarfile still present after unlink (%s)" % installed_tarfile,
         )
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % os.path.join(self.fixdir, "target")
-        )
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Tarfile present after install (%s)" % installed_tarfile,
         )
         self.run_and_check_command(
-            "kaboxer install --tarball --destdir %s --prefix %s"
-            % (os.path.join(self.fixdir, "target"), "/usr")
+            "kaboxer install --tarball --destdir %s --prefix %s" % (destdir, "/usr")
         )
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Default tarfile present after install to non-default dir (%s)"
             % installed_tarfile,
         )
-        installed_tarfile_usr = os.path.join(
-            self.fixdir, "target", "usr", "share", "kaboxer", self.tarfile
-        )
+        instdir = os.path.join(destdir, "usr", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
         self.assertTrue(
-            os.path.isfile(installed_tarfile_usr),
+            os.path.isfile(installed_tarfile),
             "Tarfile not installed (expecting %s)" % installed_tarfile,
         )
 
     def test_install_no_tarball(self):
         self.build()
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        installed_tarfile = os.path.join(
-            self.fixdir, "target", "usr", "local", "share", "kaboxer", self.tarfile
-        )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
         self.assertFalse(
             os.path.isfile(installed_tarfile),
             "Tarfile unexpectedly installed (as %s)" % installed_tarfile,
         )
 
     def test_auto_desktop_files(self):
+        generated_files = self.desktopfiles
         self.test_build_and_save()
-        for i in self.desktopfiles:
+        for i in generated_files:
             self.assertTrue(
                 os.path.isfile(os.path.join(self.fixdir, i)),
-                "No %s file present after kaboxer build" % (i,),
+                "No %s file present after kaboxer build" % i,
             )
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        for i in self.desktopfiles:
-            idf = os.path.join(
-                self.fixdir, "target", "usr", "local", "share", "applications", i
-            )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
+        for i in generated_files:
+            idf = os.path.join(instdir, i)
             self.assertTrue(
                 os.path.isfile(idf), "Generated desktop file not installed at %s" % idf
             )
-        idf = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "applications",
-            "sleeper.desktop",
-        )
+        idf = os.path.join(instdir, "sleeper.desktop")
         self.assertFalse(
-            os.path.isfile(idf), "Manual desktop file installed at %s" % (idf,)
+            os.path.isfile(idf), "Manual desktop file installed at %s" % idf
         )
 
     def test_manual_desktop_files(self):
+        generated_files = self.desktopfiles
         with open(os.path.join(self.fixdir, "kaboxer.yaml"), "a") as outfile:
             outfile.write(
                 """install:
@@ -497,64 +480,38 @@ class TestKaboxerLocally(TestKaboxerCommon):
 """
             )
         self.test_build_and_save()
-        for i in self.desktopfiles:
+        for i in generated_files:
             self.assertFalse(
                 os.path.isfile(os.path.join(self.fixdir, i)),
-                "%s file present after kaboxer build" % (i,),
+                "%s file present after kaboxer build" % i,
             )
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        for i in self.desktopfiles:
-            idf = os.path.join(
-                self.fixdir, "target", "usr", "local", "share", "applications", i
-            )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
+        for i in generated_files:
+            idf = os.path.join(instdir, i)
             self.assertFalse(
-                os.path.isfile(idf), "Generated desktop file installed at %s" % (idf,)
+                os.path.isfile(idf), "Generated desktop file installed at %s" % idf
             )
-        idf = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "applications",
-            "sleeper.desktop",
-        )
+        idf = os.path.join(instdir, "sleeper.desktop")
         self.assertTrue(
-            os.path.isfile(idf), "Manual desktop file not installed at %s" % (idf,)
+            os.path.isfile(idf), "Manual desktop file not installed at %s" % idf
         )
 
     def test_install_icons(self):
         self.test_build_and_save()
-        self.run_and_check_command(
-            "kaboxer install --destdir %s" % (os.path.join(self.fixdir, "target"))
-        )
-        installed_shipped_icon = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "icons",
-            "kaboxer-%s.svg" % self.app_name,
-        )
+        destdir = os.path.join(self.fixdir, "target")
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "icons")
+        shipped_icon = os.path.join(instdir, "kaboxer-%s.svg" % self.app_name)
         self.assertTrue(
-            os.path.isfile(installed_shipped_icon),
-            "Shipped icon not installed (expecting %s)" % installed_shipped_icon,
+            os.path.isfile(shipped_icon),
+            "Shipped icon not installed (expecting %s)" % shipped_icon,
         )
-        installed_extracted_icon = os.path.join(
-            self.fixdir,
-            "target",
-            "usr",
-            "local",
-            "share",
-            "icons",
-            "kaboxer-%s.png" % self.app_name,
-        )
+        extracted_icon = os.path.join(instdir, "kaboxer-%s.png" % self.app_name)
         self.assertTrue(
-            os.path.isfile(installed_extracted_icon),
-            "Extracted icon not installed (expecting %s)" % installed_extracted_icon,
+            os.path.isfile(extracted_icon),
+            "Extracted icon not installed (expecting %s)" % extracted_icon,
         )
 
     def test_meta_files(self):
