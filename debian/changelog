@@ -1,3 +1,34 @@
+kaboxer (1.0.0) kali-dev; urgency=medium
+
+  * Bump upstream version (better late than never)
+  * Remove '--reuse-container' from 'kaboxer stop' command in desktop file
+  * Factorize run/stop commands generation in helpers
+  * kaboxer.sample.yaml: Update desktop file names
+  * Add aliases: start=run, ls=list
+  * Add support for command-line helpers
+  * Rework gen_desktop_files for readability
+  * gen_desktop_files: Drop unused param, reorder
+  * One last pass on gen_desktop_file to simplify it more
+  * Give some love to clean_app()
+  * Give some love to _list_{cli_helpers,desktop_files}
+  * Create helpers to avoid duplicating filename definitions
+  * Some variable renaming for consistency
+  * Drop component from helper filenames if there's only one component
+  * Create another helper to give the icon name
+  * Various fixes found by the test suite
+  * Add a brief description to filename helpers
+  * Add helpers to get ALL auto-generated files
+  * Adjust helper argument for headless mode (use start instead of run)
+  * Rename a variable for readability
+  * Make sure to install cli helpers with executable bit
+  * Add forgotten desktop file in kaboxer tests
+  * Cleanup code for install tests
+  * Add unit tests for filename helpers
+  * Add cli helpers integration tests
+  * More refactoring in install tests
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Tue, 11 May 2021 15:09:01 +0700
+
 kaboxer (0.9.0) kali-dev; urgency=medium
 
   * push_image: Use DockerBackend methods to get image names
