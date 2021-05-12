@@ -843,14 +843,14 @@ class Kaboxer:
 
     def make_run_helper(self, app_id, component, args):
         cmd = self.make_run_command(app_id, component, args)
-        return f"#!/bin/sh\nexec {cmd}"
+        return f'#!/bin/sh\nexec {cmd} "$@"'
 
     def make_start_stop_helper(self, app_id, component, args):
         run_cmd = self.make_run_command_headless(app_id, component, args)
         stop_cmd = self.make_stop_command(app_id, component)
         return f"""#!/bin/sh
 case "$1" in
-  (start) exec {run_cmd} ;;
+  (start) shift; exec {run_cmd} \"$@\" ;;
   (stop)  exec {stop_cmd} ;;
   (*)     echo >&2 "Usage: $(basename $0) start|stop"; exit 1 ;;
 esac
