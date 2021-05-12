@@ -433,6 +433,16 @@ class TestKaboxerLocally(TestKaboxerCommon):
         )
 
     def test_install(self):
+        destdir = os.path.join(self.fixdir, "target")
+        self.build_and_install(destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
+        installed_tarfile = os.path.join(instdir, self.tarfile)
+        self.assertFalse(
+            os.path.isfile(installed_tarfile),
+            "Tarfile unexpectedly installed (as %s)" % installed_tarfile,
+        )
+
+    def test_install_with_tarball(self):
         self.build_and_save()
         destdir = os.path.join(self.fixdir, "target")
         self.run_and_check_command("kaboxer install --tarball --destdir %s" % destdir)
@@ -465,17 +475,6 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertTrue(
             os.path.isfile(installed_tarfile),
             "Tarfile not installed (expecting %s)" % installed_tarfile,
-        )
-
-    def test_install_no_tarball(self):
-        self.build()
-        destdir = os.path.join(self.fixdir, "target")
-        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
-        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
-        installed_tarfile = os.path.join(instdir, self.tarfile)
-        self.assertFalse(
-            os.path.isfile(installed_tarfile),
-            "Tarfile unexpectedly installed (as %s)" % installed_tarfile,
         )
 
     def assert_generated_files(self, instdir, generated_files, manual_files, exe=False):
