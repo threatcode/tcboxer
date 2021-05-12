@@ -372,6 +372,19 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "kaboxer start %s" % self.app_name, "Hi there"
         )
 
+    def test_run_with_one_arg(self):
+        self.build()
+        self.run_command_check_stdout_matches(
+            "kaboxer start %s Bob" % self.app_name, "Hi Bob"
+        )
+
+    def test_run_with_some_args(self):
+        self.build()
+        self.run_command_check_stdout_matches(
+            "kaboxer start %s alice , 'b0b m4rl3y' and 'others!'" % self.app_name,
+            "Hi alice , b0b m4rl3y and others!",
+        )
+
     def test_run_interactive(self):
         self.build()
         self.run_command_check_stdout_matches(

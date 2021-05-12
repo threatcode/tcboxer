@@ -2,7 +2,10 @@
 
 case "$1" in
     hi)
-	echo "Hi there"
+	shift
+	[ $# -gt 0 ] \
+	    && echo "Hi $@" \
+	    || echo "Hi there"
 	;;
     sleep)
 	sleep 60
