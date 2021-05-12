@@ -1718,24 +1718,43 @@ Categories={categories}
         return self.docker_conn.networks.create(name=netname, driver="bridge")
 
     def create_xauth(self):
-        if os.getenv("DISPLAY") is None:
+        # XXX Clarify what this function does, and why it's needed. I can
+        # run firefox without creating this file, and without mounting it
+        # within the container.
+        home = os.getenv("HOME")
+        display = os.getenv("DISPLAY")
+        if display is None:
             logger.error("No DISPLAY set, are you running in a graphical session?")
             sys.exit(1)
-        self.xauth_out = os.path.join(os.getenv("HOME"), ".docker.xauth")
+
+        self.xauth_out = os.path.join(home, ".docker.xauth")
         self.xauth_in = os.path.join(self.home_in, ".docker.xauth")
-        f = subprocess.Popen(
-            ["xauth", "nlist", os.getenv("DISPLAY")], stdout=subprocess.PIPE
-        ).stdout
-        g = subprocess.Popen(
-            ["xauth", "-f", self.xauth_out, "nmerge", "-"], stdin=subprocess.PIPE
-        ).stdin
-        for line in f:
-            line = str(line, "utf-8")
+
+        # Create an empty file if needed, this is to avoid 'xauth nmerge' printing
+        # 'xauth: file [...] does not exist', harmless but also useless.
+        if not os.path.exists(self.xauth_out):
+            open(self.xauth_out, "w").close()
+
+        # The following lines seem to be adapated from:
+        # https://stackoverflow.com/a/25280523/776208
+        cmd = ["xauth", "nlist", display]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error("Failed to run xauth nlist: %s", result.stderr)
+            sys.exit(1)
+
+        lines = []
+        for line in result.stdout.splitlines():
             line.strip()
-            ll = re.sub("^[^ ]*", "ffff", line) + "\n"
-            g.write(bytes(ll, "utf-8"))
-        g.close()
-        f.close()
+            line = re.sub("^[^ ]*", "ffff", line)
+            lines += [line]
+        text = "\n".join(lines)
+
+        cmd = ["xauth", "-f", self.xauth_out, "nmerge", "-"]
+        result = subprocess.run(cmd, input=text, text=True)
+        if result.returncode != 0:
+            logger.error("Failed to run xauth nmerge: %s", result.stderr)
+            sys.exit(1)
 
 
 class KaboxerAppConfig:
