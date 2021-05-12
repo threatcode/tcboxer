@@ -1718,13 +1718,16 @@ Categories={categories}
         return self.docker_conn.networks.create(name=netname, driver="bridge")
 
     def create_xauth(self):
-        if os.getenv("DISPLAY") is None:
+        home = os.getenv("HOME")
+        display = os.getenv("DISPLAY")
+        if display is None:
             logger.error("No DISPLAY set, are you running in a graphical session?")
             sys.exit(1)
-        self.xauth_out = os.path.join(os.getenv("HOME"), ".docker.xauth")
+
+        self.xauth_out = os.path.join(home, ".docker.xauth")
         self.xauth_in = os.path.join(self.home_in, ".docker.xauth")
         f = subprocess.Popen(
-            ["xauth", "nlist", os.getenv("DISPLAY")], stdout=subprocess.PIPE
+            ["xauth", "nlist", display], stdout=subprocess.PIPE
         ).stdout
         g = subprocess.Popen(
             ["xauth", "-f", self.xauth_out, "nmerge", "-"], stdin=subprocess.PIPE
