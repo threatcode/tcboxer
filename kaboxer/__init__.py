@@ -1718,6 +1718,9 @@ Categories={categories}
         return self.docker_conn.networks.create(name=netname, driver="bridge")
 
     def create_xauth(self):
+        # XXX Clarify what this function does, and why it's needed. I can
+        # run firefox without creating this file, and without mounting it
+        # within the container.
         home = os.getenv("HOME")
         display = os.getenv("DISPLAY")
         if display is None:
