@@ -582,6 +582,20 @@ class TestKaboxerLocally(TestKaboxerCommon):
         # Run cli helpers
         cmd = os.path.join(bindir, "%s-default-kbx" % self.app_name)
         self.run_command_check_stdout_matches(cmd, "Hi there")
+        self.run_command_check_stdout_matches(cmd + " Carol", "Hi Carol")
+        self.run_command_check_stdout_matches(cmd + " foo bar??", "Hi foo bar??")
+        cmd = os.path.join(bindir, "%s-daemon-kbx" % self.app_name)
+        self.run_and_check_command_fails(cmd)
+        self.run_and_check_command(cmd + " start")
+        self.assertTrue(
+            self.is_container_running(),
+            "Docker container is not running after kaboxer run --detach",
+        )
+        self.run_and_check_command(cmd + " stop")
+        self.assertFalse(
+            self.is_container_running(),
+            "Docker container is still running after kaboxer stop",
+        )
 
     def test_generated_cli_helper_single(self):
         # Remove components (assume components is at the end of the file)
