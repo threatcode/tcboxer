@@ -123,7 +123,7 @@ class Kaboxer:
             help="wait user confirmation before exit",
         )
         parser_run.add_argument("--version", help="version to run")
-        parser_run.add_argument("executable", nargs="*")
+        parser_run.add_argument("arguments", nargs="*")
         parser_run.set_defaults(func=self.cmd_run)
 
         parser_stop = subparsers.add_parser(
@@ -456,15 +456,14 @@ class Kaboxer:
             xsock = "/tmp/.X11-unix"
             opts["mounts"].append(docker.types.Mount(xsock, xsock, type="bind"))
 
-        executable = self.args.executable
-        if not len(executable) and "executable" in self.component_config:
-            executable = self.component_config["executable"]
-        if not isinstance(executable, list):
-            executable = shlex.split(executable)
-        try:
+        executable = shlex.split(self.component_config["executable"])
+        if "extra_opts" in self.component_config:
             executable.extend(shlex.split(self.component_config["extra_opts"]))
-        except KeyError:
-            pass
+
+        arguments = self.args.arguments
+        if arguments:
+            executable.extend(arguments)
+
         try:
             opts["entrypoint"] = ""
         except KeyError:

@@ -952,7 +952,7 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         self.run_command_check_stdout_matches("kaboxer run kbx-demo", "Hello World 1.0")
         self.run_command_check_stdout_matches("kaboxer run kbx-demo", "Hello World 1.0")
         self.run_command_check_stdout_matches(
-            "kaboxer run kbx-demo /run.sh history | wc -l", "2"
+            "kaboxer run --component history kbx-demo | wc -l", "2"
         )
 
     def test_upgrade_script(self):
@@ -970,7 +970,7 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
         )
         self.run_command_check_stdout_matches("kaboxer run kbx-demo", "Hello World 1.1")
         self.run_command_check_stdout_matches(
-            "kaboxer run kbx-demo /run.sh history", "3 1.0"
+            "kaboxer run --component history kbx-demo", "3 1.0"
         )
 
     def test_upgrade_no_scripts(self):

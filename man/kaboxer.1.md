@@ -8,7 +8,7 @@
 
 # SYNOPSIS
 
-**kaboxer** run|start [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run|start [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*ARGUMENTS*]...
 
 **kaboxer** stop [**--component** *COMPONENT*] [**--prompt-before-exit**] *APP*
 
@@ -54,7 +54,7 @@ their own arguments and options.
 
 # KABOXER RUN
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*EXECUTABLE*]...
+**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*ARGUMENTS*]...
 
 The run mode is how you actually run a kaboxed application *APP*. In
 case several components exist for this app, use
@@ -67,7 +67,7 @@ the component is meant to run in the background as a daemon, use
 time to read any message displayed or so that applications started in the
 after\_run hook are not immediately closed). In case several versions of
 the app are installed, the **--version** *VERSION* option can be used to
-select which one to actually run. The *EXECUTABLE* parameter can be used
+select which one to actually run. The *ARGUMENTS* parameter can be used
 to pass extra arguments to the application.
 
 **kaboxer start** is an alias for **kaboxer run**.

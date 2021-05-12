@@ -21,3 +21,9 @@ components:
     mounts:
       - source: FIXDIR/persist
         target: /persist
+  history:
+    run_mode: cli
+    executable: /run.sh history
+    mounts:
+      - source: FIXDIR/persist
+        target: /persist

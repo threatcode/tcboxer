@@ -13,11 +13,11 @@ The kaboxer tool has several modes of operation, each with its own subcommand.
 	$ kaboxer run --help
 	usage: kaboxer run [-h] [--component COMPONENT] [--reuse-container] [--detach]
 	                   [--prompt-before-exit] [--version VERSION]
-	                   app [executable ...]
+	                   app [arguments ...]
 	
 	positional arguments:
 	  app
-	  executable
+	  arguments
 	
 	optional arguments:
 	  -h, --help            show this help message and exit
