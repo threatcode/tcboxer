@@ -1726,6 +1726,13 @@ Categories={categories}
 
         self.xauth_out = os.path.join(home, ".docker.xauth")
         self.xauth_in = os.path.join(self.home_in, ".docker.xauth")
+
+        # Create an empty file if needed, this is to avoid xauth printing out
+        # 'xauth: file [...] does not exist', harmless but also useless.
+        if not os.path.exists(self.xauth_out):
+            open(self.xauth_out, 'w').close()
+
+        # Apparently taken from https://stackoverflow.com/a/25280523/776208
         f = subprocess.Popen(
             ["xauth", "nlist", display], stdout=subprocess.PIPE
         ).stdout
