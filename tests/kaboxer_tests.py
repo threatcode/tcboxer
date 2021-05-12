@@ -549,24 +549,28 @@ class TestKaboxerLocally(TestKaboxerCommon):
                     "Manual file '%s' executable in install dir" % f,
                 )
 
-    def test_auto_cli_helpers(self):
+    def build_install_assert_cli_helpers(self, generated=False):
+        destdir = os.path.join(self.fixdir, "target")
+        self.build_and_install(destdir)
+
+        instdir = os.path.join(destdir, "usr", "local", "bin")
         generated_files = self.clihelpers
         manual_files = ["helper-kbx"]
-        destdir = os.path.join(self.fixdir, "target")
-        instdir = os.path.join(destdir, "usr", "local", "bin")
-
-        self.test_build_and_save()
-        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
-        self.assert_generated_files(instdir, generated_files, manual_files, exe=True)
-
-        if len(generated_files) == 1:
-            cmd = os.path.join(instdir, "%s-kbx" % self.app_name)
-            self.run_command_check_stdout_matches(cmd, "Hi there")
+        if generated:
+            self.assert_generated_files(
+                instdir, generated_files, manual_files, exe=True
+            )
         else:
-            cmd = os.path.join(instdir, "%s-default-kbx" % self.app_name)
-            self.run_command_check_stdout_matches(cmd, "Hi there")
+            self.assert_manual_files(instdir, generated_files, manual_files, exe=True)
+        return instdir
 
-    def test_auto_cli_helper_single(self):
+    def test_generated_cli_helpers(self):
+        bindir = self.build_install_assert_cli_helpers(generated=True)
+        # Run cli helpers
+        cmd = os.path.join(bindir, "%s-default-kbx" % self.app_name)
+        self.run_command_check_stdout_matches(cmd, "Hi there")
+
+    def test_generated_cli_helper_single(self):
         # Remove components (assume components is at the end of the file)
         self.run_command("sed -i '/components:/Q' %s" % "kaboxer.yaml")
         # Add one and only one component
@@ -580,8 +584,10 @@ class TestKaboxerLocally(TestKaboxerCommon):
             )
         # In this case, cli helper shouldn't have 'component' in their name
         self.clihelpers = ["%s-kbx" % self.app_name]
-        # Run the test
-        self.test_auto_cli_helpers()
+        # Run the tests
+        bindir = self.build_install_assert_cli_helpers(generated=True)
+        cmd = os.path.join(bindir, self.clihelpers[0])
+        self.run_command_check_stdout_matches(cmd, "Hi there")
 
     def test_manual_cli_helpers(self):
         # we want to test that kaboxer sets the executable bit when installing helpers
@@ -597,25 +603,23 @@ class TestKaboxerLocally(TestKaboxerCommon):
     - helper-kbx
 """
             )
+        # Run the test
+        self.build_install_assert_cli_helpers(generated=False)
 
-        generated_files = self.clihelpers
-        manual_files = ["helper-kbx"]
+    def build_install_assert_desktop_files(self, generated=False):
         destdir = os.path.join(self.fixdir, "target")
-        instdir = os.path.join(destdir, "usr", "local", "bin")
+        self.build_and_install(destdir)
 
-        self.test_build_and_save()
-        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
-        self.assert_manual_files(instdir, generated_files, manual_files, exe=True)
-
-    def test_auto_desktop_files(self):
+        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
         generated_files = self.desktopfiles
         manual_files = ["sleeper.desktop"]
-        destdir = os.path.join(self.fixdir, "target")
-        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
+        if generated:
+            self.assert_generated_files(instdir, generated_files, manual_files)
+        else:
+            self.assert_manual_files(instdir, generated_files, manual_files)
 
-        self.test_build_and_save()
-        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
-        self.assert_generated_files(instdir, generated_files, manual_files)
+    def test_generated_desktop_files(self):
+        self.build_install_assert_desktop_files(generated=True)
 
     def test_manual_desktop_files(self):
         # Add desktop-files to the install section
@@ -626,20 +630,13 @@ class TestKaboxerLocally(TestKaboxerCommon):
     - sleeper.desktop
 """
             )
-
-        generated_files = self.desktopfiles
-        manual_files = ["sleeper.desktop"]
-        destdir = os.path.join(self.fixdir, "target")
-        instdir = os.path.join(destdir, "usr", "local", "share", "applications")
-
-        self.test_build_and_save()
-        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
-        self.assert_manual_files(instdir, generated_files, manual_files)
+        # Run tests
+        self.build_install_assert_desktop_files(generated=False)
 
     def test_install_icons(self):
-        self.test_build_and_save()
         destdir = os.path.join(self.fixdir, "target")
-        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        self.build_and_install(destdir)
+
         instdir = os.path.join(destdir, "usr", "local", "share", "icons")
         shipped_icon = os.path.join(instdir, "kaboxer-%s.svg" % self.app_name)
         self.assertTrue(
