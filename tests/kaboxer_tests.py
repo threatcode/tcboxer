@@ -211,11 +211,19 @@ class TestKaboxerCommon(unittest.TestCase):
         self.run_and_check_command("kaboxer build")
         self.assertTrue(self.is_image_present(), "No Docker image present after build")
 
+    def build_and_install(self, destdir):
+        self.build()
+        self.run_and_check_command("kaboxer install --destdir %s" % destdir)
+        instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
+        configfile = "%s.kaboxer.yaml" % self.app_name
+        configpath = os.path.join(instdir, configfile)
+        self.assertTrue(
+            os.path.isfile(configpath),
+            "Kaboxer config file not installed (expecting %s)" % configpath,
+        )
+
 
 class TestKaboxerLocally(TestKaboxerCommon):
-    def test_build_only(self):
-        self.build()
-
     def test_log_levels(self):
         self.run_command_check_stderr_matches(
             "kaboxer -v build", "Building container image for %s" % (self.app_name,)
@@ -223,6 +231,13 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_command_check_stderr_doesnt_match(
             "kaboxer build", "Building container image for %s" % (self.app_name,)
         )
+
+    def test_build_only(self):
+        self.build()
+
+    def test_build_and_install(self):
+        destdir = os.path.join(self.fixdir, "target")
+        self.build_and_install(destdir)
 
     def test_build_and_save(self):
         self.run_and_check_command("kaboxer build --save")
