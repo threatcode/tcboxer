@@ -211,6 +211,14 @@ class TestKaboxerCommon(unittest.TestCase):
         self.run_and_check_command("kaboxer build")
         self.assertTrue(self.is_image_present(), "No Docker image present after build")
 
+    def build_and_save(self):
+        self.run_and_check_command("kaboxer build --save")
+        self.assertTrue(self.is_image_present(), "No Docker image present after build")
+        self.assertTrue(
+            os.path.isfile(self.tarpath),
+            "Image not saved (expecting %s)" % (self.tarpath,),
+        )
+
     def build_and_install(self, destdir):
         self.build()
         self.run_and_check_command("kaboxer install --destdir %s" % destdir)
@@ -235,17 +243,12 @@ class TestKaboxerLocally(TestKaboxerCommon):
     def test_build_only(self):
         self.build()
 
+    def test_build_and_save(self):
+        self.build_and_save()
+
     def test_build_and_install(self):
         destdir = os.path.join(self.fixdir, "target")
         self.build_and_install(destdir)
-
-    def test_build_and_save(self):
-        self.run_and_check_command("kaboxer build --save")
-        self.assertTrue(self.is_image_present(), "No Docker image present after build")
-        self.assertTrue(
-            os.path.isfile(self.tarpath),
-            "Image not saved (expecting %s)" % (self.tarpath,),
-        )
 
     def test_build_two_apps(self):
         self.nonce2 = "".join(
@@ -324,7 +327,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         )
 
     def test_build_clean(self):
-        self.test_build_and_save()
+        self.build_and_save()
         self.run_and_check_command("kaboxer clean")
         self.assertFalse(
             os.path.isfile(self.tarpath),
@@ -347,7 +350,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_and_check_command("kaboxer purge --prune non-existing-app")
 
     def test_run(self):
-        self.test_build_and_save()
+        self.build_and_save()
         self.run_command_check_stdout_matches(
             "kaboxer run %s" % self.app_name, "Hi there"
         )
@@ -378,7 +381,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         )
 
     def test_run_after_purge(self):
-        self.test_build_and_save()
+        self.build_and_save()
         self.run_and_check_command("kaboxer purge --prune %s" % self.app_name)
         self.assertFalse(
             self.is_image_present(), "Docker image still present after kaboxer purge"
@@ -414,7 +417,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         )
 
     def test_load_purge(self):
-        self.test_build_and_save()
+        self.build_and_save()
         self.run_and_check_command("kaboxer purge --prune %s" % (self.app_name,))
         self.assertFalse(
             self.is_image_present(), "Docker image still present after kaboxer purge"
@@ -430,7 +433,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         )
 
     def test_install(self):
-        self.test_build_and_save()
+        self.build_and_save()
         destdir = os.path.join(self.fixdir, "target")
         self.run_and_check_command("kaboxer install --tarball --destdir %s" % destdir)
         instdir = os.path.join(destdir, "usr", "local", "share", "kaboxer")
