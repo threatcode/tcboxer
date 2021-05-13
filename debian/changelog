@@ -1,3 +1,25 @@
+kaboxer (1.0.1) kali-dev; urgency=medium
+
+  * create_xauth(): Cosmetics
+  * create_xauth(): Create empty .docker.xauth file if missing
+  * create_xauth(): Rewrite without pipes
+  * create_xauth(): Add a comment
+  * kaboxer tests: Add build_and_install()
+  * kaboxer tests: Add build_and_save()
+  * kaboxer tests: Nitpick, rename two tests
+  * Refactor kaboxer tests for cli_helpers and desktop_files
+  * kaboxer run: Takes arguments rather than executable+arguments
+  * Add test for kaboxer run with arguments
+  * Make helper scripts forward args to kaboxer run
+  * Increase test coverage for cli helpers
+  * Allow prompt-before-exit to fail
+  * Completely get rid of prompt_toolkit
+  * Add my name here and there, plus Raphaël name as well
+  * Bump copyright years
+  * Sync kaboxer.sample.yaml and man/kaboxer.yaml.5.md
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Thu, 13 May 2021 18:04:26 +0700
+
 kaboxer (1.0.0) kali-dev; urgency=medium
 
   * Bump upstream version (better late than never)
