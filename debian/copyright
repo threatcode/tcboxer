@@ -3,7 +3,7 @@ Upstream-Name: kaboxer
 Source: https://gitlab.com/kalilinux/tools/kaboxer
 
 Files: *
-Copyright: 2019-2020 Offensive Security
+Copyright: 2019-2021 Offensive Security
            2019-2020 Roland Mas <lolando@debian.org>
 License: GPL-3+
  This package is free software; you can redistribute it and/or modify

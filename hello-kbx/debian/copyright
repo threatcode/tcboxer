@@ -3,8 +3,8 @@ Upstream-Name: hello-kbx
 Source: https://gitlab.com/kalilinux/tools/kaboxer
 
 Files: *
-Copyright: 2019 Roland Mas <lolando@debian.org>
-           2019-2020 Offensive Security
+Copyright: 2019-2021 Offensive Security
+           2019 Roland Mas <lolando@debian.org>
 License: GPL-2+
  This package is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

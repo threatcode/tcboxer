@@ -1,6 +1,6 @@
 % KABOXER(1)
 % Roland Mas, Raphaël Hertzog, Arnaud Rebillout
-% 2019-2020
+% 2019-2021
 
 # NAME
 
