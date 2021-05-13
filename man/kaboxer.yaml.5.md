@@ -44,16 +44,16 @@ itself:
 
 # CONTAINER SECTION
 
+* *type* (string): the isolation technology used for the app. Only
+  "docker" supported for now.
+
+* *origin*: subsection describing where to find the image.
+
 * *default_component* (string): the component to run unless
   specified. Must be listed in the *components* section. If not
   specified in the config file, **kaboxer** looks for a component
   named *default*; if none is found, it falls back to the first listed
   component.
-
-* *type* (string): the isolation technology used for the app. Only
-  "docker" supported for now.
-
-* *origin*: subsection describing where to find the image.
 
 # CONTAINER/ORIGIN SECTION
 
@@ -72,7 +72,8 @@ Since only Docker is supported, the only relevant subsection is
 
 # BUILD/DOCKER SUBSECTION
 
-* *file*: the name of the Dockerfile to use
+* *file*: the name of the Dockerfile to use. If not specified, it
+  defaults to *Dockerfile*.
 
 * *parameters*: extra parameters passed to the Docker build
 
@@ -113,15 +114,14 @@ Each component has its own subsection identified by a component name.
 
 # COMPONENTS/* SUBSECTIONS
 
+* *name* (string): a user-friendly name for the component.
+
 * *run_mode* (string): describes how the application is to be
   run. Can be *headless* for daemon-like services, *cli* for text-mode
   applications, or *gui* for graphical applications.
 
-* *allow_x11* (boolean): describes whether the component is liable
-  to run graphical applications that should be displayed outside the
-  container. Note: if the application has several components that can
-  run in the same container, this option needs to be present in the
-  first component that will be started.
+* *executable* (string): the command line to run within the
+  container to start the component.
 
 * *run_as_root* (boolean): whether the executable is run as root in
   the container or as a non-privileged user.
@@ -129,7 +129,11 @@ Each component has its own subsection identified by a component name.
 * *reuse container* (boolean): whether the component is run in its
   own container or shares an already active container.
 
-* *name* (string): a user-friendly name for the component.
+* *allow_x11* (boolean): describes whether the component is liable
+  to run graphical applications that should be displayed outside the
+  container. Note: if the application has several components that can
+  run in the same container, this option needs to be present in the
+  first component that will be started.
 
 * *start_message* (string): a message to be displayed before
   detaching, if relevant.
@@ -137,16 +141,13 @@ Each component has its own subsection identified by a component name.
 * *stop_message* (string): a message to be displayed after the service
   has stopped.
 
-* *executable* (string): the command line to run within the
-  container to start the component.
-
-* *networks* (list): a list of network names that the container should
-  be plugged into.
-
 * *mounts* (list): a list of mounts. Each item in this list describes
   a mount, and is represented by a hash with keys *source* and
   *target*, where *source* is a path on the host side and *target* is
   a path on the container side.
+
+* *networks* (list): a list of network names that the container should
+  be plugged into.
 
 * *publish_ports* (list): a list of ports that are published, so that
   an application that listens to TCP connections can be accessed from

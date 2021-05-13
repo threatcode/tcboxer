@@ -27,17 +27,8 @@ container:
             image: kaboxer/hello-world
         # Or this if we provide a pre-built tarball
         tarball: /usr/share/kaboxer/foo.tar.xz
-    # Whether the container can display windows on the desktop
-    allow_x11: false
     # Default component to execute
     default_component: default
-    # Define the network configuration
-    networks:
-        - hello-kbx
-    # Shared mounts
-    mounts:
-        - source: /var/lib/hello-kbx
-          target: /data
 # Components define what we can "execute" within the container
 # Simple applications will only have one. When you have multiple
 # components, you must define whether the components will be run
@@ -45,12 +36,18 @@ container:
 # containers.
 components:
     default:
+        # User-friendly name for this component
+        name: hello-world in a terminal
         # headless / cli / gui
         run_mode: cli
-        # the command to execute
+        # The command to execute
         executable: /hello-world
-        # whether the command must be run as root
+        # Whether the command must be run as root
         run_as_root: false
+        # Whether the command should run in an already active container
+        reuse_container: false
+        # Whether the container can display windows on the desktop
+        allow_x11: false
     goodbye:
         run_mode: cli
         executable: /hello-world "Good bye"
@@ -75,9 +72,23 @@ components:
         after_stop_script: |
           #!/bin/sh
           echo "Executed after headless application is stopped"
+        # Shared mounts
+        mounts:
+            - source: /var/lib/hello-kbx
+              target: /data
+        # Network configuration
+        networks:
+            - hello-kbx
+        # List of ports published
+        publish_ports:
+            - 8080
+        # Extra options to be passed as command-line arguments
+        extra_opts: --debug
 # Configuration tweaking the behaviour of "kaboxer build"
 build:
     docker:
+        # The name of the docker file, defaults to Dockerfile
+        file: Dockerfile 
         # Those parameters are passed downwards to the Dockerfile
         # via docker build --build-arg=arg=value
         parameters:
