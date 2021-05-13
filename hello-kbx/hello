@@ -91,11 +91,10 @@ def gui(args):
     response = h.run()
 
 def cli(args):
-    from prompt_toolkit import prompt
     c = ""
     while c != "exit":
         try:
-            c = prompt("fetch | save <value> | delete ? ")
+            c = input("fetch | save <value> | delete ? ")
             if c == "exit":
                 sys.exit()
         except EOFError:

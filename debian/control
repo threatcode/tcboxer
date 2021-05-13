@@ -15,7 +15,6 @@ Build-Depends:
  python3-git,
  python3-jinja2,
  python3-packaging,
- python3-prompt-toolkit,
  python3-requests,
  python3-responses <!nocheck>,
  python3-tabulate,
