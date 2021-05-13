@@ -25,8 +25,6 @@ import dockerpty
 
 from packaging.version import parse as parse_version
 
-import prompt_toolkit
-
 import requests
 
 import tabulate
@@ -123,7 +121,7 @@ class Kaboxer:
             help="wait user confirmation before exit",
         )
         parser_run.add_argument("--version", help="version to run")
-        parser_run.add_argument("executable", nargs="*")
+        parser_run.add_argument("arguments", nargs="*")
         parser_run.set_defaults(func=self.cmd_run)
 
         parser_stop = subparsers.add_parser(
@@ -456,15 +454,14 @@ class Kaboxer:
             xsock = "/tmp/.X11-unix"
             opts["mounts"].append(docker.types.Mount(xsock, xsock, type="bind"))
 
-        executable = self.args.executable
-        if not len(executable) and "executable" in self.component_config:
-            executable = self.component_config["executable"]
-        if not isinstance(executable, list):
-            executable = shlex.split(executable)
-        try:
+        executable = shlex.split(self.component_config["executable"])
+        if "extra_opts" in self.component_config:
             executable.extend(shlex.split(self.component_config["extra_opts"]))
-        except KeyError:
-            pass
+
+        arguments = self.args.arguments
+        if arguments:
+            executable.extend(arguments)
+
         try:
             opts["entrypoint"] = ""
         except KeyError:
@@ -519,7 +516,14 @@ class Kaboxer:
             )
             print(start_message)
         if self.args.prompt_before_exit:
-            prompt_toolkit.prompt("Press ENTER to exit")
+            try:
+                input("Press ENTER to exit ")
+            except (EOFError, ValueError):
+                # EOFError: called from subprocess.run([...], stdin=None)
+                # ValueError: stdin/stdout are closed
+                pass
+            except Exception:
+                logger.warning("Unexpected exception during input()", exc_info=1)
 
     def cmd_stop(self):
         app = self.args.app
@@ -540,7 +544,14 @@ class Kaboxer:
             )
             print(stop_message)
             if self.args.prompt_before_exit:
-                prompt_toolkit.prompt("Press ENTER to exit")
+                try:
+                    input("Press ENTER to exit ")
+                except (EOFError, ValueError):
+                    # EOFError: called from subprocess.run([...], stdin=None)
+                    # ValueError: stdin/stdout are closed
+                    pass
+                except Exception:
+                    logger.warning("Unexpected exception during input()", exc_info=1)
         else:
             logger.error("Can't stop a non-headless component")
             sys.exit(1)
@@ -844,14 +855,14 @@ class Kaboxer:
 
     def make_run_helper(self, app_id, component, args):
         cmd = self.make_run_command(app_id, component, args)
-        return f"#!/bin/sh\nexec {cmd}"
+        return f'#!/bin/sh\nexec {cmd} "$@"'
 
     def make_start_stop_helper(self, app_id, component, args):
         run_cmd = self.make_run_command_headless(app_id, component, args)
         stop_cmd = self.make_stop_command(app_id, component)
         return f"""#!/bin/sh
 case "$1" in
-  (start) exec {run_cmd} ;;
+  (start) shift; exec {run_cmd} \"$@\" ;;
   (stop)  exec {stop_cmd} ;;
   (*)     echo >&2 "Usage: $(basename $0) start|stop"; exit 1 ;;
 esac
