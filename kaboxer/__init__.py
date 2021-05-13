@@ -25,8 +25,6 @@ import dockerpty
 
 from packaging.version import parse as parse_version
 
-import prompt_toolkit
-
 import requests
 
 import tabulate
@@ -518,7 +516,14 @@ class Kaboxer:
             )
             print(start_message)
         if self.args.prompt_before_exit:
-            prompt_toolkit.prompt("Press ENTER to exit")
+            try:
+                input("Press ENTER to exit ")
+            except (EOFError, ValueError):
+                # EOFError: called from subprocess.run([...], stdin=None)
+                # ValueError: stdin/stdout are closed
+                pass
+            except Exception:
+                logger.warning("Unexpected exception during input()", exc_info=1)
 
     def cmd_stop(self):
         app = self.args.app
@@ -539,7 +544,14 @@ class Kaboxer:
             )
             print(stop_message)
             if self.args.prompt_before_exit:
-                prompt_toolkit.prompt("Press ENTER to exit")
+                try:
+                    input("Press ENTER to exit ")
+                except (EOFError, ValueError):
+                    # EOFError: called from subprocess.run([...], stdin=None)
+                    # ValueError: stdin/stdout are closed
+                    pass
+                except Exception:
+                    logger.warning("Unexpected exception during input()", exc_info=1)
         else:
             logger.error("Can't stop a non-headless component")
             sys.exit(1)
