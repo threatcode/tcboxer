@@ -4,7 +4,8 @@ Priority: optional
 Maintainer: Kali Developers <devel@kali.org>
 Uploaders:
  Roland Mas <lolando@debian.org>,
- Raphaël Hertzog <raphael@offensive-security.com>
+ Raphaël Hertzog <raphael@offensive-security.com>,
+ Arnaud Rebillout <arnaudr@kali.org>,
 Build-Depends:
  debhelper-compat (= 13),
  dh-python,

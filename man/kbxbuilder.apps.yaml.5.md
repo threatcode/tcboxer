@@ -1,5 +1,5 @@
 % KBXBUILDER.APPS.YAML(5)
-% Roland Mas
+% Roland Mas, Raphaël Hertzog, Arnaud Rebillout
 % 2019-2020
 
 # NAME

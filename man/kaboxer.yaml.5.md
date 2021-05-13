@@ -1,5 +1,5 @@
 % KABOXER.YAML(5)
-% Roland Mas, Raphael Hertzog
+% Roland Mas, Raphaël Hertzog, Arnaud Rebillout
 % 2019-2020
 
 # NAME
