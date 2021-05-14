@@ -13,7 +13,7 @@ packaging:
   revision: 1
 install:
   desktop-files:
-    - hello-cli.desktop
+    - kaboxer-hello-cli.desktop
 components:
   default:
     run_mode: cli
