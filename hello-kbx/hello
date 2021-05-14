@@ -109,7 +109,7 @@ def cli(args):
     c = ""
     while c != "exit":
         try:
-            c = input("fetch | save <value> | delete ? ")
+            c = input("fetch | save <value> | delete | exit ? ")
             if c == "exit":
                 sys.exit()
         except EOFError:
