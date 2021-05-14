@@ -11,6 +11,9 @@ import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 
+VERSION = "0.7"
+
+
 def mkdir_p(path):
     try:
         os.makedirs(path)
@@ -19,6 +22,11 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+def version(args):
+    print(VERSION)
+    sys.exit()
 
 
 def server(args):
@@ -157,6 +165,8 @@ parser_gui.set_defaults(func=gui)
 parser_cli = subparsers.add_parser("cli", help="CLI client")
 parser_cli.add_argument("--host", help="server hostname", default="localhost")
 parser_cli.set_defaults(func=cli)
+parser_version = subparsers.add_parser("version", help="print version")
+parser_version.set_defaults(func=version)
 
 args = parser.parse_args()
 # print(args)
