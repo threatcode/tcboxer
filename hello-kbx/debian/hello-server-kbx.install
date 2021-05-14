@@ -1,2 +1,2 @@
-debian/tmp/usr/share/kaboxer/hello-server* /usr/share/kaboxer/
-debian/tmp/usr/share/applications/kaboxer-hello-server* /usr/share/applications/
+usr/share/kaboxer/hello-server*
+usr/share/applications/kaboxer-hello-server*

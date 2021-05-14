@@ -1,2 +1,2 @@
-debian/tmp/usr/share/kaboxer/hello-cli* /usr/share/kaboxer/
-debian/tmp/usr/share/applications/hello-cli* /usr/share/applications/
+usr/share/kaboxer/hello-cli*
+usr/share/applications/kaboxer-hello-cli*
