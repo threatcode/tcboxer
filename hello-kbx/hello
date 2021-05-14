@@ -11,7 +11,7 @@ import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 
-VERSION = "0.7"
+VERSION = "0.8"
 
 
 def mkdir_p(path):
