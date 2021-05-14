@@ -106,10 +106,12 @@ def gui(args):
 
 
 def cli(args):
+    from prompt_toolkit import prompt
+
     c = ""
     while c != "exit":
         try:
-            c = input("fetch | save <value> | delete | exit ? ")
+            c = prompt("fetch | save <value> | delete | exit ? ")
             if c == "exit":
                 sys.exit()
         except EOFError:
