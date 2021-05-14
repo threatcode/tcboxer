@@ -7,10 +7,9 @@ application:
     description: >
         hello-kbx is the hello-world application demonstrator for Kaboxer
     # Categories for desktop files
-    categories: Development
+    categories: Utilities;Development
 container:
   default_component: server
-  shared: true
   type: docker
 build:
   docker:
