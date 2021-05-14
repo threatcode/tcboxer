@@ -39,17 +39,22 @@ def server(args):
     def handle_request():
         l = ""
         try:
-            with open(os.path.join(args.path, "status")) as f:
+            fn = os.path.join(args.path, "status")
+            with open(fn) as f:
                 d = f.read().strip()
         except:
-            d = "Error reading file"
+            d = "Error reading file, try to run 'save' first"
         return d
 
     app.run(host="0.0.0.0", port=args.port)
 
 
 def fetch_data(args):
-    req = urllib.request.urlopen("http://" + str(args.host) + ":" + str(args.port))
+    url = "http://" + str(args.host) + ":" + str(args.port)
+    try:
+        req = urllib.request.urlopen(url)
+    except urllib.error.URLError:
+        return None
     data = req.read().decode("utf-8")
     return data
 
@@ -84,9 +89,13 @@ def gui(args):
             self.refresh_data()
 
         def refresh_data(self, _=""):
-            d = fetch_data(args)
-            self.label.set_text("Server returned: " + fetch_data(args))
-            self.entry.set_text(d)
+            data = fetch_data(args)
+            if data:
+                self.label.set_text("Server returned: " + data)
+                self.entry.set_text(data)
+            else:
+                self.label.set_text("Failed to fetch data, is the server up?")
+                self.entry.set_text("")
 
         def save_data(self, _=""):
             contents = self.entry.get_text()
@@ -117,26 +126,33 @@ def cli(args):
         except EOFError:
             sys.exit()
         if c == "fetch":
-            print("Server returned: " + fetch_data(args))
+            data = fetch_data(args)
+            if data:
+                print("Server returned: " + data)
+            else:
+                print("Failed to fetch data, is the server up?")
         elif c == "delete":
             try:
-                os.unlink(os.path.join(args.path, "status"))
-                print("File deleted")
+                fn = os.path.join(args.path, "status")
+                os.unlink(fn)
+                print("File deleted at", fn)
             except:
                 print("Error deleting file")
         elif re.match("save ", c):
             contents = c[5:]
             try:
                 mkdir_p(args.path)
-                with open(os.path.join(args.path, "status"), "w") as f:
+                fn = os.path.join(args.path, "status")
+                with open(fn, "w") as f:
                     f.write(contents + "\n")
-                print("File saved")
+                print("File saved at", fn)
             except:
                 print("Error saving file")
         else:
             print("What?")
 
 
+# Looks like dead code?
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global args
