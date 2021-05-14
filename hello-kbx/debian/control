@@ -2,7 +2,7 @@ Source: hello-kbx
 Section: devel
 Priority: optional
 Maintainer: Roland Mas <lolando@debian.org>
-Build-Depends: debhelper-compat (= 13), kaboxer (>= 0.3)
+Build-Depends: debhelper-compat (= 13), kaboxer (>= 1.0)
 Standards-Version: 3.9.8
 
 Package: hello-server-kbx
