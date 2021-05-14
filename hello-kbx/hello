@@ -3,12 +3,13 @@
 
 import argparse
 import datetime
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import urllib.request
-import sys
-import re
-import os
 import errno
+import os
+import re
+import sys
+import urllib.request
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 
 def mkdir_p(path):
     try:
@@ -28,67 +29,73 @@ def server(args):
 
     @app.route("/")
     def handle_request():
-        l = ''
+        l = ""
         try:
-            with open(os.path.join(args.path,'status')) as f:
+            with open(os.path.join(args.path, "status")) as f:
                 d = f.read().strip()
         except:
             d = "Error reading file"
         return d
 
-    app.run(host='0.0.0.0', port=args.port)
+    app.run(host="0.0.0.0", port=args.port)
+
 
 def fetch_data(args):
-    req = urllib.request.urlopen('http://'+str(args.host)+':'+str(args.port))
-    data = req.read().decode('utf-8')
+    req = urllib.request.urlopen("http://" + str(args.host) + ":" + str(args.port))
+    data = req.read().decode("utf-8")
     return data
+
 
 def gui(args):
     import gi
-    gi.require_version('Gtk', '3.0')
+
+    gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk, GObject, GLib
 
     class Hello(Gtk.Dialog):
         def __init__(self):
-            Gtk.Dialog.__init__(self, 'Hello', None, 0, (Gtk.STOCK_OK, Gtk.ResponseType.OK))
+            Gtk.Dialog.__init__(
+                self, "Hello", None, 0, (Gtk.STOCK_OK, Gtk.ResponseType.OK)
+            )
 
             self.set_default_response(Gtk.ResponseType.OK)
             self.set_size_request(700, 200)
             vbox = self.get_content_area()
             self.label = Gtk.Label()
             vbox.pack_start(self.label, True, True, 0)
-            self.but = Gtk.Button(label='Refresh')
+            self.but = Gtk.Button(label="Refresh")
             vbox.pack_start(self.but, True, True, 0)
             hbox = Gtk.Box(spacing=6)
             vbox.pack_start(hbox, True, True, 0)
             self.entry = Gtk.Entry()
             hbox.pack_start(self.entry, True, True, 0)
-            self.savebut = Gtk.Button(label='Save')
+            self.savebut = Gtk.Button(label="Save")
             hbox.pack_start(self.savebut, True, True, 0)
-            self.but.connect('clicked',self.refresh_data)
-            self.savebut.connect('clicked',self.save_data)
+            self.but.connect("clicked", self.refresh_data)
+            self.savebut.connect("clicked", self.save_data)
             self.refresh_data()
 
-        def refresh_data(self, _=''):
+        def refresh_data(self, _=""):
             d = fetch_data(args)
-            self.label.set_text("Server returned: "+fetch_data(args))
+            self.label.set_text("Server returned: " + fetch_data(args))
             self.entry.set_text(d)
 
-        def save_data(self, _=''):
+        def save_data(self, _=""):
             contents = self.entry.get_text()
             try:
                 mkdir_p(args.path)
-                with open(os.path.join(args.path,'status'),'w') as f:
-                    f.write(contents+'\n')
-                print ("File saved")
+                with open(os.path.join(args.path, "status"), "w") as f:
+                    f.write(contents + "\n")
+                print("File saved")
             except:
-                print ("Error saving file")
+                print("Error saving file")
                 raise
 
     h = Hello()
     h.show_all()
     h.present()
     response = h.run()
+
 
 def cli(args):
     c = ""
@@ -100,53 +107,55 @@ def cli(args):
         except EOFError:
             sys.exit()
         if c == "fetch":
-            print ("Server returned: "+fetch_data(args))
+            print("Server returned: " + fetch_data(args))
         elif c == "delete":
             try:
-                os.unlink(os.path.join(args.path,'status'))
-                print ("File deleted")
+                os.unlink(os.path.join(args.path, "status"))
+                print("File deleted")
             except:
-                print ("Error deleting file")
-        elif re.match('save ',c):
+                print("Error deleting file")
+        elif re.match("save ", c):
             contents = c[5:]
             try:
                 mkdir_p(args.path)
-                with open(os.path.join(args.path,'status'),'w') as f:
-                    f.write(contents+'\n')
-                print ("File saved")
+                with open(os.path.join(args.path, "status"), "w") as f:
+                    f.write(contents + "\n")
+                print("File saved")
             except:
-                print ("Error saving file")
+                print("Error saving file")
         else:
-            print ("What?")
+            print("What?")
+
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global args
-        print ("Received request")
+        print("Received request")
         self.send_response(200)
         self.end_headers()
-        l = ''
+        l = ""
         try:
-            with open(os.path.join(args.path,'status')) as f:
+            with open(os.path.join(args.path, "status")) as f:
                 d = f.read().strip()
         except:
             d = "Error reading file"
-        self.wfile.write(bytes(str(d),'utf-8'))
+        self.wfile.write(bytes(str(d), "utf-8"))
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--verbose', '-v', action='count')
-parser.add_argument('--port', '-p', type=int, help='port to use', default='8765')
-parser.add_argument('--path', '-P', help='path to shared dir', default='/data')
+parser.add_argument("--verbose", "-v", action="count")
+parser.add_argument("--port", "-p", type=int, help="port to use", default="8765")
+parser.add_argument("--path", "-P", help="path to shared dir", default="/data")
 
-subparsers = parser.add_subparsers(help='action to perform', dest='action')
+subparsers = parser.add_subparsers(help="action to perform", dest="action")
 subparsers.required = True
-parser_server = subparsers.add_parser('server', help='run as server')
+parser_server = subparsers.add_parser("server", help="run as server")
 parser_server.set_defaults(func=server)
-parser_gui = subparsers.add_parser('gui', help='GUI client')
-parser_gui.add_argument('--host', help='server hostname', default='localhost')
+parser_gui = subparsers.add_parser("gui", help="GUI client")
+parser_gui.add_argument("--host", help="server hostname", default="localhost")
 parser_gui.set_defaults(func=gui)
-parser_cli = subparsers.add_parser('cli', help='CLI client')
-parser_cli.add_argument('--host', help='server hostname', default='localhost')
+parser_cli = subparsers.add_parser("cli", help="CLI client")
+parser_cli.add_argument("--host", help="server hostname", default="localhost")
 parser_cli.set_defaults(func=cli)
 
 args = parser.parse_args()
