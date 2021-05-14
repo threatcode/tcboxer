@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Roland Mas <lolando@debian.org>
 Build-Depends: debhelper-compat (= 13), kaboxer (>= 1.0)
 Standards-Version: 3.9.8
+Rules-Requires-Root: no
 
 Package: hello-server-kbx
 Architecture: all
