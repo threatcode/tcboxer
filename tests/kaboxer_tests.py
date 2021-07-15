@@ -51,19 +51,21 @@ class TestKaboxerCommon(unittest.TestCase):
             "docker images --no-trunc --filter='reference=%s' \
                 --format='{{.Repository}}:{{.Tag}}' | xargs -r docker rmi"
             % self.image_name,
-            ignore_output=True,
         )
 
     def tearDown(self):
-        # self.run_command("docker image ls")
+        # self.run_command("docker image ls", show_output=True)
         self.remove_images()
         shutil.rmtree(self.tdname)
 
-    def run_command(self, cmd, ignore_output=False, wd=None):
+    def run_command(self, cmd, show_output=False, wd=None):
         # print ("RUNNING %s" % (cmd,))
+        capture_output = not show_output
         if wd is None:
             wd = self.fixdir
-        o = subprocess.run(cmd, cwd=wd, shell=True, capture_output=ignore_output)
+        o = subprocess.run(
+            cmd, cwd=wd, shell=True, capture_output=capture_output, text=True
+        )
         return o
 
     def check_return_code(self, result, msg=None):
@@ -676,25 +678,19 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "kaboxer get-meta-file %s Dockerfile" % self.app_name,
             "FROM debian:stable-slim",
         )
-        self.run_command(
-            "docker image rm %s:latest" % self.image_name, ignore_output=True
-        )
+        self.run_command("docker image rm %s:latest" % self.image_name)
         self.run_and_check_command("kaboxer build --version 1.1")
         self.assertTrue(self.is_image_present(), "No Docker image present after build")
         self.run_command_check_stdout_matches(
             "kaboxer get-meta-file %s version" % self.app_name, "1.1"
         )
-        self.run_command(
-            "docker image rm %s:latest" % self.image_name, ignore_output=True
-        )
+        self.run_command("docker image rm %s:latest" % self.image_name)
         self.run_and_check_command_fails(
             "kaboxer build %s --version 2.0" % self.app_name
         )
         self.run_and_check_command("kaboxer build --version 2.0 --ignore-version")
-        self.run_command(
-            "docker image rm %s:latest" % self.image_name, ignore_output=True
-        )
-        self.run_command("docker image rm %s:2.0" % self.image_name, ignore_output=True)
+        self.run_command("docker image rm %s:latest" % self.image_name)
+        self.run_command("docker image rm %s:2.0" % self.image_name)
         self.run_command(
             "sed -i -e s/1.0/1.5/ %s" % (os.path.join(self.fixdir, "Dockerfile"),)
         )
@@ -704,12 +700,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
         )
         self.run_and_check_command("kaboxer build --ignore-version")
         self.assertTrue(self.is_image_present(), "No Docker image present after build")
-        self.run_command(
-            "docker image rm %s:latest" % (self.image_name,), ignore_output=True
-        )
-        self.run_command(
-            "docker image rm %s:1.5" % (self.image_name,), ignore_output=True
-        )
+        self.run_command("docker image rm %s:latest" % (self.image_name,))
+        self.run_command("docker image rm %s:1.5" % (self.image_name,))
 
     def test_list_alias_ls(self):
         self.run_and_check_command("kaboxer ls")
@@ -783,29 +775,23 @@ class TestKaboxerWithRegistryCommon(TestKaboxerCommon):
             "docker run -d -p %d:5000 --name %s "
             "-v %s:/var/lib/registry registry:2"
             % (self.registry_port, self.nonce, os.path.join(self.fixdir, "registry")),
-            ignore_output=True,
         )
 
     def remove_images(self):
         super().remove_images()
         for v in ["1.0", "1.1", "1.2", "1.5", "2.0", "latest", "current"]:
             for i in ["kaboxer", "localhost:%s" % (self.registry_port,)]:
-                self.run_command(
-                    "docker image rm %s/kbx-demo:%s" % (i, v), ignore_output=True
-                )
-        self.run_command("docker image prune -f", ignore_output=True)
+                self.run_command("docker image rm %s/kbx-demo:%s" % (i, v))
+        self.run_command("docker image prune -f")
 
     def tearDown(self):
-        # self.run_command('docker image ls')
+        # self.run_command("docker image ls", show_output=True)
         self.run_command(
             "docker container exec %s find /var/lib/registry "
             "-mindepth 1 -delete" % self.nonce,
-            ignore_output=True,
         )
-        self.run_command("docker container stop %s" % (self.nonce,), ignore_output=True)
-        self.run_command(
-            "docker container rm -v %s" % (self.nonce,), ignore_output=True
-        )
+        self.run_command("docker container stop %s" % (self.nonce,))
+        self.run_command("docker container rm -v %s" % (self.nonce,))
         super().tearDown()
 
 
@@ -830,7 +816,7 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
 
     def test_build_then_push_and_fetch(self):
         self.run_and_check_command("kaboxer build kbx-demo")
-        # self.run_command('docker image ls')
+        # self.run_command("docker image ls", show_output=True)
         self.run_and_check_command("kaboxer push kbx-demo")
         self.remove_images()
         if self.is_image_present():
@@ -839,14 +825,14 @@ class TestKaboxerWithRegistry(TestKaboxerWithRegistryCommon):
             self.is_image_present(),
             msg="Image %s present at beginning of test" % self.app_name,
         )
-        self.run_command("docker image ls")
+        # self.run_command("docker image ls", show_output=True)
         self.run_and_check_command("kaboxer -vv prepare kbx-demo")
         self.run_command_check_stdout_matches(
             "docker image ls",
             self.app_name,
             unexpected_msg="Image not fetched from registry",
         )
-        self.run_command("docker image ls")
+        # self.run_command("docker image ls", show_output=True)
         self.run_command_check_stdout_matches("kaboxer -vv run kbx-demo", "Hello World")
 
     def test_list_registry(self):
@@ -1035,9 +1021,9 @@ class TestKbxbuilder(TestKaboxerWithRegistryCommon):
 
     def tearDown(self):
         if False:
-            self.run_command("cat data/kbx-builder.log")
-            self.run_command("cat build-logs/kbx-demo.log")
-            self.run_command("cat data/status.yaml")
+            self.run_command("cat data/kbx-builder.log", show_output=True)
+            self.run_command("cat build-logs/kbx-demo.log", show_output=True)
+            self.run_command("cat data/status.yaml", show_output=True)
 
         super().tearDown()
 
