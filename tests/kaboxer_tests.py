@@ -64,7 +64,7 @@ class TestKaboxerCommon(unittest.TestCase):
         if wd is None:
             wd = self.fixdir
         o = subprocess.run(cmd, cwd=wd, shell=True, capture_output=ignore_output)
-        return o.returncode
+        return o
 
     def check_return_code(self, result, msg=None):
         if msg is None:
@@ -185,27 +185,17 @@ class TestKaboxerCommon(unittest.TestCase):
         )
 
     def is_image_present(self, version="latest"):
-        if (
-            self.run_command(
-                "docker image ls | grep -q '%s *%s'" % (self.image_name, version)
-            )
-            == 0
-        ):
-            return True
-        else:
-            return False
+        o = self.run_command(
+            "docker image ls | grep -q '%s *%s'" % (self.image_name, version)
+        )
+        return True if o.returncode == 0 else False
 
     def is_container_running(self):
-        if (
-            self.run_command(
-                "docker ps -f name='%s' -f status=running | grep -q %s"
-                % (self.app_name, self.app_name)
-            )
-            == 0
-        ):
-            return True
-        else:
-            return False
+        o = self.run_command(
+            "docker ps -f name='%s' -f status=running | grep -q %s"
+            % (self.app_name, self.app_name)
+        )
+        return True if o.returncode == 0 else False
 
     def build(self):
         self.run_and_check_command("kaboxer build")
@@ -270,11 +260,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
             os.path.isfile(self.tarpath),
             "Image not saved (expecting %s)" % (self.tarpath,),
         )
-        self.assertEqual(
-            self.run_command(
-                "docker image ls | grep -q '%s *%s'" % (self.image_name2, "latest")
-            ),
-            0,
+        self.run_and_check_command(
+            "docker image ls | grep -q '%s *%s'" % (self.image_name2, "latest"),
             "No docker image present for app2 after build",
         )
         self.tarfile2 = "%s.tar" % (self.app_name2,)
@@ -304,11 +291,8 @@ class TestKaboxerLocally(TestKaboxerCommon):
             os.path.isfile(self.tarpath),
             "Image not saved (expecting %s)" % (self.tarpath,),
         )
-        self.assertEqual(
-            self.run_command(
-                "docker image ls | grep -q '%s *%s'" % (self.image_name2, "latest")
-            ),
-            1,
+        self.run_and_check_command_fails(
+            "docker image ls | grep -q '%s *%s'" % (self.image_name2, "latest"),
             "Image for app2 unexpectedly present after build",
         )
         self.tarfile2 = "%s.tar" % (self.app_name2,)
