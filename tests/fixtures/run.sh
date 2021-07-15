@@ -1,15 +1,21 @@
 #! /bin/sh
 
 case "$1" in
+    # kaboxer.yaml
     hi)
 	shift
 	[ $# -gt 0 ] \
 	    && echo "Hi $@" \
 	    || echo "Hi there"
 	;;
+    ask)
+	read -p "What's your name? " name
+	echo "Hello $name"
+	;;
     sleep)
 	sleep 60
 	;;
+    # kbx-demo.kaboxer.yaml
     demo)
 	cat /kbx-demo.txt /kaboxer/version
 	if [ -d /persist ] ; then
@@ -20,8 +26,4 @@ case "$1" in
     history)
 	cat /persist/run_history
 	;;
-    ask)
-	read -p "What's your name? " name
-	echo "Hello $name"
-	;;	
 esac
