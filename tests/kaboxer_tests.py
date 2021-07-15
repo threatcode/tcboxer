@@ -404,6 +404,21 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "Docker container is still running after kaboxer stop",
         )
 
+    def test_run_host_network(self):
+        # Add network configuration, just after 'executable:', for each component
+        self.run_command(
+            r"sed -i '/executable:/a \    networks:\n      - host' %s" % "kaboxer.yaml"
+        )
+        self.build()
+        # Get the network interfaces from the host
+        o = self.run_command("ls -1 /sys/class/net")
+        host_net = o.stdout
+        # Check that we get the same from within the container
+        self.run_command_check_stdout_matches(
+            "kaboxer run --component=exec %s ls -1 /sys/class/net" % self.app_name,
+            host_net,
+        )
+
     def test_stop_non_existing_app(self):
         self.run_and_check_command_fails("kaboxer stop non-existing-app")
 

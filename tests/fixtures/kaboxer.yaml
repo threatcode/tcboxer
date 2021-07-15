@@ -27,3 +27,6 @@ components:
   daemon:
     run_mode: headless
     executable: /run.sh sleep
+  exec:
+    run_mode: cli
+    executable: /run.sh exec

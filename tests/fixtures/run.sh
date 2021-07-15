@@ -15,6 +15,10 @@ case "$1" in
     sleep)
 	sleep 60
 	;;
+    exec)
+	shift
+	exec "$@"
+	;;
     # kbx-demo.kaboxer.yaml
     demo)
 	cat /kbx-demo.txt /kaboxer/version
