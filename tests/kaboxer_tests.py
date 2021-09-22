@@ -371,6 +371,12 @@ class TestKaboxerLocally(TestKaboxerCommon):
             "Hi alice , b0b m4rl3y and others!",
         )
 
+    def test_run_with_double_dash(self):
+        self.build()
+        self.run_command_check_stdout_matches(
+            "kaboxer start %s -- --help" % self.app_name, "Hi --help"
+        )
+
     def test_run_interactive(self):
         self.build()
         self.run_command_check_stdout_matches(
@@ -585,6 +591,7 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.run_command_check_stdout_matches(cmd, "Hi there")
         self.run_command_check_stdout_matches(cmd + " Carol", "Hi Carol")
         self.run_command_check_stdout_matches(cmd + " foo bar??", "Hi foo bar??")
+        self.run_command_check_stdout_matches(cmd + " --help", "Hi --help")
         cmd = os.path.join(bindir, "%s-daemon-kbx" % self.app_name)
         self.run_and_check_command_fails(cmd)
         self.run_and_check_command(cmd + " start")
