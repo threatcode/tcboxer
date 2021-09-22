@@ -862,8 +862,8 @@ class Kaboxer:
         stop_cmd = self.make_stop_command(app_id, component)
         return f"""#!/bin/sh
 case "$1" in
-  (start) shift; exec {run_cmd} \"$@\" ;;
-  (stop)  exec {stop_cmd} ;;
+  (start) shift; exec {run_cmd} "$@" ;;
+  (stop)  shift; exec {stop_cmd} ;;
   (*)     echo >&2 "Usage: $(basename $0) start|stop"; exit 1 ;;
 esac
 """
