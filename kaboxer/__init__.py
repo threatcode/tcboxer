@@ -267,7 +267,6 @@ class Kaboxer:
 
     def setup_docker(self):
         self._docker_conn = docker.from_env()
-        return self._docker_conn
 
     def docker_is_working(self):
         try:
