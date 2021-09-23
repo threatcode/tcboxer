@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import termios
 import urllib.parse
 from http import HTTPStatus
 
@@ -517,6 +518,7 @@ class Kaboxer:
             print(start_message)
         if self.args.prompt_before_exit:
             try:
+                termios.tcflush(sys.stdin, termios.TCIOFLUSH)
                 input("Press ENTER to exit ")
             except (EOFError, ValueError):
                 # EOFError: called from subprocess.run([...], stdin=None)
@@ -545,6 +547,7 @@ class Kaboxer:
             print(stop_message)
             if self.args.prompt_before_exit:
                 try:
+                    termios.tcflush(sys.stdin, termios.TCIOFLUSH)
                     input("Press ENTER to exit ")
                 except (EOFError, ValueError):
                     # EOFError: called from subprocess.run([...], stdin=None)
