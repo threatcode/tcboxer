@@ -44,6 +44,16 @@
 containerized applications.  The tool uses subcommands, each with
 their own arguments and options.
 
+# CONFIGURATION
+
+Kaboxer creates a *kaboxer group* on installation. This group grants the
+kaboxer command a passwordless access to the docker group. Thanks to that, a
+normal user can run Kaboxer without having to type the root password.
+
+You can make yourself a member of the kaboxer group by running the command:
+*sudo usermod -aG kaboxer $USER*. Remember to log out and to log back in for
+the change to take effect.
+
 # GENERAL OPTIONS
 
 **-h**, **--help**
