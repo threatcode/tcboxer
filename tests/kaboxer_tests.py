@@ -7,6 +7,7 @@ import shutil
 import string
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -408,6 +409,49 @@ class TestKaboxerLocally(TestKaboxerCommon):
         self.assertFalse(
             self.is_container_running(),
             "Docker container is still running after kaboxer stop",
+        )
+
+    def test_run_reuse_container_when_non_existing(self):
+        # Add reuse_container, just after 'executable:', for each component
+        # (although we only need it for the exec component here)
+        self.run_command(
+            r"sed -i '/executable:/a \    reuse_container: true' %s" % "kaboxer.yaml"
+        )
+        self.build()
+        self.run_command_check_stdout_matches(
+            "kaboxer run %s" % self.app_name, "Hi there"
+        )
+
+    def test_run_reuse_container_for_real(self):
+        # Add reuse_container, just after 'executable:', for each component
+        # (although we only need it for the exec component here)
+        self.run_command(
+            r"sed -i '/executable:/a \    reuse_container: true' %s" % "kaboxer.yaml"
+        )
+        self.build()
+
+        # First script, start a sleeping container in the background
+        #
+        # `run_and_check_command()` automatically sets `capture_output=True`,
+        # and as a consequence Python waits for the end of the process despite
+        # the trailing `&`. Not what we want. So we need to use `run_command()`
+        # with `show_output=True` (aka. `capture_output=False`) instead.
+        # I know, it's a bit convoluted...
+        self.run_command(
+            "kaboxer run --component=exec %s "
+            "-- bash -c 'echo sleeping > /tmp/my-special-file && sleep 30' &"
+            % self.app_name,
+            show_output=True,
+        )
+
+        # Wait a bit to be sure that the container is up
+        time.sleep(10)
+
+        # Second script, reuse the first container, read the special file
+        self.run_command_check_stdout_matches(
+            "kaboxer run --component=exec %s -- cat /tmp/my-special-file"
+            % self.app_name,
+            "sleeping",
         )
 
     def test_run_host_network(self):
