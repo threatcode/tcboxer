@@ -266,30 +266,48 @@ class Kaboxer:
         logger.addHandler(ch)
 
     def setup_docker(self):
-        self._docker_conn = docker.from_env()
+        """
+        Setup the connection with the docker daemon, might raise exceptions.
 
-    def docker_is_working(self):
-        try:
-            self._docker_conn.containers.list()
-            return True
-        except Exception:
-            return False
+        There's one exception that we very much expect, it's a 'permission
+        denied' if ever user doesn't have the right permissions to talk to
+        the docker daemon. The behavior of docker-py changed in this regard.
+
+        Before docker-py 4.3, from_env() would succeed in any case, so we
+        needed another call (eg. containers.list()) to really talk to the
+        daemon and trigger an exception in case user didn't have the right
+        permissions. containers.list() would raise a ConnectionError:
+
+          ('Connection aborted.', PermissionError(13, 'Permission denied'))
+
+        After docker-py 4.3, from_env() tries to talk to the docker daemon,
+        and without the right permissions, it raises a DockerException:
+
+          Error: Error while fetching server API version:
+          ('Connection aborted.', PermissionError(13, 'Permission denied'))
+
+        So there's no need to call containers.list() anymore at this point,
+        however docker-py behavior might change again in the future, so let's
+        be cautions and double-check.
+        """
+        conn = docker.from_env()
+        conn.containers.list()
+        self._docker_conn = conn
 
     @property
     def docker_conn(self):
         if hasattr(self, "_docker_conn"):
             return self._docker_conn
 
-        self.setup_docker()
-        if self.docker_is_working():
+        try:
+            self.setup_docker()
             return self._docker_conn
-        else:
+        except Exception:
             groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
             if "docker" in groups:
                 logger.error(
-                    "No access to Docker even though you're a "
-                    "member of the docker group, is "
-                    "docker.service running?"
+                    "No access to Docker even though you're a member "
+                    "of the docker group, is the docker service running?"
                 )
             else:
                 logger.error(
@@ -305,17 +323,37 @@ class Kaboxer:
     def go(self):
         self.args = self.parser.parse_args()
         self.setup_logging()
-        self.setup_docker()
-        if not self.docker_is_working():
+
+        # Try to setup the docker connection.
+        #
+        # If it doesn't work, and we're in a position where we can elevate
+        # privileges, let's do it NOW, first because we're sure that sys.argv
+        # was not modified, second because it's *likely* that we'll need to do
+        # it anyway, so let's not wait. I say "likely" because some kaboxer
+        # commands might not need a docker connection, we don't know.
+        #
+        # If it doesn't work, and we can't elevate privileges, then let's
+        # keep going anyway, and fail later when the connection is actually
+        # needed. So that if ever there is no need for a docker connection,
+        # then kaboxer has a chance to run successfully.
+        #
+        # Note: we could try to be more selective about the exception raised,
+        # and elevate privileges only on "permission denied" error. But the
+        # exact type of exception that we catch might change wit time, so let
+        # not bother.
+        try:
+            self.setup_docker()
+        except Exception:
+            logger.debug("Failed to setup docker connection")
             groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
             if "kaboxer" in groups and "docker" not in groups:
-                # Try to elevate the privileges to docker group if we can
+                logger.debug("Elevate privileges to docker group")
                 nc = ["sudo", "-g", "docker"] + sys.argv
                 sys.stdout.flush()
                 sys.stderr.flush()
                 os.execv("/usr/bin/sudo", nc)
-            # Force a new test on first real access if any
-            delattr(self, "_docker_conn")
+            else:
+                logger.debug("Can't elevate privileges, keep going")
 
         self.args.func()
 
