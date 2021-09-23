@@ -305,15 +305,19 @@ class Kaboxer:
         except Exception:
             groups = list(map(lambda g: grp.getgrgid(g)[0], os.getgroups()))
             if "docker" in groups:
-                logger.error(
+                msg = (
                     "No access to Docker even though you're a member "
                     "of the docker group, is the docker service running?"
                 )
             else:
-                logger.error(
-                    "No access to Docker, are you a member "
-                    "of group docker or kaboxer?"
+                msg = (
+                    "No access to Docker, are you a member fo the group "
+                    "docker or kaboxer?\n"
+                    "Consider adding yourself to the kaboxer group with:\n\n"
+                    "    sudo addgroup $(whoami) kaboxer\n\n"
+                    "Then log out and log back in for the change to take effect."
                 )
+            logger.error(msg)
             sys.exit(1)
 
     def show_exception_in_debug_mode(self):
