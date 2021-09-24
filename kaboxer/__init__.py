@@ -419,6 +419,11 @@ class Kaboxer:
 
         self.run_hook_script("before_run", stop_on_failure=True)
 
+        # Giving a name to a container prevents multiple instances to be
+        # created, and allows to find this single instance if ever it's
+        # running.
+        container_needs_name = False
+
         # What container to use (new or existing)
         if self.args.reuse_container is not None:
             reuse_container = self.args.reuse_container
@@ -427,14 +432,19 @@ class Kaboxer:
         if reuse_container:
             containers = self.docker_conn.containers.list(filters={"name": app})
             if containers:
+                logger.debug("Reusing existing container %s", app)
                 container = containers[0]
             else:
                 reuse_container = False
+                container_needs_name = True
 
         run_mode = self.component_config["run_mode"]
         if self.args.detach and run_mode != "headless":
             logger.error("Can't detach a non-headless component")
             sys.exit(1)
+
+        if run_mode == "headless":
+            container_needs_name = True
 
         opts = self.component_config.get("docker_options", {})
         opts = self.parse_component_config(opts)
@@ -485,6 +495,9 @@ class Kaboxer:
             opts["user"] = self.uid
             opts["environment"]["HOME"] = self.home_in
 
+        if container_needs_name:
+            opts["name"] = self.args.app
+
         if run_mode == "cli":
             opts["tty"] = True
             opts["stdin_open"] = True
@@ -496,7 +509,7 @@ class Kaboxer:
                 docker.types.Mount(self.xauth_in, self.xauth_out, type="bind")
             )
         elif run_mode == "headless":
-            opts["name"] = self.args.app
+            pass
         else:
             logger.error("Unknown run mode")
             sys.exit(1)
