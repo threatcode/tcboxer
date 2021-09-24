@@ -555,7 +555,20 @@ class Kaboxer:
                 ex_with_env.append("%s=%s" % (e, shlex.quote(opts["environment"][e])))
             ex_with_env.extend(executable)
             executable = ex_with_env
-            dockerpty.exec_command(self.docker_conn.api, container.id, executable)
+
+            try:
+                dockerpty.exec_command(self.docker_conn.api, container.id, executable)
+            except ValueError as e:
+                # CI: stdin, stdout and stderr are not connected to a tty,
+                # and dockerpty.exec_command fails with ValueError. Let's
+                # handle this, based on the error message.
+                if "I/O operation on closed file" not in str(e):
+                    raise
+                exit_code, output = container.exec_run(executable)
+                print(output.decode())
+                if exit_code != 0:
+                    sys.exit(exit_code)
+
         else:
             opts["auto_remove"] = True
             if self.args.detach:
