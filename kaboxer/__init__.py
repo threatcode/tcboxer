@@ -111,7 +111,9 @@ class Kaboxer:
         parser_run.add_argument("app")
         parser_run.add_argument("--component", help="component to run")
         parser_run.add_argument(
-            "--reuse-container", action="store_true", help="run in existing container"
+            "--reuse-container",
+            action=argparse.BooleanOptionalAction,
+            help=argparse.SUPPRESS,
         )
         parser_run.add_argument(
             "--detach", help="run in the background", action="store_true"
@@ -417,7 +419,12 @@ class Kaboxer:
 
         self.run_hook_script("before_run", stop_on_failure=True)
 
-        if self.args.reuse_container:
+        # What container to use (new or existing)
+        if self.args.reuse_container is not None:
+            reuse_container = self.args.reuse_container
+        else:
+            reuse_container = self.component_config.get("reuse_container", False)
+        if reuse_container:
             containers = self.docker_conn.containers.list(filters={"name": app})
             container = containers[0]
 
@@ -437,7 +444,7 @@ class Kaboxer:
         except KeyError:
             pass
 
-        if not self.component_config["run_as_root"] and not self.args.reuse_container:
+        if not self.component_config["run_as_root"] and not reuse_container:
             opts2 = opts.copy()
             opts2["detach"] = False
             opts2["tty"] = True
@@ -509,7 +516,7 @@ class Kaboxer:
         except KeyError:
             pass
 
-        if self.args.reuse_container:
+        if reuse_container:
             if run_mode == "gui":
                 self.create_xauth()
                 bio = io.BytesIO()
@@ -888,21 +895,21 @@ class Kaboxer:
             local_image.tag(remote_tagname)
             self.docker_conn.images.push(remote_tagname)
 
-    def make_run_command(self, app_id, component, args):
-        return f"kaboxer run {args} --component {component} {app_id}"
+    def make_run_command(self, app_id, component):
+        return f"kaboxer run --component {component} {app_id}"
 
-    def make_run_command_headless(self, app_id, component, args):
-        return f"kaboxer run --detach --prompt-before-exit {args} --component {component} {app_id}"  # noqa: E501
+    def make_run_command_headless(self, app_id, component):
+        return f"kaboxer run --detach --prompt-before-exit --component {component} {app_id}"  # noqa: E501
 
     def make_stop_command(self, app_id, component):
         return f"kaboxer stop --prompt-before-exit --component {component} {app_id}"
 
-    def make_run_helper(self, app_id, component, args):
-        cmd = self.make_run_command(app_id, component, args)
+    def make_run_helper(self, app_id, component):
+        cmd = self.make_run_command(app_id, component)
         return f'#!/bin/sh\nexec {cmd} -- "$@"'
 
-    def make_start_stop_helper(self, app_id, component, args):
-        run_cmd = self.make_run_command_headless(app_id, component, args)
+    def make_start_stop_helper(self, app_id, component):
+        run_cmd = self.make_run_command_headless(app_id, component)
         stop_cmd = self.make_stop_command(app_id, component)
         return f"""#!/bin/sh
 case "$1" in
@@ -917,13 +924,10 @@ esac
         components = parsed_config["components"]
         n_components = len(components)
         for component, data in components.items():
-            run_args = ""
-            if data.get("reuse_container", False):
-                run_args = "--reuse-container"
             if data["run_mode"] == "headless":
-                content = self.make_start_stop_helper(app_id, component, run_args)
+                content = self.make_start_stop_helper(app_id, component)
             else:
-                content = self.make_run_helper(app_id, component, run_args)
+                content = self.make_run_helper(app_id, component)
             if n_components == 1:
                 outfile = get_cli_helper_filename(app_id, None)
             else:
@@ -954,16 +958,11 @@ Categories={categories}
         components = parsed_config["components"]
         for component, component_data in components.items():
             component_name = component_data.get("name", fallback_name)
-
-            run_args = ""
-            if component_data.get("reuse_container", False):
-                run_args = "--reuse-container"
-
             if component_data["run_mode"] == "headless":
                 terminal = "true"
                 # One .desktop file for starting
                 name = f"Start {component_name}"
-                cmd = self.make_run_command_headless(app_id, component, run_args)
+                cmd = self.make_run_command_headless(app_id, component)
                 content_start = self.make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )
@@ -987,7 +986,7 @@ Categories={categories}
                 else:
                     terminal = "false"
                 name = component_name
-                cmd = self.make_run_command(app_id, component, run_args)
+                cmd = self.make_run_command(app_id, component)
                 content = self.make_desktop_file(
                     app_id, name, comment, cmd, terminal, categories
                 )

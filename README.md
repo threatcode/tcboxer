@@ -11,7 +11,7 @@ The kaboxer tool has several modes of operation, each with its own subcommand.
 
 ### kaboxer run
 	$ kaboxer run --help
-	usage: kaboxer run [-h] [--component COMPONENT] [--reuse-container] [--detach]
+	usage: kaboxer run [-h] [--component COMPONENT] [--detach]
 	                   [--prompt-before-exit] [--version VERSION]
 	                   app [arguments ...]
 	
@@ -23,12 +23,11 @@ The kaboxer tool has several modes of operation, each with its own subcommand.
 	  -h, --help            show this help message and exit
 	  --component COMPONENT
 	                        component to run
-	  --reuse-container     run in existing container
 	  --detach
 	  --prompt-before-exit  wait user confirmation before exit
 	  --version VERSION     version to run
 
-The main user-facing mode of operation, ``kaboxer run`` starts a containerized application. Depending on the configuration, this may result in a text-mode interface, a graphical application, or a headless daemon. If several components exist in the image, the ``--component`` option can be used to select which one to run. If the container is already running, then ``--reuse-container`` allows reusing it; both options can be combined, for instance if the image contains both a server part and a client part. 
+The main user-facing mode of operation, ``kaboxer run`` starts a containerized application. Depending on the configuration, this may result in a text-mode interface, a graphical application, or a headless daemon. If several components exist in the image, the ``--component`` option can be used to select which one to run.
 
 ### kaboxer stop
 	$ kaboxer stop --help

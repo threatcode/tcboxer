@@ -13,7 +13,7 @@ kaboxer run --detach hello-allinone 2>&1 | grep -q "hello server started"
 sleep 15
 
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli hello-allinone
+spawn kaboxer run --component cli hello-allinone
 expect "$prompt"
 send -- "delete\r"
 expect "$prompt"
@@ -25,7 +25,7 @@ expect $tf
 # Test saving token and fetching it again in one run
 token1=$(gen_token)
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli hello-allinone
+spawn kaboxer run --component cli hello-allinone
 expect "$prompt"
 send -- "save $token1\r"
 expect "$prompt"
@@ -40,7 +40,7 @@ expect $tf
 # Test saving token and fetching it again in a different run
 token2=$(gen_token)
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli hello-allinone
+spawn kaboxer run --component cli hello-allinone
 expect "$prompt"
 send -- "save $token2\r"
 expect "$prompt"
@@ -50,7 +50,7 @@ EOF
 expect $tf
 
 cat > $tf <<EOF
-spawn kaboxer run --reuse-container --component cli hello-allinone
+spawn kaboxer run --component cli hello-allinone
 expect "$prompt"
 send -- "fetch\r"
 expect "$token2"

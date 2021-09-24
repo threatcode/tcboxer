@@ -8,7 +8,7 @@
 
 # SYNOPSIS
 
-**kaboxer** run|start [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*ARGUMENTS*]...
+**kaboxer** run|start [**--component** *COMPONENT*] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*ARGUMENTS*]...
 
 **kaboxer** stop [**--component** *COMPONENT*] [**--prompt-before-exit**] *APP*
 
@@ -54,14 +54,12 @@ their own arguments and options.
 
 # KABOXER RUN
 
-**kaboxer** run [**--component** *COMPONENT*] [**--reuse-container**] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*ARGUMENTS*]...
+**kaboxer** run [**--component** *COMPONENT*] [**--detach**] [**--prompt-before-exit**] [**--version** *VERSION*] *APP* [*ARGUMENTS*]...
 
 The run mode is how you actually run a kaboxed application *APP*. In
 case several components exist for this app, use
-**--component** *COMPONENT* to choose which one to run; if these
-components are intended to run in the same container (rather than in
-different but communicating containers), use **--reuse-container**. If
-the component is meant to run in the background as a daemon, use
+**--component** *COMPONENT* to choose which one to run; if the
+component is meant to run in the background as a daemon, use
 **--detach** flag, possibly with the **--prompt-before-exit** flag
 (which waits a user confirmation before exiting, so that the user has the
 time to read any message displayed or so that applications started in the
