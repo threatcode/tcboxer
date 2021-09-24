@@ -426,7 +426,10 @@ class Kaboxer:
             reuse_container = self.component_config.get("reuse_container", False)
         if reuse_container:
             containers = self.docker_conn.containers.list(filters={"name": app})
-            container = containers[0]
+            if containers:
+                container = containers[0]
+            else:
+                reuse_container = False
 
         run_mode = self.component_config["run_mode"]
         if self.args.detach and run_mode != "headless":
