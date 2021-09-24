@@ -3,7 +3,6 @@
 import argparse
 import glob
 import grp
-import io
 import json
 import logging
 import os
@@ -533,24 +532,24 @@ class Kaboxer:
             pass
 
         if reuse_container:
-            if run_mode == "gui":
-                self.create_xauth()
-                bio = io.BytesIO()
-                tf = tarfile.open(mode="w:", fileobj=bio)
-                ti = tarfile.TarInfo()
-                ti.name = self.xauth_in
-
-                def tifilter(x):
-                    if not self.component_config["run_as_root"]:
-                        x.uid = self.uid
-                        x.gid = self.gid
-                        x.uname = self.uname
-                        x.gname = self.gname
-                    return x
-
-                tf.add(self.xauth_out, arcname=self.xauth_in, filter=tifilter)
-                tf.close()
-                container.put_archive("/", bio.getvalue())
+            # if run_mode == "gui":
+            #     self.create_xauth()
+            #     bio = io.BytesIO()
+            #     tf = tarfile.open(mode="w:", fileobj=bio)
+            #     ti = tarfile.TarInfo()
+            #     ti.name = self.xauth_in
+            #
+            #     def tifilter(x):
+            #         if not self.component_config["run_as_root"]:
+            #             x.uid = self.uid
+            #             x.gid = self.gid
+            #             x.uname = self.uname
+            #             x.gname = self.gname
+            #         return x
+            #
+            #     tf.add(self.xauth_out, arcname=self.xauth_in, filter=tifilter)
+            #     tf.close()
+            #     container.put_archive("/", bio.getvalue())
             ex_with_env = ["env"]
             for e in opts["environment"]:
                 ex_with_env.append("%s=%s" % (e, shlex.quote(opts["environment"][e])))
