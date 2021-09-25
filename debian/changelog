@@ -1,3 +1,40 @@
+kaboxer (1.1.0) kali-dev; urgency=medium
+
+  * hello-kbx: Minor updates to hello-allinone.kaboxer.yaml
+  * hello-kbx: Format hello with black
+  * hello-kbx: Add a 'version' command to hello
+  * hello-kbx: Get app version from app itself
+  * hello-kbx: Mention the 'exit' command in the cli
+  * hello-kbx: Bring back prompt_toolkit
+  * hello-kbx: Rename hello-cli manual desktop file
+  * hello-kbx: Various fixes in hello
+  * hello-kbx: Update Debian install files
+  * hello-kbx: Install hello cli helpers as well
+  * hello-kbx: Simplify debian/rules, drop DH_VERBOSE
+  * hello-kbx: Bump kaboxer requirement to 1.0
+  * hello-kbx: Set Rules-Requires-Root: no
+  * hello-kbx: Bump version
+  * tests: Attempt to clarify a bit from where run.sh is called
+  * tests: run_command returns a CompletedProcess object
+  * tests: run_command captures output by default
+  * tests: Add test to check if host network works
+  * Use iptables-legacy to fix the CI
+  * Nitpicks in the start/stop helper
+  * Add a double-dash in helpers to allow passing dashed options to apps
+  * Flush stdin before asking to press enter for exit
+  * setup_docker() shouldn't return anything
+  * Rework docker connection setup
+  * Improve error message a bit when user is not part of the kaboxer group
+  * Drop --reuse-container, use information from kaboxer.yaml instead
+  * Checks that a container exists before trying to reuse it
+  * Give a name to containers that are meant to be reused
+  * Comment out all the part regarding reuse_container in gui mode
+  * Make reuse_container work without tty (CI)
+  * Add test cases for reuse_container
+  * Document kaboxer group
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Sat, 25 Sep 2021 12:53:08 +0700
+
 kaboxer (1.0.1) kali-dev; urgency=medium
 
   * create_xauth(): Cosmetics
