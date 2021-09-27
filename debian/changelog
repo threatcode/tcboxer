@@ -1,3 +1,9 @@
+kaboxer (1.1.1) kali-dev; urgency=medium
+
+  * tests: Set iptables legacy only for GitLab CI
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Mon, 27 Sep 2021 14:29:13 +0700
+
 kaboxer (1.1.0) kali-dev; urgency=medium
 
   * hello-kbx: Minor updates to hello-allinone.kaboxer.yaml
