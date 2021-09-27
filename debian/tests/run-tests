@@ -4,9 +4,12 @@ set -eux
 
 # GitLab CI + nftables = KO, must use iptables legacy.
 # Cf. https://gitlab.com/gitlab-com/gl-infra/production/-/issues/5184#note_637383773
-update-alternatives --set iptables /usr/sbin/iptables-legacy 
+if systemctl is-failed docker; then
+    journalctl -u docker
+    update-alternatives --set iptables /usr/sbin/iptables-legacy 
+    systemctl reset-failed docker
+fi
 
-systemctl reset-failed docker
 systemctl start docker
 
 USE_SYSTEM_WIDE_KABOXER=1 python3 tests/kaboxer_tests.py
