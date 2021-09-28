@@ -2,6 +2,9 @@ variables:
   KABOXER_DOCKER_IMAGE: 'kalilinux/kali-rolling'
   KABOXER_BUILD_DIRECTORY: '.'
   KABOXER_APPLICATIONS: ''
+  # Workaround to fix Docker in Docker ("dind"), cf:
+  # https://gitlab.com/gitlab-com/gl-infra/production/-/issues/5590#note_687798208
+  FF_NETWORK_PER_BUILD: 1
 
 build-docker-image:
   stage: build
