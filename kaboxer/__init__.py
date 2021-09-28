@@ -767,16 +767,28 @@ class Kaboxer:
                     logger.error(message)
                     sys.exit(1)
             buildargs["KBX_APP_VERSION"] = self.args.version
-        (image, _) = self.docker_conn.images.build(
-            path=path,
-            dockerfile=df,
-            rm=True,
-            forcerm=True,
-            nocache=True,
-            pull=True,
-            quiet=False,
-            buildargs=buildargs,
-        )
+        try:
+            (image, _) = self.docker_conn.images.build(
+                path=path,
+                dockerfile=df,
+                rm=True,
+                forcerm=True,
+                nocache=True,
+                pull=True,
+                quiet=False,
+                buildargs=buildargs,
+            )
+        except docker.errors.BuildError as exc:
+            logger.error("Failed to build image, see below for the build logs:")
+            log_lines = []
+            for iterator in exc.build_log:
+                line = iterator.get("stream", iterator.get("error"))
+                if line:
+                    log_lines.append(line)
+            logger.error("--------")
+            logger.error(" ".join(log_lines))
+            logger.error("--------")
+            sys.exit(1)
         with tempfile.NamedTemporaryFile(mode="w+t") as tmp:
             try:
                 self.extract_file_from_image(image, "/kaboxer/version", tmp.name)
