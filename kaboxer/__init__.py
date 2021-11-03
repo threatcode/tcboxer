@@ -504,11 +504,27 @@ class Kaboxer:
             self.create_xauth()
             opts["environment"]["DISPLAY"] = os.getenv("DISPLAY")
             opts["environment"]["XAUTHORITY"] = self.xauth_in
-            opts["mounts"].extend([
-                docker.types.Mount(self.xauth_in, self.xauth_out, type="bind"),
-                docker.types.Mount("/usr/share/themes", "/usr/share/themes", type="bind", read_only=True),
-                docker.types.Mount("/usr/local/share/icons", "/usr/share/icons", type="bind", read_only=True),
-            ])
+            opts["mounts"].append(
+                docker.types.Mount(self.xauth_in, self.xauth_out, type="bind")
+            )
+            if os.path.exists("/usr/share/icons"):
+                opts["mounts"].append(
+                    docker.types.Mount(
+                        "/usr/local/share/icons",
+                        "/usr/share/icons",
+                        type="bind",
+                        read_only=True,
+                    )
+                )
+            if os.path.exists("/usr/share/themes"):
+                opts["mounts"].append(
+                    docker.types.Mount(
+                        "/usr/share/themes",
+                        "/usr/share/themes",
+                        type="bind",
+                        read_only=True,
+                    )
+                )
         elif run_mode == "headless":
             pass
         else:
