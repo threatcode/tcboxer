@@ -1,3 +1,16 @@
+kaboxer (1.1.2) kali-dev; urgency=medium
+
+  [ Arnaud Rebillout ]
+  * On build failure, output build logs
+  * Mount icons in usr/local/ rather than usr
+  * Set the icons/themes bind mounts read-only
+  * Check that icons/themes dirs exist before mounting it
+
+  [ Daniel Ruiz de Alegría ]
+  * Mount theme folders for gui mode
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Thu, 04 Nov 2021 09:39:05 +0700
+
 kaboxer (1.1.1) kali-dev; urgency=medium
 
   * tests: Set iptables legacy only for GitLab CI
