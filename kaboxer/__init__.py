@@ -507,6 +507,24 @@ class Kaboxer:
             opts["mounts"].append(
                 docker.types.Mount(self.xauth_in, self.xauth_out, type="bind")
             )
+            if os.path.exists("/usr/share/icons"):
+                opts["mounts"].append(
+                    docker.types.Mount(
+                        "/usr/local/share/icons",
+                        "/usr/share/icons",
+                        type="bind",
+                        read_only=True,
+                    )
+                )
+            if os.path.exists("/usr/share/themes"):
+                opts["mounts"].append(
+                    docker.types.Mount(
+                        "/usr/share/themes",
+                        "/usr/share/themes",
+                        type="bind",
+                        read_only=True,
+                    )
+                )
         elif run_mode == "headless":
             pass
         else:
