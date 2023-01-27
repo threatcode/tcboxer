@@ -94,6 +94,15 @@ def get_icon_name(app_id):
 
 def parse_version(version_string):
     """Parse a version string into a Version object"""
+    if version_string in ["current", "latest"]:
+        # XXX: From python3-packaging version 22.0 onward, this is invalid:
+        # > packaging.version.InvalidVersion: Invalid version: 'latest'
+        #
+        # Before 22.0, parsing such versions would return a LegacyVersion
+        # object, which sorted before anything else. Sorting 'latest' before
+        # anything else is surely a bug in kaboxer, but let's keep the status
+        # quo, right now all I want is a quick fix.
+        return packaging.version.parse("0")
     return packaging.version.parse(version_string)
 
 

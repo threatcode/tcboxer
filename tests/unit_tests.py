@@ -152,6 +152,9 @@ class TestKaboxerParseVersion(unittest.TestCase):
         self.assert_eq("2023.1", "2023.01")
         self.assert_eq("2023", "2023.0")
         self.assert_lt("2023", "2023.1")
+    def test_aliases(self):
+        parse_version("current")
+        parse_version("latest")
     # Simple Debian versions are accepted, but I think it's out of scope,
     # so this test should probably be dropped in the future.
     def test_debian_versions(self):
