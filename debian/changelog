@@ -1,3 +1,11 @@
+kaboxer (1.1.3) kali-dev; urgency=medium
+
+  * tox: Add python 3.10
+  * Add unit tests for parse_version
+  * Fix support for current,latest versions
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Fri, 27 Jan 2023 15:05:16 +0700
+
 kaboxer (1.1.2) kali-dev; urgency=medium
 
   [ Arnaud Rebillout ]
