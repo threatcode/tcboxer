@@ -14,6 +14,7 @@ from kaboxer import (
     get_all_desktop_file_filenames,
     get_icon_name,
     get_possible_gitlab_project_paths,
+    parse_version,
 )
 
 
@@ -123,6 +124,55 @@ class TestFilenameHelpers(unittest.TestCase):
     def test_icon_name(self):
         icon_name = get_icon_name("foo")
         self.assertEqual(icon_name, "kaboxer-foo")
+
+
+class TestKaboxerParseVersion(unittest.TestCase):
+    # XXX: parse_version() is used quite a lot,  however at the moment it's
+    # unclear to me what's the exact scope:  parse upstream versions, parse
+    # Debian versions, parse container tags (which are free-form), or what?
+    # We should review the code, clarify the scope, then possibly narrow or
+    # expand those unit tests.
+    # Moreover,  at the moment parse_version() is implemented by the library
+    # https://pypi.org/project/packaging/ and I'm not sure it's the best fit,
+    # as it focus on « Python Packaging interoperability specifications » and
+    # that's not exactly what we do. If we deal with Debian version strings
+    # then there's probably a better library out there.
+    def assert_eq(self, s1, s2):
+        v1 = parse_version(s1)
+        v2 = parse_version(s2)
+        self.assertTrue(v1 == v2)
+    def assert_lt(self, s1, s2):
+        v1 = parse_version(s1)
+        v2 = parse_version(s2)
+        self.assertTrue(v1 < v2)
+    def test_semantic_versions(self):
+        self.assert_eq("1", "1.0")
+        self.assert_lt("1.0", "1.1")
+    def test_date_based_versions(self):
+        self.assert_eq("2023.1", "2023.01")
+        self.assert_eq("2023", "2023.0")
+        self.assert_lt("2023", "2023.1")
+    # Simple Debian versions are accepted, but I think it's out of scope,
+    # so this test should probably be dropped in the future.
+    def test_debian_versions(self):
+        self.assert_eq("1-1", "1.0-1")
+        self.assert_lt("1-1", "1-2")
+        self.assert_lt("1.0-1", "1-2")
+        self.assert_lt("1-1", "1.0-2")
+    # Kali versions are not supported:
+    # > packaging.version.InvalidVersion: Invalid version: '1-1kali1'
+    #def test_kali_versions(self):
+    #    self.assert_lt("1-1", "1-1kali1")
+    #    self.assert_lt("1-1", "1-1+kali1")
+    # Real-world versions used for *-kbx packages are not supported:
+    # > packaging.version.InvalidVersion: Invalid version: '0~2021.07.0'
+    #def test_real_world_versions(self):
+    #    # zenmap-kbx: 0~2021.07.0
+    #    parse_version("0~2021.07.0")
+    #    # firefox-developer-edition-kbx: 0~2021.09.0-0kali1
+    #    parse_version("0~2021.09.0-0kali1")
+    #    # covenant-kbx: 0.6-0kali7
+    #    parse_version("0.6-0kali7")
 
 
 class TestKaboxerFindConfigsInDir(unittest.TestCase):

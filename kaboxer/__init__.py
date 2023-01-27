@@ -6,6 +6,7 @@ import grp
 import json
 import logging
 import os
+import packaging.version
 import pathlib
 import re
 import shlex
@@ -22,8 +23,6 @@ from http import HTTPStatus
 import docker
 
 import dockerpty
-
-from packaging.version import parse as parse_version
 
 import requests
 
@@ -88,6 +87,14 @@ def get_all_desktop_file_filenames(app_id, components):
 def get_icon_name(app_id):
     """Filename for the installed icon, without extension"""
     return f"kaboxer-{app_id}"
+
+
+# More helpers
+
+
+def parse_version(version_string):
+    """Parse a version string into a Version object"""
+    return packaging.version.parse(version_string)
 
 
 # Main class
