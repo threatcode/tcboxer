@@ -331,7 +331,7 @@ class Kaboxer:
                     "No access to Docker, are you a member fo the group "
                     "docker or kaboxer?\n"
                     "Consider adding yourself to the kaboxer group with:\n\n"
-                    "    sudo addgroup $(whoami) kaboxer\n\n"
+                    "    sudo adduser $(whoami) kaboxer\n\n"
                     "Then log out and log back in for the change to take effect."
                 )
             logger.error(msg)
