@@ -34,8 +34,8 @@ Depends:
  libyaml-libyaml-perl,
  sudo,
  ${misc:Depends},
- ${python3:Depends},
  ${perl:Depends},
+ ${python3:Depends},
 Description: Framework to manage applications in containers
  Built for Kali Linux (and other Debian-based) systems, Kaboxer is a framework
  providing seamless integrations between applications shipped in containers and
