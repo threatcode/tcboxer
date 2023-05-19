@@ -177,7 +177,7 @@ class Kbxbuilder:
                 origin = repo.remotes["origin"]
             else:
                 logger.debug("Remote already on the correct URL")
-            origin.fetch("--prune")
+            origin.fetch(prune=True)
         else:
             repo = git.Repo.clone_from(self.apps[app]["git_url"], checkoutdir)
         try:
