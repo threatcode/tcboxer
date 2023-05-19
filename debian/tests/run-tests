@@ -2,6 +2,31 @@
 
 set -eux
 
+# kbxbuilder wants to work with git repo, so TestKbxbuilder needs to
+# provide a git repo, and therefore it decided to just use the packaging
+# repo itself. Except that autopkgtest run from a checkout of the source
+# package, so no .git dir. No problem, let's setup a git repo here and now.
+# Beware: Git is very picky with file ownership, and we're root, and the
+# current dir belongs to user debci, and that won't cut it.
+if ! [ -d .git ]; then
+    oldown=$(stat -c %u:%g .)
+    chown -R $(id -u):$(id -g) .
+    git init -b master .
+    git config user.name "Test Suite"
+    git config user.email "devel@kali.org"
+    git add .
+    git commit -m "Test"
+    chown -R $oldown .
+elif [ "$CI_COMMIT_REF_NAME" ]; then
+    # In case we're already a git repo, and we're running in GitLab CI:
+    # we are in detached head state, and that fails kbxbuilder, because
+    # it wants to checkout a branch, but it can't. Arguably kbxbuilder
+    # should be improved to deal with that, but in the meantime: keep
+    # piling up workarounds. More details at:
+    # https://stackoverflow.com/a/69268083/776208
+    git checkout "$CI_COMMIT_REF_NAME"
+fi
+
 # GitLab CI + nftables = KO, must use iptables legacy.
 # Cf. https://gitlab.com/gitlab-com/gl-infra/production/-/issues/5184#note_637383773
 if systemctl is-failed docker; then
