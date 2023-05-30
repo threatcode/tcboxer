@@ -1762,6 +1762,8 @@ Categories={categories}
             if config:
                 return config
         logger.error("Could not find appropriate config file for %s", app)
+        if app.endswith("-kbx"):
+            logger.error("Hint: try removing the ending '-kbx' from the app name?")
         sys.exit(1)
 
     def read_config(self, app):
